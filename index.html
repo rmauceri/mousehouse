@@ -879,6 +879,10 @@ const ROOMS = [
     wallTop: '#5c4a6e', wallBot: '#4a3a5c', floor: '#6b5a50', floorAlt: '#5e4e44',
     baseboard: '#7a6a5a', ceiling: '#6e5a80', accent: '#8a70a0',
     windowNight: '#1a1a3e', windowGlow: '#2a2a5e', shelfColor: '#7a6a5a',
+    // Window: left side to avoid loft on right
+    window: { x: 60, y: ROOM_Y + 14, w: 58, h: 50 },
+    // Shelves: left side only (right has the loft platform)
+    shelves: [{ x: 20, y: ROOM_Y + 90, w: 70 }],
     platforms: [
       { id: 'main-floor', y: 260, xMin: 10, xMax: 470 },
       { id: 'loft', y: 175, xMin: 220, xMax: 460 }
@@ -892,6 +896,10 @@ const ROOMS = [
     wallTop: '#4a6e5a', wallBot: '#3a5c4a', floor: '#6b6050', floorAlt: '#5e5444',
     baseboard: '#7a6a5a', ceiling: '#5a8068', accent: '#70a08a',
     windowNight: '#1a2e1a', windowGlow: '#2a4e2a', shelfColor: '#8a7a60',
+    // Window: right side, above counter area is clear
+    window: { x: 340, y: ROOM_Y + 12, w: 72, h: 52 },
+    // Shelves: right side only (left has counter platform)
+    shelves: [{ x: ROOM_W - 110, y: ROOM_Y + 100, w: 80 }],
     platforms: [
       { id: 'main-floor', y: 260, xMin: 10, xMax: 470 },
       { id: 'counter', y: 190, xMin: 20, xMax: 230 }
@@ -905,6 +913,10 @@ const ROOMS = [
     wallTop: '#6e5a4a', wallBot: '#5c4a3a', floor: '#6b5a48', floorAlt: '#5e4e3e',
     baseboard: '#7a6a5a', ceiling: '#806a50', accent: '#a08a60',
     windowNight: '#2e1a1a', windowGlow: '#4e2a2a', shelfColor: '#7a6a50',
+    // Window: centered-left, wide and short
+    window: { x: 40, y: ROOM_Y + 18, w: 80, h: 44 },
+    // Shelves: far right (box-shelf is center-left)
+    shelves: [{ x: ROOM_W - 95, y: ROOM_Y + 85, w: 65 }],
     platforms: [
       { id: 'main-floor', y: 260, xMin: 10, xMax: 470 },
       { id: 'box-shelf', y: 195, xMin: 140, xMax: 350 }
@@ -918,6 +930,10 @@ const ROOMS = [
     wallTop: '#4a5a6e', wallBot: '#3a4a5c', floor: '#5a6050', floorAlt: '#4e5444',
     baseboard: '#6a7a8a', ceiling: '#5a6a80', accent: '#6080a0',
     windowNight: '#1a1a2e', windowGlow: '#2a2a4e', shelfColor: '#6a7a8a',
+    // Window: left side, tall narrow (gym-style)
+    window: { x: 50, y: ROOM_Y + 10, w: 50, h: 60 },
+    // Shelves: left side (perch is on the right)
+    shelves: [{ x: 130, y: ROOM_Y + 95, w: 75 }, { x: 20, y: ROOM_Y + 130, w: 55 }],
     platforms: [
       { id: 'main-floor', y: 260, xMin: 10, xMax: 470 },
       { id: 'perch', y: 185, xMin: 340, xMax: 460 }
@@ -1004,10 +1020,11 @@ function drawRoom(roomIndex) {
   }
   ctx.globalAlpha = 1.0;
 
-  // -- Window with night sky --
-  const winX = GAME_W / 2 - 34;
-  const winY = ROOM_Y + 16;
-  const winW = 68, winH = 56;
+  // -- Window with night sky (per-room position & size) --
+  const win = room.window || { x: GAME_W / 2 - 34, y: ROOM_Y + 16, w: 68, h: 56 };
+  const winX = win.x;
+  const winY = win.y;
+  const winW = win.w, winH = win.h;
   // Window recess shadow
   ctx.fillStyle = 'rgba(0,0,0,0.25)';
   ctx.fillRect(winX - 3, winY - 3, winW + 6, winH + 6);
@@ -1058,17 +1075,19 @@ function drawRoom(roomIndex) {
   ctx.fillRect(winX + winW - 6, winY, 8, winH);
   ctx.globalAlpha = 1.0;
 
-  // -- Wall shelf (decorative) --
-  const shelfY = ROOM_Y + ROOM_H - FLOOR_H - 80;
-  ctx.fillStyle = room.shelfColor;
-  ctx.fillRect(20, shelfY, 80, 4);
-  ctx.fillRect(ROOM_W - 100, shelfY, 80, 4);
-  // Shelf brackets
-  ctx.fillStyle = 'rgba(0,0,0,0.2)';
-  ctx.fillRect(30, shelfY + 4, 3, 10);
-  ctx.fillRect(87, shelfY + 4, 3, 10);
-  ctx.fillRect(ROOM_W - 90, shelfY + 4, 3, 10);
-  ctx.fillRect(ROOM_W - 33, shelfY + 4, 3, 10);
+  // -- Wall shelves (per-room positions) --
+  const shelves = room.shelves || [
+    { x: 20, y: ROOM_Y + ROOM_H - FLOOR_H - 80, w: 80 },
+    { x: ROOM_W - 100, y: ROOM_Y + ROOM_H - FLOOR_H - 80, w: 80 }
+  ];
+  shelves.forEach(shelf => {
+    ctx.fillStyle = room.shelfColor;
+    ctx.fillRect(shelf.x, shelf.y, shelf.w, 4);
+    // Shelf brackets
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.fillRect(shelf.x + 10, shelf.y + 4, 3, 10);
+    ctx.fillRect(shelf.x + shelf.w - 13, shelf.y + 4, 3, 10);
+  });
 
   // -- Warm light glow from above (ambient lamp effect) --
   const lampGrad = ctx.createRadialGradient(GAME_W / 2, ROOM_Y + 4, 10, GAME_W / 2, ROOM_Y + 60, 200);
@@ -4227,7 +4246,7 @@ function pickNewAction(mouse, personality) {
   }
 
   // Chance to switch levels (climb ramp) — 15% if room has ramps
-  if (room.ramps && room.ramps.length > 0 && roll < 0.25) {
+  if (room.ramps && room.ramps.length > 0 && roll < 0.4) {
     // Find a ramp accessible from current level
     const availableRamps = room.ramps.filter(r => r.from === mouse.level || r.to === mouse.level);
     if (availableRamps.length > 0) {
