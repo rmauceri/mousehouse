@@ -20,10 +20,23 @@ html, body {
 /* ---- HUD ---- */
 #hud {
   position: absolute; top: 0; left: 0; width: 100%;
-  display: none; justify-content: space-between; align-items: center;
-  padding: 6px 12px; background: rgba(30,20,10,0.85);
+  display: none; flex-direction: column;
+  background: rgba(30,20,10,0.85);
   color: #f5d68a; font-size: 16px; z-index: 10;
   border-bottom: 2px solid #a07040;
+}
+#hud-row1 {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 12px;
+}
+#hud-row2 {
+  display: none; text-align: center; padding: 3px 12px 5px;
+  border-top: 1px solid rgba(160,112,64,0.3);
+}
+#hud-row2.visible { display: block; }
+#goal-display {
+  font-size: 13px; color: #e8d5b5; white-space: normal;
+  line-height: 1.3;
 }
 #hud button {
   background: #3d2b1a; color: #f5d68a; border: 2px solid #a07040;
@@ -253,17 +266,21 @@ html, body {
 <canvas id="gameCanvas"></canvas>
 
 <div id="hud">
-  <div style="display:flex;align-items:center;gap:10px;">
-    <span>🧀 <span id="coin-display">0</span></span>
-    <span id="happiness-display" title="Mouse Happiness">❤️ <span id="happiness-value">80</span>%</span>
+  <div id="hud-row1">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span>🧀 <span id="coin-display">0</span></span>
+      <span id="happiness-display" title="Mouse Happiness">❤️ <span id="happiness-value">80</span>%</span>
+    </div>
+    <div class="hud-right">
+      <div class="room-tabs" id="room-tabs"></div>
+      <button id="btn-shop">🛒 Moustazon</button>
+      <button id="btn-games">🎮 Games</button>
+      <button id="btn-letter">💌</button>
+      <button id="btn-sound" title="Sound">🔇</button>
+    </div>
   </div>
-  <div id="goal-display" style="font-size:11px;color:#a89070;max-width:160px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
-  <div class="hud-right">
-    <div class="room-tabs" id="room-tabs"></div>
-    <button id="btn-shop">🛒 Moustazon</button>
-    <button id="btn-games">🎮 Games</button>
-    <button id="btn-letter">💌</button>
-    <button id="btn-sound" title="Sound">🔇</button>
+  <div id="hud-row2">
+    <div id="goal-display"></div>
   </div>
 </div>
 
@@ -3510,13 +3527,16 @@ function generateNewGoal() {
 
 function updateGoalDisplay() {
   const el = document.getElementById('goal-display');
-  if (!el) return;
+  const row2 = document.getElementById('hud-row2');
+  if (!el || !row2) return;
   if (state.activeGoal) {
     el.textContent = `🎯 ${state.activeGoal.text}`;
     el.title = `Place ${FURNITURE.find(f => f.id === state.activeGoal.itemId)?.name || 'the item'} to complete!`;
+    row2.classList.add('visible');
   } else {
     el.textContent = '';
     el.title = '';
+    row2.classList.remove('visible');
   }
 }
 
