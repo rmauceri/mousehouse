@@ -774,12 +774,15 @@ const ctx = canvas.getContext('2d');
 const GAME_W = 480;
 const GAME_H = 360;
 const GRID_SIZE = 24;
+const SNAP_SIZE = 12; // finer placement grid (half-cell)
 const ROOM_Y = 40;
 const ROOM_H = 280;
 const ROOM_W = GAME_W;
 const FLOOR_H = 40;
 const GRID_COLS = Math.floor((ROOM_W - 16) / GRID_SIZE);
 const GRID_ROWS = Math.floor((ROOM_H - FLOOR_H - 30) / GRID_SIZE);
+const SNAP_COLS = GRID_COLS * 2; // snap grid columns
+const SNAP_ROWS = GRID_ROWS * 2; // snap grid rows
 const GRID_OFFSET_X = 8;
 const GRID_OFFSET_Y = ROOM_Y + 30;
 
@@ -808,7 +811,11 @@ function screenToGame(sx, sy) {
   return { x: (sx - rect.left) / scale, y: (sy - rect.top) / scale };
 }
 function gameToGrid(gx, gy) {
-  return { col: Math.floor((gx - GRID_OFFSET_X) / GRID_SIZE), row: Math.floor((gy - GRID_OFFSET_Y) / GRID_SIZE) };
+  // Snap to half-cell (SNAP_SIZE) for finer placement precision
+  return {
+    col: Math.floor((gx - GRID_OFFSET_X) / SNAP_SIZE) / 2,
+    row: Math.floor((gy - GRID_OFFSET_Y) / SNAP_SIZE) / 2
+  };
 }
 function gridToGame(col, row) {
   return { x: GRID_OFFSET_X + col * GRID_SIZE, y: GRID_OFFSET_Y + row * GRID_SIZE };
@@ -1307,12 +1314,12 @@ function drawRoom(roomIndex) {
 
   // -- Grid overlay in placement/drag mode --
   if (state.placementMode || state.removeMode || state.dragState.active) {
-    ctx.strokeStyle = 'rgba(245,214,138,0.18)';
+    ctx.strokeStyle = 'rgba(245,214,138,0.12)';
     ctx.lineWidth = 0.5;
-    for (let r = 0; r < GRID_ROWS; r++) {
-      for (let c = 0; c < GRID_COLS; c++) {
-        const pos = gridToGame(c, r);
-        ctx.strokeRect(pos.x, pos.y, GRID_SIZE, GRID_SIZE);
+    for (let r = 0; r < SNAP_ROWS; r++) {
+      for (let c = 0; c < SNAP_COLS; c++) {
+        const pos = gridToGame(c / 2, r / 2);
+        ctx.strokeRect(pos.x, pos.y, SNAP_SIZE, SNAP_SIZE);
       }
     }
   }
@@ -1326,7 +1333,7 @@ function drawRoom(roomIndex) {
       // Center the item on cursor
       const centerOffX = (dragItem.w * GRID_SIZE) / 2;
       const centerOffY = (dragItem.h * GRID_SIZE) / 2;
-      const grid = gameToGrid(gPos.x - centerOffX + GRID_SIZE / 2, gPos.y - centerOffY + GRID_SIZE / 2);
+      const grid = gameToGrid(gPos.x - centerOffX + SNAP_SIZE / 2, gPos.y - centerOffY + SNAP_SIZE / 2);
       const excludeIdx = ds.fromPlaced ? ds.fromPlacedIdx : undefined;
       const valid = isPlacementValid(ds.itemId, grid.col, grid.row, excludeIdx);
       ctx.save();
@@ -2557,7 +2564,7 @@ function endDrag(sx, sy) {
   // Use same centering as ghost preview
   const centerOffX = (item.w * GRID_SIZE) / 2;
   const centerOffY = (item.h * GRID_SIZE) / 2;
-  const grid = gameToGrid(pos.x - centerOffX + GRID_SIZE / 2, pos.y - centerOffY + GRID_SIZE / 2);
+  const grid = gameToGrid(pos.x - centerOffX + SNAP_SIZE / 2, pos.y - centerOffY + SNAP_SIZE / 2);
 
   const excludeIdx = ds.fromPlaced ? ds.fromPlacedIdx : undefined;
   if (isPlacementValid(ds.itemId, grid.col, grid.row, excludeIdx)) {
@@ -4687,7 +4694,34 @@ function handleCanvasInput(sx, sy, originalEvent) {
 
   // Try petting a mouse
   if (tryPetMouse(pos.x, pos.y)) return;
+
+  // Light dismiss: clicking empty canvas area closes shop flyout
+  if (state.shopOpen && !state.placementMode && !state.dragState.active) {
+    closeShopFlyout();
+    return;
+  }
 }
+
+// Double-click on placed furniture to reposition (opens shop if needed)
+canvas.addEventListener('dblclick', e => {
+  if (cheeseChaseActive || mouseMazeActive) return;
+  const pos = screenToGame(e.clientX, e.clientY);
+  const placedIdx = findPlacedItemAt(pos.x, pos.y);
+  if (placedIdx < 0) return;
+  const placed = state.placedItems[placedIdx];
+  const item = FURNITURE.find(f => f.id === placed.itemId);
+  if (!item || item.exerciseRoom) return;
+  // Open shop if not already open
+  if (!state.shopOpen) {
+    state.shopOpen = true;
+    refreshShopFlyout();
+    refreshItemTray();
+    document.getElementById('shop-flyout').classList.add('open');
+    document.getElementById('item-tray').classList.add('open');
+    if (gamesOpen) closeGamesFlyout();
+  }
+  startDrag(placed.itemId, e.clientX, e.clientY, true, placedIdx);
+});
 
 canvas.addEventListener('mousemove', e => {
   if (cheeseChaseActive && !cc.gameOver) ccInputY = screenToGame(e.clientX, e.clientY).y;
