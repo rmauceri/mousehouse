@@ -1,0 +1,2697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🐭 Mouse House</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%; height: 100%; overflow: hidden;
+  background: #2b1d0e;
+  font-family: 'Courier New', monospace;
+}
+#gameCanvas {
+  display: block; margin: 0 auto;
+  image-rendering: pixelated; image-rendering: crisp-edges;
+  cursor: pointer;
+}
+
+/* ---- HUD ---- */
+#hud {
+  position: absolute; top: 0; left: 0; width: 100%;
+  display: none; justify-content: space-between; align-items: center;
+  padding: 6px 12px; background: rgba(30,20,10,0.85);
+  color: #f5d68a; font-size: 16px; z-index: 10;
+  border-bottom: 2px solid #a07040;
+}
+#hud button {
+  background: #3d2b1a; color: #f5d68a; border: 2px solid #a07040;
+  padding: 5px 12px; font-family: 'Courier New', monospace; font-size: 13px;
+  cursor: pointer; border-radius: 4px; margin-left: 5px;
+  transition: background 0.15s;
+}
+#hud button:hover { background: #5a3d24; }
+#hud button.active { background: #f5d68a; color: #2b1d0e; }
+.room-tabs { display: flex; gap: 3px; }
+.room-tabs button { font-size: 12px; padding: 4px 10px; }
+.hud-right { display: flex; align-items: center; gap: 2px; }
+
+/* ---- Modals ---- */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.8); display: flex; justify-content: center;
+  align-items: center; z-index: 100;
+}
+.modal-content {
+  background: #3d2b1a; border: 3px solid #f5d68a; border-radius: 12px;
+  padding: 20px; max-width: 90vw; max-height: 85vh; overflow-y: auto;
+  color: #e8d5b5; font-family: 'Courier New', monospace;
+}
+.modal-content h2 { color: #f5d68a; text-align: center; margin-bottom: 12px; }
+.modal-content .close-btn {
+  display: block; margin: 12px auto 0; background: #f5d68a; color: #2b1d0e;
+  border: none; padding: 8px 24px; font-size: 16px; cursor: pointer;
+  border-radius: 4px; font-family: 'Courier New', monospace; font-weight: bold;
+}
+.modal-content .close-btn:hover { background: #ffe4a0; }
+
+/* ---- Shop grid ---- */
+.shop-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px; margin: 10px 0;
+}
+.shop-item {
+  background: #2b1d0e; border: 2px solid #6b5030; border-radius: 8px;
+  padding: 10px; text-align: center; cursor: pointer; transition: border-color 0.2s;
+}
+.shop-item:hover { border-color: #f5d68a; }
+.shop-item.owned { border-color: #7bc67e; opacity: 0.7; }
+.shop-item .item-icon { font-size: 28px; margin-bottom: 4px; }
+.shop-item .item-name { color: #f5d68a; font-size: 12px; font-weight: bold; }
+.shop-item .item-desc { color: #a89070; font-size: 10px; margin: 4px 0; }
+.shop-item .item-price { color: #f5d68a; font-size: 14px; font-weight: bold; }
+
+/* ---- Minigame buttons ---- */
+.minigame-btn {
+  display: block; width: 80%; margin: 8px auto; padding: 12px;
+  background: #2b1d0e; border: 2px solid #f5d68a; color: #f5d68a;
+  font-family: 'Courier New', monospace; font-size: 14px; cursor: pointer;
+  border-radius: 6px; text-align: center;
+}
+.minigame-btn:hover { background: #5a3d24; }
+
+/* ---- Toast ---- */
+#toast {
+  position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%);
+  background: rgba(30,20,10,0.92); color: #f5d68a; padding: 10px 22px;
+  border-radius: 8px; font-size: 14px; pointer-events: none;
+  opacity: 0; transition: opacity 0.3s; z-index: 50; text-align: center;
+  border: 1px solid #a07040; max-width: 90vw;
+  font-family: 'Courier New', monospace;
+}
+#toast.show { opacity: 1; }
+
+/* ---- Placement bar ---- */
+#placement-bar {
+  position: fixed; bottom: 0; left: 0; width: 100%;
+  background: rgba(30,20,10,0.9); padding: 8px; display: none;
+  z-index: 20; border-top: 2px solid #f5d68a; text-align: center;
+}
+#placement-bar .info { color: #f5d68a; font-size: 13px; margin-bottom: 6px; font-family: 'Courier New', monospace; }
+#placement-bar button {
+  background: #3d2b1a; color: #f5d68a; border: 2px solid #a07040;
+  padding: 6px 16px; margin: 0 4px; cursor: pointer; border-radius: 4px;
+  font-family: 'Courier New', monospace; font-size: 13px;
+}
+#placement-bar button:hover { background: #5a3d24; }
+
+/* ---- Birthday letter ---- */
+.letter-content {
+  background: #f5f0dc; color: #333; padding: 20px; border-radius: 8px;
+  font-family: Georgia, serif; font-size: 15px; line-height: 1.6;
+  max-width: 400px; margin: 0 auto;
+}
+.letter-content h3 { text-align: center; margin-bottom: 10px; color: #8b4513; }
+
+/* ---- Title screen ---- */
+#title-screen {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: #2b1d0e; display: flex; flex-direction: column;
+  justify-content: center; align-items: center; z-index: 200;
+  cursor: pointer;
+}
+#title-screen h1 {
+  color: #f5d68a; font-size: 38px; margin-bottom: 6px;
+  text-shadow: 2px 2px 0 #1a0f05, 0 0 20px rgba(245,214,138,0.3);
+}
+#title-screen .subtitle { color: #a89070; font-size: 15px; margin-bottom: 30px; }
+#title-screen .start-text {
+  color: #f5d68a; font-size: 16px;
+  animation: pulse 1.5s ease-in-out infinite;
+  margin-top: 20px;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ---- Doomscroll posts ---- */
+.doomscroll-post {
+  background: #2b1d0e; border: 2px solid #6b5030; border-radius: 8px;
+  padding: 12px; margin: 8px 0; cursor: pointer; transition: all 0.2s;
+}
+.doomscroll-post:hover { border-color: #f5d68a; }
+.doomscroll-post .post-user { color: #a89070; font-size: 11px; margin-bottom: 4px; }
+.doomscroll-post .post-text { color: #e8d5b5; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<canvas id="gameCanvas"></canvas>
+
+<div id="hud">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span>🧀 <span id="coin-display">0</span></span>
+    <span id="happiness-display" title="Mouse Happiness">❤️ <span id="happiness-value">80</span>%</span>
+  </div>
+  <div id="goal-display" style="font-size:11px;color:#a89070;max-width:160px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+  <div class="hud-right">
+    <div class="room-tabs" id="room-tabs"></div>
+    <button id="btn-shop">🛒 Moustazon</button>
+    <button id="btn-games">🎮 Games</button>
+    <button id="btn-letter">💌</button>
+    <button id="btn-sound" title="Sound">🔇</button>
+  </div>
+</div>
+
+<div id="volume-popup" style="display:none;position:fixed;z-index:15;background:rgba(30,20,10,0.95);border:2px solid #a07040;border-radius:8px;padding:10px 14px;font-family:'Courier New',monospace;">
+  <label style="color:#f5d68a;font-size:12px;">Volume</label><br>
+  <input type="range" id="volume-slider" min="0" max="100" value="50" style="width:100px;margin-top:4px;accent-color:#f5d68a;">
+</div>
+
+<div id="toast"></div>
+
+<div id="placement-bar">
+  <div class="info" id="placement-info">Click/tap a spot to place the item</div>
+  <button id="btn-cancel-place">✖ Cancel</button>
+  <button id="btn-remove-mode">🗑 Remove</button>
+</div>
+
+<div id="title-screen">
+  <h1>🐭 Mouse House 🐭</h1>
+  <div class="subtitle">A cozy home for Shadow & Cloud</div>
+  <div class="start-text">~ tap or click to start ~</div>
+</div>
+
+<div id="modal-container"></div>
+
+<script>
+// ============================================================
+// CONFIG — Easy to change names, colors, messages
+// ============================================================
+const CONFIG = {
+  mice: {
+    shadow: {
+      name: 'Shadow', bodyColor: '#4a4a4a', earColor: '#3a3a3a',
+      bellyColor: '#5e5e5e', eyeColor: '#111', noseColor: '#ffaaaa',
+      personality: 'chaotic' // more zoomies, sarcastic quotes
+    },
+    cloud: {
+      name: 'Cloud', bodyColor: '#b8b8b8', earColor: '#a5a5a5',
+      bellyColor: '#d0d0d0', eyeColor: '#222', noseColor: '#ffbbbb',
+      personality: 'chill' // more sleeping, wholesome quotes
+    }
+  },
+  twins: { name1: 'Nico', name2: 'Rose', age: 20, birthday: 'February 21' },
+  startingCoins: 50,
+  birthdayMessage: `Dear Nico & Rose,
+
+Happy 20th birthday! 🎂
+
+Twenty years of watching you two grow into the amazing, hilarious, kind humans you are. From tiny babies to tiny-mouse enthusiasts, you've filled every day with joy (and chaos, but mostly joy).
+
+Shadow and Cloud are lucky to have you — and so am I.
+
+Here's a little mouse house for you to make your own. Decorate it, play some games, and know that every pixel was placed with love.
+
+To the moon and back,
+Dad 🐭💛`
+};
+
+// ============================================================
+// AUDIO ENGINE (Web Audio API — all synthesized)
+// ============================================================
+let audioCtx = null;
+let masterGain = null;
+let musicGain = null;
+let sfxGain = null;
+let audioMuted = true;
+let audioVolume = 0.5;
+let musicPlaying = false;
+let musicTimeout = null;
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = audioCtx.createGain();
+  masterGain.connect(audioCtx.destination);
+  masterGain.gain.value = audioMuted ? 0 : audioVolume;
+
+  musicGain = audioCtx.createGain();
+  musicGain.connect(masterGain);
+  musicGain.gain.value = 0.3;
+
+  sfxGain = audioCtx.createGain();
+  sfxGain.connect(masterGain);
+  sfxGain.gain.value = 0.7;
+}
+
+function toggleMute() {
+  initAudio();
+  audioMuted = !audioMuted;
+  masterGain.gain.setTargetAtTime(audioMuted ? 0 : audioVolume, audioCtx.currentTime, 0.05);
+  document.getElementById('btn-sound').textContent = audioMuted ? '🔇' : '🔊';
+  try { localStorage.setItem('mouseHouseAudio', JSON.stringify({ muted: audioMuted, volume: audioVolume })); } catch(e) {}
+  if (!audioMuted && !musicPlaying) startMusic();
+}
+
+function setVolume(v) {
+  audioVolume = v;
+  if (masterGain && !audioMuted) {
+    masterGain.gain.setTargetAtTime(audioVolume, audioCtx.currentTime, 0.05);
+  }
+  try { localStorage.setItem('mouseHouseAudio', JSON.stringify({ muted: audioMuted, volume: audioVolume })); } catch(e) {}
+}
+
+function loadAudioPrefs() {
+  try {
+    const d = JSON.parse(localStorage.getItem('mouseHouseAudio'));
+    if (d) {
+      audioMuted = d.muted ?? true;
+      audioVolume = d.volume ?? 0.5;
+      document.getElementById('btn-sound').textContent = audioMuted ? '🔇' : '🔊';
+      document.getElementById('volume-slider').value = Math.round(audioVolume * 100);
+    }
+  } catch(e) {}
+}
+
+// --- Synth helpers ---
+function playTone(freq, duration, type, gainVal, dest) {
+  if (!audioCtx || audioMuted) return;
+  const osc = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  osc.type = type || 'sine';
+  osc.frequency.value = freq;
+  g.gain.value = gainVal || 0.3;
+  g.gain.setTargetAtTime(0, audioCtx.currentTime + duration * 0.7, duration * 0.15);
+  osc.connect(g);
+  g.connect(dest || sfxGain);
+  osc.start(audioCtx.currentTime);
+  osc.stop(audioCtx.currentTime + duration);
+}
+
+function playNoise(duration, gainVal) {
+  if (!audioCtx || audioMuted) return;
+  const bufSize = audioCtx.sampleRate * duration;
+  const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * 0.3;
+  const src = audioCtx.createBufferSource();
+  src.buffer = buf;
+  const g = audioCtx.createGain();
+  g.gain.value = gainVal || 0.1;
+  g.gain.setTargetAtTime(0, audioCtx.currentTime + duration * 0.5, duration * 0.2);
+  src.connect(g);
+  g.connect(sfxGain);
+  src.start();
+}
+
+// --- Sound effects ---
+function sfxSqueak() {
+  if (!audioCtx) return;
+  const baseFreq = 1800 + Math.random() * 600;
+  playTone(baseFreq, 0.08, 'sine', 0.2);
+  setTimeout(() => playTone(baseFreq * 1.2, 0.06, 'sine', 0.15), 50);
+}
+
+function sfxCoinCollect() {
+  if (!audioCtx) return;
+  playTone(880, 0.08, 'square', 0.12);
+  setTimeout(() => playTone(1100, 0.08, 'square', 0.12), 60);
+  setTimeout(() => playTone(1320, 0.1, 'square', 0.1), 120);
+}
+
+function sfxBuy() {
+  if (!audioCtx) return;
+  playTone(523, 0.06, 'square', 0.12);
+  setTimeout(() => playTone(659, 0.06, 'square', 0.12), 50);
+  setTimeout(() => playTone(784, 0.06, 'square', 0.12), 100);
+  setTimeout(() => playTone(1047, 0.12, 'square', 0.1), 150);
+}
+
+function sfxPlace() {
+  if (!audioCtx) return;
+  playNoise(0.06, 0.15);
+  setTimeout(() => playTone(600, 0.1, 'triangle', 0.1), 40);
+  setTimeout(() => playTone(900, 0.08, 'sine', 0.06), 100);
+}
+
+function sfxPet() {
+  if (!audioCtx) return;
+  const f = 1400 + Math.random() * 400;
+  playTone(f, 0.06, 'sine', 0.15);
+  setTimeout(() => playTone(f * 1.15, 0.06, 'sine', 0.12), 60);
+  setTimeout(() => playTone(f * 1.3, 0.08, 'sine', 0.1), 120);
+}
+
+function sfxZoomies() {
+  if (!audioCtx) return;
+  for (let i = 0; i < 4; i++) {
+    setTimeout(() => playTone(400 + i * 150, 0.05, 'sawtooth', 0.06), i * 40);
+  }
+}
+
+function sfxCheeseCollect() {
+  if (!audioCtx) return;
+  playTone(1200, 0.05, 'sine', 0.15);
+  setTimeout(() => playTone(1600, 0.07, 'sine', 0.1), 40);
+}
+
+function sfxCrash() {
+  if (!audioCtx) return;
+  playNoise(0.15, 0.2);
+  playTone(200, 0.2, 'sawtooth', 0.12);
+  setTimeout(() => playTone(120, 0.25, 'sawtooth', 0.08), 80);
+}
+
+function sfxGoodLike() {
+  if (!audioCtx) return;
+  playTone(523, 0.08, 'triangle', 0.12);
+  setTimeout(() => playTone(659, 0.08, 'triangle', 0.12), 70);
+  setTimeout(() => playTone(784, 0.12, 'triangle', 0.1), 140);
+}
+
+function sfxBadLike() {
+  if (!audioCtx) return;
+  playTone(300, 0.15, 'sawtooth', 0.1);
+  setTimeout(() => playTone(250, 0.15, 'sawtooth', 0.1), 150);
+  setTimeout(() => playTone(200, 0.25, 'sawtooth', 0.08), 300);
+}
+
+function sfxFanfare() {
+  if (!audioCtx) return;
+  const notes = [523, 659, 784, 1047, 784, 1047, 1319];
+  notes.forEach((n, i) => {
+    setTimeout(() => playTone(n, 0.12, 'square', 0.1), i * 100);
+  });
+}
+
+function sfxGoalComplete() {
+  if (!audioCtx) return;
+  const notes = [659, 784, 1047, 1319];
+  notes.forEach((n, i) => {
+    setTimeout(() => playTone(n, 0.1, 'triangle', 0.12), i * 80);
+  });
+}
+
+function sfxSpeechBubble() {
+  if (!audioCtx) return;
+  const f = 1000 + Math.random() * 800;
+  playTone(f, 0.03, 'sine', 0.06);
+}
+
+function sfxUIClick() {
+  if (!audioCtx) return;
+  playTone(800, 0.03, 'square', 0.06);
+}
+
+// --- Background music (gentle pentatonic loop) ---
+const MUSIC_NOTES = [
+  // 4-bar loop in C pentatonic, cozy and gentle
+  // [note freq, duration in ms]
+  [262, 300], [330, 300], [392, 300], [330, 300],
+  [440, 300], [392, 300], [330, 600],
+  [294, 300], [330, 300], [392, 300], [440, 300],
+  [392, 300], [330, 300], [262, 600],
+  [330, 300], [392, 300], [440, 300], [392, 300],
+  [330, 300], [294, 300], [262, 600],
+  [392, 300], [330, 300], [294, 300], [330, 300],
+  [262, 300], [294, 300], [262, 600],
+];
+
+let musicNoteIndex = 0;
+
+function startMusic() {
+  if (!audioCtx || musicPlaying) return;
+  musicPlaying = true;
+  playMusicNote();
+}
+
+function stopMusic() {
+  musicPlaying = false;
+  if (musicTimeout) clearTimeout(musicTimeout);
+}
+
+function playMusicNote() {
+  if (!musicPlaying || audioMuted) { musicPlaying = false; return; }
+  const [freq, dur] = MUSIC_NOTES[musicNoteIndex % MUSIC_NOTES.length];
+  musicNoteIndex++;
+
+  // Soft triangle wave melody
+  const osc = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.value = freq;
+  g.gain.value = 0.08;
+  // Gentle attack and release
+  g.gain.setValueAtTime(0, audioCtx.currentTime);
+  g.gain.linearRampToValueAtTime(0.08, audioCtx.currentTime + 0.03);
+  g.gain.setTargetAtTime(0, audioCtx.currentTime + (dur / 1000) * 0.6, (dur / 1000) * 0.15);
+  osc.connect(g);
+  g.connect(musicGain);
+  osc.start(audioCtx.currentTime);
+  osc.stop(audioCtx.currentTime + dur / 1000 + 0.1);
+
+  // Subtle harmony (fifth below, very quiet)
+  if (musicNoteIndex % 4 === 0) {
+    const osc2 = audioCtx.createOscillator();
+    const g2 = audioCtx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.value = freq * 0.667;
+    g2.gain.value = 0.03;
+    g2.gain.setTargetAtTime(0, audioCtx.currentTime + (dur / 1000) * 0.5, (dur / 1000) * 0.2);
+    osc2.connect(g2);
+    g2.connect(musicGain);
+    osc2.start(audioCtx.currentTime);
+    osc2.stop(audioCtx.currentTime + dur / 1000 + 0.15);
+  }
+
+  musicTimeout = setTimeout(playMusicNote, dur);
+}
+
+// Wire up sound button and volume slider
+document.getElementById('btn-sound').addEventListener('click', (e) => {
+  toggleMute();
+  e.stopPropagation();
+  // Position volume popup near the button
+  const btn = document.getElementById('btn-sound');
+  const popup = document.getElementById('volume-popup');
+  if (!audioMuted) {
+    const rect = btn.getBoundingClientRect();
+    popup.style.top = (rect.bottom + 4) + 'px';
+    popup.style.right = (window.innerWidth - rect.right) + 'px';
+    popup.style.display = 'block';
+    setTimeout(() => { popup.style.display = 'none'; }, 3000);
+  } else {
+    popup.style.display = 'none';
+  }
+});
+
+document.getElementById('volume-slider').addEventListener('input', (e) => {
+  setVolume(parseInt(e.target.value) / 100);
+});
+
+// ============================================================
+// GAME STATE
+// ============================================================
+let state = {
+  coins: CONFIG.startingCoins,
+  currentRoom: 0,
+  ownedItems: [],
+  placedItems: [],
+  miceState: {
+    shadow: { x: 120, y: 0, room: 0, action: 'idle', actionTimer: 0, dir: 1, frame: 0, animTimer: 0, happiness: 80 },
+    cloud:  { x: 250, y: 0, room: 1, action: 'idle', actionTimer: 0, dir: -1, frame: 0, animTimer: 0, happiness: 80 }
+  },
+  birthdayEventSeen: false,
+  letterRead: false,
+  lootCrumbsUsed: 0,
+  totalCoinsEarned: 0,
+  placementMode: null,
+  removeMode: false,
+  gameStarted: false,
+  activeGoal: null
+};
+
+// ============================================================
+// FURNITURE CATALOG
+// ============================================================
+const FURNITURE = [
+  { id: 'matchbox-bed', name: 'Matchbox Bed', icon: '🛏', price: 10,
+    desc: 'A cozy matchbox. Smells like sulfur and dreams.', w: 2, h: 1,
+    color: '#8B4513', mouseBehavior: 'sleeping' },
+  { id: 'thimble-cup', name: 'Thimble Cup', icon: '☕', price: 5,
+    desc: "One thimble of coffee. It's a latte, actually.", w: 1, h: 1,
+    color: '#C0C0C0', mouseBehavior: 'eating' },
+  { id: 'bottlecap-plate', name: 'Bottle Cap Plate', icon: '🍽', price: 5,
+    desc: 'Fine dining. Michelin star pending.', w: 1, h: 1,
+    color: '#FF6347', mouseBehavior: 'eating' },
+  { id: 'fairy-lights', name: 'Fairy Lights', icon: '✨', price: 15,
+    desc: 'Aesthetic™. Very cottagecore.', w: 3, h: 1,
+    color: '#FFD700', mouseBehavior: null, wallMount: true },
+  { id: 'tiny-laptop', name: 'Tiny Laptop', icon: '💻', price: 30,
+    desc: 'For doomscrolling at 3am. No judgment.', w: 1, h: 1,
+    color: '#708090', mouseBehavior: 'doomscrolling' },
+  { id: 'yoga-mat', name: 'Yoga Mat', icon: '🧘', price: 12,
+    desc: 'Namaste in bed, actually.', w: 2, h: 1,
+    color: '#9370DB', mouseBehavior: 'yoga' },
+  { id: 'live-laugh-cheese', name: '"Live Laugh Cheese"', icon: '📜', price: 8,
+    desc: 'The pinnacle of interior design.', w: 2, h: 1,
+    color: '#FFF8DC', mouseBehavior: null, wallMount: true },
+  { id: 'sourdough', name: 'Sourdough Starter', icon: '🍞', price: 20,
+    desc: "Started in 2020. Has a name. Don't ask.", w: 1, h: 1,
+    color: '#DEB887', mouseBehavior: 'eating' },
+  { id: 'ring-light', name: 'Ring Light', icon: '💡', price: 18,
+    desc: 'Content creation station. Very influencer.', w: 1, h: 1,
+    color: '#FFE4B5', mouseBehavior: null },
+  { id: 'cardboard-couch', name: 'Cardboard Couch', icon: '🛋', price: 15,
+    desc: "It's giving... IKEA but make it rodent.", w: 2, h: 1,
+    color: '#8FBC8F', mouseBehavior: 'idle' },
+  { id: 'spool-table', name: 'Spool Table', icon: '🪑', price: 10,
+    desc: 'Upcycled. Sustainable. Cottagecore.', w: 1, h: 1,
+    color: '#D2691E', mouseBehavior: null },
+  { id: 'eraser-tv', name: 'Eraser TV', icon: '📺', price: 20,
+    desc: 'Only shows static but they love it.', w: 1, h: 1,
+    color: '#2F4F4F', mouseBehavior: 'watching' },
+  { id: 'ethernet-rope', name: 'Ethernet Jump Rope', icon: '🔌', price: 10,
+    desc: 'Cat5e for cardio. Technically still connected.', w: 1, h: 1,
+    color: '#4682B4', mouseBehavior: 'playing' },
+  { id: 'cork-stool', name: 'Cork Stool', icon: '🪑', price: 6,
+    desc: 'Wine night leftover. Reduce reuse re-sit.', w: 1, h: 1,
+    color: '#BC8F8F', mouseBehavior: null },
+  { id: 'tiny-plant', name: 'Tiny Plant', icon: '🪴', price: 8,
+    desc: "It's fake but we don't talk about that.", w: 1, h: 1,
+    color: '#228B22', mouseBehavior: null },
+  { id: 'disco-ball', name: 'Disco Ball', icon: '🪩', price: 22,
+    desc: 'For when the zoomies hit at midnight.', w: 1, h: 1,
+    color: '#E0E0E0', mouseBehavior: 'zoomies', wallMount: true },
+  { id: 'among-us-bean', name: 'Sus Beanbag', icon: '🫘', price: 15,
+    desc: 'A bit sus but very comfy. Emergency nap.', w: 1, h: 1,
+    color: '#EF4444', mouseBehavior: 'sleeping' },
+  { id: 'cheese-wheel', name: 'Cheese Wheel', icon: '🧀', price: 25,
+    desc: 'The holy grail. The one cheese to rule them all.', w: 1, h: 1,
+    color: '#FFD700', mouseBehavior: 'eating' },
+  { id: 'stamp-painting', name: 'Stamp Painting', icon: '🖼', price: 8,
+    desc: 'Is it modern art? Is it a stamp? Yes.', w: 1, h: 1,
+    color: '#DDA0DD', mouseBehavior: null, wallMount: true },
+  { id: 'tiny-hoodie', name: 'Tiny Hoodie Rack', icon: '🧥', price: 12,
+    desc: 'For when the vibes are chilly.', w: 1, h: 1,
+    color: '#4169E1', mouseBehavior: null },
+  // Birthday items (hidden until birthday event)
+  { id: 'birthday-cake', name: 'Birthday Cake', icon: '🎂', price: 0,
+    desc: 'Happy 20th Nico & Rose! 🎉', w: 1, h: 1,
+    color: '#FF69B4', mouseBehavior: 'eating', birthday: true },
+  { id: 'party-banner', name: 'Party Banner', icon: '🎉', price: 0,
+    desc: "It's giving... birthday.", w: 3, h: 1,
+    color: '#FF1493', mouseBehavior: null, birthday: true, wallMount: true },
+];
+
+// ============================================================
+// CANVAS SETUP — 480x360 game coords, scaled to fit
+// ============================================================
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const GAME_W = 480;
+const GAME_H = 360;
+const GRID_SIZE = 24;
+const ROOM_Y = 40;
+const ROOM_H = 280;
+const ROOM_W = GAME_W;
+const FLOOR_H = 40;
+const GRID_COLS = Math.floor((ROOM_W - 16) / GRID_SIZE);
+const GRID_ROWS = Math.floor((ROOM_H - FLOOR_H - 30) / GRID_SIZE);
+const GRID_OFFSET_X = 8;
+const GRID_OFFSET_Y = ROOM_Y + 30;
+
+let scale = 1, offsetX = 0, offsetY = 0;
+
+function resizeCanvas() {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  scale = Math.min(w / GAME_W, h / GAME_H);
+  canvas.style.width = (GAME_W * scale) + 'px';
+  canvas.style.height = (GAME_H * scale) + 'px';
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = GAME_W * dpr;
+  canvas.height = GAME_H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  offsetX = (w - GAME_W * scale) / 2;
+  offsetY = (h - GAME_H * scale) / 2;
+  canvas.style.marginLeft = offsetX + 'px';
+  canvas.style.marginTop = offsetY + 'px';
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+function screenToGame(sx, sy) {
+  const rect = canvas.getBoundingClientRect();
+  return { x: (sx - rect.left) / scale, y: (sy - rect.top) / scale };
+}
+function gameToGrid(gx, gy) {
+  return { col: Math.floor((gx - GRID_OFFSET_X) / GRID_SIZE), row: Math.floor((gy - GRID_OFFSET_Y) / GRID_SIZE) };
+}
+function gridToGame(col, row) {
+  return { x: GRID_OFFSET_X + col * GRID_SIZE, y: GRID_OFFSET_Y + row * GRID_SIZE };
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+let toastTimeout;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ============================================================
+// SAVE / LOAD
+// ============================================================
+function saveGame() {
+  try {
+    localStorage.setItem('mouseHouseSave', JSON.stringify({
+      coins: state.coins, ownedItems: state.ownedItems,
+      placedItems: state.placedItems, currentRoom: state.currentRoom,
+      miceState: state.miceState, birthdayEventSeen: state.birthdayEventSeen,
+      letterRead: state.letterRead, lootCrumbsUsed: state.lootCrumbsUsed,
+      totalCoinsEarned: state.totalCoinsEarned, activeGoal: state.activeGoal
+    }));
+  } catch (e) {}
+}
+
+function loadGame() {
+  try {
+    const d = JSON.parse(localStorage.getItem('mouseHouseSave'));
+    if (d) {
+      state.coins = d.coins ?? CONFIG.startingCoins;
+      state.ownedItems = d.ownedItems ?? [];
+      state.placedItems = d.placedItems ?? [];
+      state.currentRoom = d.currentRoom ?? 0;
+      state.birthdayEventSeen = d.birthdayEventSeen ?? false;
+      state.letterRead = d.letterRead ?? false;
+      state.lootCrumbsUsed = d.lootCrumbsUsed ?? 0;
+      state.totalCoinsEarned = d.totalCoinsEarned ?? 0;
+      state.activeGoal = d.activeGoal ?? null;
+      if (d.miceState) {
+        Object.assign(state.miceState.shadow, d.miceState.shadow || {});
+        Object.assign(state.miceState.cloud, d.miceState.cloud || {});
+      }
+    }
+  } catch (e) {}
+}
+
+function closeModal() { document.getElementById('modal-container').innerHTML = ''; }
+
+function updateCoinDisplay() {
+  document.getElementById('coin-display').textContent = state.coins;
+}
+
+// ============================================================
+// ROOM TABS
+// ============================================================
+const ROOMS = [
+  {
+    name: 'Bedroom', icon: '🛏',
+    wallTop: '#5c4a6e', wallBot: '#4a3a5c', floor: '#6b5a50', floorAlt: '#5e4e44',
+    baseboard: '#7a6a5a', ceiling: '#6e5a80', accent: '#8a70a0',
+    windowNight: '#1a1a3e', windowGlow: '#2a2a5e', shelfColor: '#7a6a5a'
+  },
+  {
+    name: 'Kitchen', icon: '🍳',
+    wallTop: '#4a6e5a', wallBot: '#3a5c4a', floor: '#6b6050', floorAlt: '#5e5444',
+    baseboard: '#7a6a5a', ceiling: '#5a8068', accent: '#70a08a',
+    windowNight: '#1a2e1a', windowGlow: '#2a4e2a', shelfColor: '#8a7a60'
+  },
+  {
+    name: 'Living Room', icon: '🛋',
+    wallTop: '#6e5a4a', wallBot: '#5c4a3a', floor: '#6b5a48', floorAlt: '#5e4e3e',
+    baseboard: '#7a6a5a', ceiling: '#806a50', accent: '#a08a60',
+    windowNight: '#2e1a1a', windowGlow: '#4e2a2a', shelfColor: '#7a6a50'
+  }
+];
+
+function buildRoomTabs() {
+  const tabs = document.getElementById('room-tabs');
+  tabs.innerHTML = ROOMS.map((r, i) =>
+    `<button class="${i === state.currentRoom ? 'active' : ''}" onclick="switchRoom(${i})">${r.icon}</button>`
+  ).join('');
+}
+function switchRoom(i) {
+  state.currentRoom = i;
+  buildRoomTabs();
+  saveGame();
+}
+
+// ============================================================
+// PARTICLES (dust motes, floating in rooms)
+// ============================================================
+let particles = [];
+function initParticles() {
+  for (let i = 0; i < 15; i++) {
+    particles.push({
+      x: Math.random() * GAME_W,
+      y: ROOM_Y + Math.random() * ROOM_H,
+      size: 1 + Math.random() * 1.5,
+      speedX: (Math.random() - 0.5) * 0.15,
+      speedY: -0.05 - Math.random() * 0.1,
+      alpha: 0.15 + Math.random() * 0.2
+    });
+  }
+}
+function updateParticles(dt) {
+  particles.forEach(p => {
+    p.x += p.speedX * dt * 0.06;
+    p.y += p.speedY * dt * 0.06;
+    if (p.y < ROOM_Y) { p.y = ROOM_Y + ROOM_H; p.x = Math.random() * GAME_W; }
+    if (p.x < 0) p.x = GAME_W;
+    if (p.x > GAME_W) p.x = 0;
+  });
+}
+function drawParticles() {
+  particles.forEach(p => {
+    ctx.fillStyle = `rgba(255, 240, 210, ${p.alpha})`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+// ============================================================
+// ROOM RENDERING
+// ============================================================
+function drawRoom(roomIndex) {
+  const room = ROOMS[roomIndex];
+  const t = Date.now() / 1000;
+
+  // -- Top bar --
+  ctx.fillStyle = '#1a0f05';
+  ctx.fillRect(0, 0, GAME_W, ROOM_Y);
+
+  // -- Wall gradient (top to bottom) --
+  const wallGrad = ctx.createLinearGradient(0, ROOM_Y, 0, ROOM_Y + ROOM_H - FLOOR_H);
+  wallGrad.addColorStop(0, room.wallTop);
+  wallGrad.addColorStop(1, room.wallBot);
+  ctx.fillStyle = wallGrad;
+  ctx.fillRect(0, ROOM_Y, ROOM_W, ROOM_H - FLOOR_H);
+
+  // -- Subtle wall texture (soft horizontal lines) --
+  ctx.globalAlpha = 0.06;
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 1;
+  for (let y = ROOM_Y + 8; y < ROOM_Y + ROOM_H - FLOOR_H; y += 12) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(ROOM_W, y);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1.0;
+
+  // -- Window with night sky --
+  const winX = GAME_W / 2 - 34;
+  const winY = ROOM_Y + 16;
+  const winW = 68, winH = 56;
+  // Window recess shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.fillRect(winX - 3, winY - 3, winW + 6, winH + 6);
+  // Night sky
+  ctx.fillStyle = room.windowNight;
+  ctx.fillRect(winX, winY, winW, winH);
+  // Moon glow
+  ctx.fillStyle = room.windowGlow;
+  ctx.beginPath();
+  ctx.arc(winX + winW - 14, winY + 14, 18, 0, Math.PI * 2);
+  ctx.fill();
+  // Moon
+  ctx.fillStyle = '#eee8d0';
+  ctx.beginPath();
+  ctx.arc(winX + winW - 14, winY + 14, 7, 0, Math.PI * 2);
+  ctx.fill();
+  // Stars (twinkle)
+  const starPositions = [
+    [0.15, 0.2], [0.3, 0.65], [0.5, 0.15], [0.7, 0.5], [0.85, 0.3],
+    [0.25, 0.4], [0.6, 0.7], [0.45, 0.45]
+  ];
+  starPositions.forEach(([sx, sy], i) => {
+    const twinkle = 0.4 + 0.6 * Math.abs(Math.sin(t * 1.5 + i * 1.7));
+    ctx.globalAlpha = twinkle;
+    ctx.fillStyle = '#fffde0';
+    const size = (i % 3 === 0) ? 2 : 1;
+    ctx.fillRect(winX + sx * winW, winY + sy * winH, size, size);
+  });
+  ctx.globalAlpha = 1.0;
+  // Window panes (cross)
+  ctx.strokeStyle = '#8a7a60';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(winX, winY, winW, winH);
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(winX + winW / 2, winY);
+  ctx.lineTo(winX + winW / 2, winY + winH);
+  ctx.moveTo(winX, winY + winH / 2);
+  ctx.lineTo(winX + winW, winY + winH / 2);
+  ctx.stroke();
+  // Window sill
+  ctx.fillStyle = '#8a7a60';
+  ctx.fillRect(winX - 6, winY + winH, winW + 12, 5);
+  // Tiny curtains
+  ctx.fillStyle = room.accent;
+  ctx.globalAlpha = 0.4;
+  ctx.fillRect(winX - 2, winY, 8, winH);
+  ctx.fillRect(winX + winW - 6, winY, 8, winH);
+  ctx.globalAlpha = 1.0;
+
+  // -- Wall shelf (decorative) --
+  const shelfY = ROOM_Y + ROOM_H - FLOOR_H - 80;
+  ctx.fillStyle = room.shelfColor;
+  ctx.fillRect(20, shelfY, 80, 4);
+  ctx.fillRect(ROOM_W - 100, shelfY, 80, 4);
+  // Shelf brackets
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.fillRect(30, shelfY + 4, 3, 10);
+  ctx.fillRect(87, shelfY + 4, 3, 10);
+  ctx.fillRect(ROOM_W - 90, shelfY + 4, 3, 10);
+  ctx.fillRect(ROOM_W - 33, shelfY + 4, 3, 10);
+
+  // -- Warm light glow from above (ambient lamp effect) --
+  const lampGrad = ctx.createRadialGradient(GAME_W / 2, ROOM_Y + 4, 10, GAME_W / 2, ROOM_Y + 60, 200);
+  lampGrad.addColorStop(0, 'rgba(255, 220, 150, 0.08)');
+  lampGrad.addColorStop(1, 'rgba(255, 220, 150, 0)');
+  ctx.fillStyle = lampGrad;
+  ctx.fillRect(0, ROOM_Y, GAME_W, ROOM_H - FLOOR_H);
+
+  // -- Baseboard --
+  ctx.fillStyle = room.baseboard;
+  ctx.fillRect(0, ROOM_Y + ROOM_H - FLOOR_H - 5, ROOM_W, 5);
+  // Baseboard shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.15)';
+  ctx.fillRect(0, ROOM_Y + ROOM_H - FLOOR_H - 6, ROOM_W, 1);
+
+  // -- Floor --
+  ctx.fillStyle = room.floor;
+  ctx.fillRect(0, ROOM_Y + ROOM_H - FLOOR_H, ROOM_W, FLOOR_H);
+  // Floor boards
+  ctx.strokeStyle = room.floorAlt;
+  ctx.lineWidth = 1;
+  for (let fx = 0; fx < ROOM_W; fx += 36) {
+    ctx.beginPath();
+    ctx.moveTo(fx, ROOM_Y + ROOM_H - FLOOR_H);
+    ctx.lineTo(fx, ROOM_Y + ROOM_H);
+    ctx.stroke();
+  }
+  // Floor highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.04)';
+  ctx.fillRect(0, ROOM_Y + ROOM_H - FLOOR_H, ROOM_W, 2);
+
+  // -- Ceiling trim --
+  ctx.fillStyle = room.ceiling;
+  ctx.fillRect(0, ROOM_Y, ROOM_W, 5);
+  ctx.fillStyle = 'rgba(255,255,255,0.1)';
+  ctx.fillRect(0, ROOM_Y + 5, ROOM_W, 1);
+
+  // -- Dollhouse frame edges (left & right walls) --
+  ctx.fillStyle = '#3a2a1a';
+  ctx.fillRect(0, ROOM_Y, 4, ROOM_H);
+  ctx.fillRect(ROOM_W - 4, ROOM_Y, 4, ROOM_H);
+  // Inner wall shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.1)';
+  ctx.fillRect(4, ROOM_Y, 6, ROOM_H);
+  ctx.fillRect(ROOM_W - 10, ROOM_Y, 6, ROOM_H);
+
+  // -- Dust particles --
+  drawParticles();
+
+  // -- Draw placed furniture for this room --
+  const roomItems = state.placedItems.filter(p => p.room === roomIndex);
+  roomItems.forEach(placed => {
+    const item = FURNITURE.find(f => f.id === placed.itemId);
+    if (item) drawFurnitureItem(item, placed.gridX, placed.gridY);
+  });
+
+  // -- Grid overlay in placement/remove mode --
+  if (state.placementMode || state.removeMode) {
+    ctx.strokeStyle = 'rgba(245,214,138,0.18)';
+    ctx.lineWidth = 0.5;
+    for (let r = 0; r < GRID_ROWS; r++) {
+      for (let c = 0; c < GRID_COLS; c++) {
+        const pos = gridToGame(c, r);
+        ctx.strokeRect(pos.x, pos.y, GRID_SIZE, GRID_SIZE);
+      }
+    }
+  }
+
+  // -- Room name label --
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  const labelW = ctx.measureText(`${room.icon} ${room.name}`).width + 20;
+  ctx.fillRect(GAME_W / 2 - labelW / 2, ROOM_Y + ROOM_H - 20, labelW, 18);
+  ctx.fillStyle = '#d0c0a0';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`${room.icon} ${room.name}`, GAME_W / 2, ROOM_Y + ROOM_H - 11);
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+
+  // -- Bottom bar --
+  ctx.fillStyle = '#1a0f05';
+  ctx.fillRect(0, ROOM_Y + ROOM_H, GAME_W, GAME_H - ROOM_Y - ROOM_H);
+}
+
+// ============================================================
+// FURNITURE RENDERING
+// ============================================================
+function drawFurnitureItem(item, gx, gy) {
+  const pos = gridToGame(gx, gy);
+  const w = item.w * GRID_SIZE;
+  const h = item.h * GRID_SIZE;
+
+  // Drop shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.beginPath();
+  ctx.roundRect(pos.x + 2, pos.y + 2, w, h, 3);
+  ctx.fill();
+
+  // Main body
+  ctx.fillStyle = item.color;
+  ctx.beginPath();
+  ctx.roundRect(pos.x, pos.y, w, h, 3);
+  ctx.fill();
+
+  // Top highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.fillRect(pos.x + 2, pos.y + 1, w - 4, 3);
+
+  // Bottom edge
+  ctx.fillStyle = 'rgba(0,0,0,0.15)';
+  ctx.fillRect(pos.x + 1, pos.y + h - 2, w - 2, 2);
+
+  // Emoji icon centered
+  const iconSize = Math.min(w, h) - 4;
+  ctx.font = `${iconSize}px serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(item.icon, pos.x + w / 2, pos.y + h / 2 + 1);
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+
+  // Glow effect for special items
+  if (item.id === 'fairy-lights' || item.id === 'disco-ball' || item.id === 'ring-light') {
+    const glow = ctx.createRadialGradient(
+      pos.x + w / 2, pos.y + h / 2, 2,
+      pos.x + w / 2, pos.y + h / 2, w
+    );
+    glow.addColorStop(0, 'rgba(255,240,180,0.12)');
+    glow.addColorStop(1, 'rgba(255,240,180,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(pos.x - w / 2, pos.y - h / 2, w * 2, h * 2);
+  }
+}
+
+// ============================================================
+// FURNITURE PLACEMENT & REMOVAL
+// ============================================================
+function startPlacement(itemId) {
+  closeModal();
+  state.placementMode = itemId;
+  state.removeMode = false;
+  const item = FURNITURE.find(f => f.id === itemId);
+  document.getElementById('placement-info').textContent =
+    `Placing: ${item.icon} ${item.name} — tap a spot in the room`;
+  document.getElementById('placement-bar').style.display = 'block';
+}
+
+function cancelPlacement() {
+  state.placementMode = null;
+  state.removeMode = false;
+  document.getElementById('placement-bar').style.display = 'none';
+}
+
+function toggleRemoveMode() {
+  state.removeMode = !state.removeMode;
+  state.placementMode = state.removeMode ? '__remove__' : null;
+  document.getElementById('placement-info').textContent = state.removeMode
+    ? '🗑 Remove mode: tap a placed item to remove it'
+    : 'Cancelled';
+  if (!state.removeMode) cancelPlacement();
+}
+
+function handlePlacementClick(gx, gy) {
+  const grid = gameToGrid(gx, gy);
+  if (grid.col < 0 || grid.col >= GRID_COLS || grid.row < 0 || grid.row >= GRID_ROWS) return;
+
+  if (state.removeMode) {
+    const idx = state.placedItems.findIndex(p => {
+      if (p.room !== state.currentRoom) return false;
+      const it = FURNITURE.find(f => f.id === p.itemId);
+      if (!it) return false;
+      return grid.col >= p.gridX && grid.col < p.gridX + it.w &&
+             grid.row >= p.gridY && grid.row < p.gridY + it.h;
+    });
+    if (idx >= 0) {
+      const removed = state.placedItems.splice(idx, 1)[0];
+      const item = FURNITURE.find(f => f.id === removed.itemId);
+      showToast(`Removed ${item?.name || 'item'} 🗑`);
+      saveGame();
+    }
+    return;
+  }
+
+  const item = FURNITURE.find(f => f.id === state.placementMode);
+  if (!item) return;
+
+  // Bounds check
+  if (grid.col + item.w > GRID_COLS || grid.row + item.h > GRID_ROWS) {
+    showToast("Doesn't fit there! 🐭");
+    return;
+  }
+
+  // Overlap check
+  const overlaps = state.placedItems.some(p => {
+    if (p.room !== state.currentRoom) return false;
+    const pi = FURNITURE.find(f => f.id === p.itemId);
+    if (!pi) return false;
+    return !(grid.col + item.w <= p.gridX || p.gridX + pi.w <= grid.col ||
+             grid.row + item.h <= p.gridY || p.gridY + pi.h <= grid.row);
+  });
+  if (overlaps) {
+    showToast("Something's already there! 🧀");
+    return;
+  }
+
+  state.placedItems.push({
+    itemId: item.id, room: state.currentRoom,
+    gridX: grid.col, gridY: grid.row
+  });
+
+  sfxPlace();
+  showToast(`Placed ${item.icon} ${item.name}!`);
+  cancelPlacement();
+  addHappiness(3);
+  saveGame();
+
+  // Make mice react to newly placed item
+  reactToNewFurniture(item);
+}
+
+function reactToNewFurniture(item) {
+  // Both mice in the current room get curious
+  ['shadow', 'cloud'].forEach(key => {
+    const mouse = state.miceState[key];
+    if (mouse.room !== state.currentRoom) return;
+    // Walk toward the new item
+    const placed = state.placedItems[state.placedItems.length - 1];
+    const targetPos = gridToGame(placed.gridX, placed.gridY);
+    mouse.action = 'walking';
+    mouse.targetX = targetPos.x + (key === 'shadow' ? -10 : 20);
+    mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
+    mouse.actionTimer = 5000;
+    // After reaching it, do a curious speech bubble
+    setTimeout(() => {
+      if (mouse.room === state.currentRoom) {
+        const curiosity = ['ooh what\'s this? 👀', 'new thing! 🎉', '*sniff sniff*',
+          'is this for me?', 'fancy ✨', 'immediately claims this'][Math.floor(Math.random() * 6)];
+        speechBubbles.push({
+          x: mouse.x + 14, y: MOUSE_FLOOR_Y - 10,
+          text: curiosity, timer: 2500, maxTimer: 2500, mouseKey: key
+        });
+      }
+    }, 1500);
+  });
+}
+
+// Wire up placement bar buttons
+document.getElementById('btn-cancel-place').addEventListener('click', cancelPlacement);
+document.getElementById('btn-remove-mode').addEventListener('click', toggleRemoveMode);
+
+// ============================================================
+// MOUSTAZON SHOP
+// ============================================================
+function openShop() {
+  const container = document.getElementById('modal-container');
+  const owned = new Set(state.ownedItems);
+  let html = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal-content" style="min-width:320px;max-width:520px;">
+      <h2>🛒 Moustazon Prime™</h2>
+      <p style="text-align:center;color:#a89070;font-size:11px;margin-bottom:10px;">
+        Free 2-day delivery to any mouse hole &nbsp;|&nbsp; 🧀 <strong style="color:#f5d68a">${state.coins}</strong> coins
+      </p>
+      <div class="shop-grid">`;
+
+  FURNITURE.forEach(item => {
+    if (item.birthday && !state.birthdayEventSeen) return;
+    const isOwned = owned.has(item.id);
+    const canAfford = state.coins >= item.price;
+    const clickAction = isOwned
+      ? `startPlacement('${item.id}')`
+      : (canAfford ? `buyItem('${item.id}')` : '');
+    html += `<div class="shop-item ${isOwned ? 'owned' : ''}"
+              onclick="${clickAction}"
+              style="${!isOwned && !canAfford ? 'opacity:0.35;cursor:not-allowed;' : ''}">
+      <div class="item-icon">${item.icon}</div>
+      <div class="item-name">${item.name}</div>
+      <div class="item-desc">${item.desc}</div>
+      <div class="item-price">${isOwned ? '✅ Owned — tap to place' : (item.price === 0 ? '🎁 Free!' : `🧀 ${item.price}`)}</div>
+    </div>`;
+  });
+
+  html += `</div>
+    <div style="text-align:center;margin-top:12px;">
+      <button class="minigame-btn" onclick="lootCrumbs()" style="width:65%;">
+        🎁 Loot Crumbs — Free Mystery Item!
+      </button>
+      <p style="color:#a89070;font-size:10px;margin-top:4px;">
+        ${state.lootCrumbsUsed > 0 ? `Opened ${state.lootCrumbsUsed} times. Totally not addictive.` : 'Ironic gacha. Always free. No regrets.'}
+      </p>
+    </div>
+    <button class="close-btn" onclick="closeModal()">Close Shop</button>
+    </div></div>`;
+  container.innerHTML = html;
+}
+
+function buyItem(itemId) {
+  const item = FURNITURE.find(f => f.id === itemId);
+  if (!item || state.coins < item.price) return;
+  state.coins -= item.price;
+  state.ownedItems.push(itemId);
+  sfxBuy();
+  updateCoinDisplay();
+  saveGame();
+  showToast(`Bought ${item.icon} ${item.name}! ${item.desc}`);
+  openShop(); // refresh shop
+}
+
+function lootCrumbs() {
+  const unowned = FURNITURE.filter(f => !state.ownedItems.includes(f.id) && !f.birthday);
+  if (unowned.length === 0) {
+    showToast('You own everything! Go touch grass. 🌱');
+    return;
+  }
+  const item = unowned[Math.floor(Math.random() * unowned.length)];
+  state.ownedItems.push(item.id);
+  state.lootCrumbsUsed++;
+  sfxBuy();
+  saveGame();
+  showToast(`🎁 Loot Crumb opened! You got: ${item.icon} ${item.name}!`);
+  openShop(); // refresh shop
+}
+
+// Wire up HUD buttons
+document.getElementById('btn-shop').addEventListener('click', openShop);
+document.getElementById('btn-games').addEventListener('click', openMinigames);
+document.getElementById('btn-letter').addEventListener('click', openLetter);
+
+// ============================================================
+// MINI-GAME MENU
+// ============================================================
+function openMinigames() {
+  const container = document.getElementById('modal-container');
+  container.innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal-content" style="min-width:300px;max-width:400px;">
+      <h2>🎮 Arcade</h2>
+      <p style="text-align:center;color:#a89070;font-size:12px;margin-bottom:12px;">
+        Earn cheese coins to shop at Moustazon!
+      </p>
+      <button class="minigame-btn" onclick="startCheeseChase()">
+        🧀 Cheese Chase<br><span style="font-size:11px;color:#a89070;">Dodge traps, collect cheese!</span>
+      </button>
+      <button class="minigame-btn" onclick="startDoomscroll()">
+        📱 Doomscroll<br><span style="font-size:11px;color:#a89070;">Touch grass? Never heard of it.</span>
+      </button>
+      <button class="close-btn" onclick="closeModal()">Back</button>
+    </div>
+  </div>`;
+}
+
+// ============================================================
+// CHEESE CHASE MINI-GAME
+// ============================================================
+let cheeseChaseActive = false;
+let cc = {};
+let ccInputY = null;
+
+function startCheeseChase() {
+  closeModal();
+  cheeseChaseActive = true;
+  ccInputY = null;
+  cc = {
+    mouseY: GAME_H / 2,
+    score: 0,
+    obstacles: [],
+    cheeses: [],
+    spawnTimer: 0,
+    speed: 1.8,
+    distance: 0,
+    gameOver: false,
+    bgStars: []
+  };
+  // Background decor
+  for (let i = 0; i < 25; i++) {
+    cc.bgStars.push({ x: Math.random() * GAME_W, y: Math.random() * GAME_H, s: 1 + Math.random() });
+  }
+}
+
+function updateCheeseChase(dt) {
+  if (!cheeseChaseActive || cc.gameOver) return;
+
+  cc.distance += cc.speed;
+  cc.speed = 1.8 + cc.distance / 4000;
+  cc.spawnTimer -= dt;
+
+  // Spawn obstacles and cheese
+  if (cc.spawnTimer <= 0) {
+    cc.spawnTimer = 500 + Math.random() * 500 - Math.min(cc.distance / 50, 200);
+    cc.spawnTimer = Math.max(cc.spawnTimer, 200);
+
+    if (Math.random() < 0.45) {
+      // Cheese collectible
+      cc.cheeses.push({
+        x: GAME_W + 10,
+        y: 30 + Math.random() * (GAME_H - 60),
+        size: 14
+      });
+    } else {
+      // Obstacle (mousetrap or cat)
+      const isCat = Math.random() < 0.3;
+      const h = isCat ? 35 + Math.random() * 25 : 25 + Math.random() * 50;
+      cc.obstacles.push({
+        x: GAME_W + 10,
+        y: Math.random() < 0.5 ? 0 : GAME_H - h,
+        w: isCat ? 28 : 18,
+        h: h,
+        type: isCat ? 'cat' : 'trap'
+      });
+    }
+  }
+
+  // Move everything left
+  cc.obstacles.forEach(o => o.x -= cc.speed);
+  cc.cheeses.forEach(c => c.x -= cc.speed);
+  cc.obstacles = cc.obstacles.filter(o => o.x > -40);
+  cc.cheeses = cc.cheeses.filter(c => c.x > -20);
+
+  // Mouse input following
+  if (ccInputY !== null) {
+    cc.mouseY += (ccInputY - cc.mouseY) * 0.12;
+  }
+  cc.mouseY = Math.max(12, Math.min(GAME_H - 12, cc.mouseY));
+
+  // Collision detection
+  const mBox = { x: 35, y: cc.mouseY - 9, w: 24, h: 18 };
+
+  // Collect cheese
+  cc.cheeses = cc.cheeses.filter(c => {
+    const cBox = { x: c.x - 7, y: c.y - 7, w: 14, h: 14 };
+    if (boxOverlap(mBox, cBox)) {
+      cc.score++;
+      sfxCheeseCollect();
+      // Sparkle effect
+      spawnFloatingEffect(c.x, c.y, '✨');
+      return false;
+    }
+    return true;
+  });
+
+  // Hit obstacle
+  for (const o of cc.obstacles) {
+    if (boxOverlap(mBox, o)) {
+      cc.gameOver = true;
+      sfxCrash();
+      break;
+    }
+  }
+}
+
+function boxOverlap(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x &&
+         a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+function drawCheeseChase() {
+  if (!cheeseChaseActive) return;
+  const t = Date.now() / 1000;
+
+  // Warm dark background
+  ctx.fillStyle = '#1a0f05';
+  ctx.fillRect(0, 0, GAME_W, GAME_H);
+
+  // Scrolling background dots
+  cc.bgStars.forEach(s => {
+    const sx = ((s.x - cc.distance * 0.2) % GAME_W + GAME_W) % GAME_W;
+    ctx.fillStyle = 'rgba(245,214,138,0.15)';
+    ctx.fillRect(sx, s.y, s.s, s.s);
+  });
+
+  // Floor and ceiling lines
+  ctx.fillStyle = '#3d2b1a';
+  ctx.fillRect(0, 0, GAME_W, 5);
+  ctx.fillRect(0, GAME_H - 5, GAME_W, 5);
+
+  // Obstacles
+  cc.obstacles.forEach(o => {
+    if (o.type === 'cat') {
+      // Cat silhouette
+      ctx.fillStyle = '#5a3020';
+      ctx.beginPath();
+      ctx.roundRect(o.x, o.y, o.w, o.h, 4);
+      ctx.fill();
+      // Cat ears
+      if (o.y === 0) {
+        ctx.fillRect(o.x + 4, o.y + o.h - 2, 6, 8);
+        ctx.fillRect(o.x + o.w - 10, o.y + o.h - 2, 6, 8);
+      } else {
+        ctx.fillRect(o.x + 4, o.y - 6, 6, 8);
+        ctx.fillRect(o.x + o.w - 10, o.y - 6, 6, 8);
+      }
+      // Eyes
+      const eyeY = o.y === 0 ? o.y + o.h - 12 : o.y + 10;
+      ctx.fillStyle = '#44ee44';
+      ctx.beginPath();
+      ctx.ellipse(o.x + 8, eyeY, 2.5, 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(o.x + o.w - 8, eyeY, 2.5, 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Slit pupils
+      ctx.fillStyle = '#1a0f05';
+      ctx.fillRect(o.x + 7, eyeY - 2, 1.5, 4);
+      ctx.fillRect(o.x + o.w - 9, eyeY - 2, 1.5, 4);
+    } else {
+      // Mousetrap
+      ctx.fillStyle = '#8B6914';
+      ctx.fillRect(o.x, o.y, o.w, o.h);
+      ctx.fillStyle = '#a08030';
+      ctx.fillRect(o.x + 2, o.y + 2, o.w - 4, 4);
+      // Spring
+      ctx.strokeStyle = '#c0a050';
+      ctx.lineWidth = 1.5;
+      const springBase = o.y === 0 ? o.y + o.h : o.y;
+      ctx.beginPath();
+      for (let i = 0; i < o.h; i += 6) {
+        const sx = o.x + o.w / 2 + (i % 12 === 0 ? -4 : 4);
+        ctx.lineTo(sx, springBase + (o.y === 0 ? -i : i));
+      }
+      ctx.stroke();
+      // Danger icon
+      ctx.font = '10px serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('⚠️', o.x + o.w / 2, o.y + o.h / 2 + 4);
+      ctx.textAlign = 'left';
+    }
+  });
+
+  // Cheese collectibles
+  cc.cheeses.forEach(c => {
+    // Glow
+    ctx.fillStyle = 'rgba(255,215,0,0.15)';
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, 12, 0, Math.PI * 2);
+    ctx.fill();
+    // Emoji
+    ctx.font = '14px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🧀', c.x, c.y);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+  });
+
+  // Player mouse
+  const mFrame = Math.floor(cc.distance / 15) % 4;
+  drawMouse(35, cc.mouseY - 10, CONFIG.mice.shadow, 1, mFrame, 'walking');
+
+  // Floating effects (sparkles on cheese collect)
+  drawFloatingEffects();
+
+  // HUD
+  ctx.fillStyle = 'rgba(26,15,5,0.7)';
+  ctx.fillRect(0, 0, GAME_W, 28);
+  ctx.fillStyle = '#f5d68a';
+  ctx.font = '14px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(`🧀 ${cc.score}`, 10, 19);
+  ctx.textAlign = 'right';
+  ctx.fillText(`${Math.floor(cc.distance / 10)}m`, GAME_W - 10, 19);
+  // Speed indicator
+  ctx.fillStyle = '#a89070';
+  ctx.font = '10px monospace';
+  ctx.fillText(`⚡${cc.speed.toFixed(1)}x`, GAME_W - 10, 12);
+  ctx.textAlign = 'left';
+
+  // Game over overlay
+  if (cc.gameOver) {
+    ctx.fillStyle = 'rgba(26,15,5,0.8)';
+    ctx.fillRect(0, 0, GAME_W, GAME_H);
+
+    ctx.fillStyle = '#f5d68a';
+    ctx.font = '28px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('🪤 CAUGHT!', GAME_W / 2, GAME_H / 2 - 35);
+
+    ctx.font = '14px monospace';
+    ctx.fillStyle = '#e8d5b5';
+    ctx.fillText(`Cheese: 🧀 ${cc.score}  |  Distance: ${Math.floor(cc.distance / 10)}m`, GAME_W / 2, GAME_H / 2);
+
+    const earned = cc.score * 2;
+    ctx.fillStyle = '#f5d68a';
+    ctx.font = '16px monospace';
+    ctx.fillText(`Earned: 🧀 ${earned} coins!`, GAME_W / 2, GAME_H / 2 + 25);
+
+    ctx.fillStyle = '#a89070';
+    ctx.font = '12px monospace';
+    ctx.fillText('tap / click to continue', GAME_W / 2, GAME_H / 2 + 55);
+    ctx.textAlign = 'left';
+  }
+}
+
+function endCheeseChase() {
+  const earned = cc.score * 2;
+  state.coins += earned;
+  state.totalCoinsEarned += earned;
+  addHappiness(5);
+  updateCoinDisplay();
+  saveGame();
+  cheeseChaseActive = false;
+  sfxCoinCollect();
+  spawnCoinEffect(earned, GAME_W / 2, GAME_H / 2 - 20);
+  showToast(`Cheese Chase: earned 🧀 ${earned} coins!`);
+}
+
+// ============================================================
+// DOOMSCROLL MINI-GAME
+// ============================================================
+const DOOMSCROLL_POSTS = [
+  // Good posts — like these!
+  { text: 'mice are literally the best pets no cap 🐭', good: true, user: '@mousewhisperer' },
+  { text: 'just found the BIGGEST cheese wheel at Costco', good: true, user: '@cheeseenthusiast' },
+  { text: 'my mouse learned to high five today 🥺', good: true, user: '@tinypaws' },
+  { text: 'cheese board appreciation post 🧀✨', good: true, user: '@cheeseboard_daily' },
+  { text: 'reminder: you are loved and valid 💛', good: true, user: '@wholesomemouse' },
+  { text: `${CONFIG.mice.shadow.name} and ${CONFIG.mice.cloud.name} fan account 🐭🐭`, good: true, user: '@mouse_stan' },
+  { text: 'POV: the mouse found the cheese stash', good: true, user: '@mousemoments' },
+  { text: 'tiny mouse in a tiny hat. that\'s it. that\'s the post.', good: true, user: '@tinyhat' },
+  { text: 'cozy mouse house tour 🏠🐭 (it\'s perfect)', good: true, user: '@cozymouse' },
+  { text: 'petition to make mice the national animal', good: true, user: '@mouseactivist' },
+  { text: 'just watched a mouse do yoga and now I believe in god', good: true, user: '@spiritual_mouse' },
+  { text: 'normalize napping 14 hours a day (I am a mouse)', good: true, user: '@sleepymouse' },
+  { text: 'cheese is just milk that believed in itself 🧀', good: true, user: '@deepcheese' },
+  // Bad posts — skip these!
+  { text: 'actually, mice are mid', good: false, user: '@wrongopinions' },
+  { text: 'hot take: cheese is overrated', good: false, user: '@controversialcarl' },
+  { text: 'reply guys assemble 🤓☝️', good: false, user: '@replyguy47' },
+  { text: 'imagine not having a sigma grindset in 2026', good: false, user: '@sigmagrinder' },
+  { text: 'I mass-followed 10,000 accounts for clout', good: false, user: '@followback' },
+  { text: 'this u? 🤨📸', good: false, user: '@exposed' },
+  { text: 'I did my own research (watched 2 youtube videos)', good: false, user: '@truthseeker99' },
+  { text: 'brand account trying to be relatable: slay bestie', good: false, user: '@megacorp_official' },
+  { text: 'ratio + L + no cheese', good: false, user: '@ratioenjoyer' },
+  { text: 'who asked? (I am very lonely)', good: false, user: '@whoasked' },
+  { text: 'wake up at 4am or you\'re a failure (I am unwell)', good: false, user: '@hustleculture' },
+  { text: 'my toxic trait is thinking I\'m the main character', good: false, user: '@toxicmain' },
+  { text: 'vibe check: you failed. rip bozo.', good: false, user: '@vibechecker' },
+];
+
+let dsActive = false;
+let ds = {};
+
+function startDoomscroll() {
+  closeModal();
+  dsActive = true;
+  const shuffled = [...DOOMSCROLL_POSTS].sort(() => Math.random() - 0.5);
+  ds = {
+    posts: shuffled.slice(0, 10),
+    current: 0,
+    score: 0,
+    strikes: 0,
+    maxStrikes: 3,
+    finished: false,
+    feedback: null
+  };
+  renderDoomscroll();
+}
+
+function renderDoomscroll() {
+  if (!dsActive) return;
+  const container = document.getElementById('modal-container');
+
+  if (ds.finished) {
+    const earned = ds.score * 3;
+    state.coins += earned;
+    state.totalCoinsEarned += earned;
+    addHappiness(4);
+    updateCoinDisplay();
+    spawnCoinEffect(earned);
+    sfxCoinCollect();
+    saveGame();
+
+    container.innerHTML = `<div class="modal-overlay">
+      <div class="modal-content" style="min-width:300px;max-width:420px;">
+        <h2>📱 Doomscroll Complete!</h2>
+        <p style="text-align:center;font-size:15px;color:#f5d68a;margin:14px 0;">
+          Good posts liked: ${ds.score} ✅<br>
+          Cringe posts liked: ${ds.strikes} 😬<br><br>
+          <span style="font-size:18px;">Earned: 🧀 ${earned} cheese coins!</span>
+        </p>
+        <p style="text-align:center;color:#a89070;font-size:11px;">
+          ${ds.strikes === 0 ? 'Perfect feed! Your algorithm is immaculate.' :
+            ds.strikes >= 3 ? 'Touch grass immediately. 🌱' :
+            'Not bad, but maybe log off for a bit.'}
+        </p>
+        <button class="close-btn" onclick="dsActive=false;closeModal()">Nice</button>
+      </div>
+    </div>`;
+    return;
+  }
+
+  const post = ds.posts[ds.current];
+  const strikeDisplay = '❌'.repeat(ds.strikes) + '⬜'.repeat(ds.maxStrikes - ds.strikes);
+
+  container.innerHTML = `<div class="modal-overlay">
+    <div class="modal-content" style="min-width:300px;max-width:440px;">
+      <h2>📱 Doomscroll</h2>
+      <p style="text-align:center;color:#a89070;font-size:11px;margin-bottom:6px;">
+        Post ${ds.current + 1} of ${ds.posts.length} &nbsp;|&nbsp; 🧀 ${ds.score * 3} earned &nbsp;|&nbsp; ${strikeDisplay}
+      </p>
+      ${ds.feedback ? `<p style="text-align:center;font-size:13px;margin:6px 0;color:${ds.feedback.color};">${ds.feedback.text}</p>` : ''}
+      <div class="doomscroll-post" style="margin:14px 0;">
+        <div class="post-user">${post.user}</div>
+        <div class="post-text" style="font-size:14px;margin-top:6px;">${post.text}</div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:10px;">
+        <button class="minigame-btn" onclick="doomscrollAction(true)" style="width:42%;">
+          ❤️ Like
+        </button>
+        <button class="minigame-btn" onclick="doomscrollAction(false)" style="width:42%;">
+          ⏭ Skip
+        </button>
+      </div>
+      <p style="text-align:center;color:#6b5030;font-size:10px;margin-top:8px;">
+        Like the good posts. Skip the cringe. 3 strikes = game over.
+      </p>
+    </div>
+  </div>`;
+}
+
+function doomscrollAction(liked) {
+  const post = ds.posts[ds.current];
+
+  if (liked && post.good) {
+    ds.score++;
+    ds.feedback = { text: '✅ Based! +3 🧀', color: '#7bc67e' };
+    sfxGoodLike();
+  } else if (liked && !post.good) {
+    ds.strikes++;
+    ds.feedback = { text: '😬 Yikes, you liked cringe!', color: '#e06050' };
+    sfxBadLike();
+  } else if (!liked && post.good) {
+    ds.feedback = { text: '😢 You skipped a good one!', color: '#e8a040' };
+    sfxUIClick();
+  } else {
+    ds.feedback = { text: '👍 Good skip, that was cringe', color: '#7bc67e' };
+    sfxGoodLike();
+  }
+
+  ds.current++;
+  if (ds.current >= ds.posts.length || ds.strikes >= ds.maxStrikes) {
+    ds.finished = true;
+  }
+  renderDoomscroll();
+}
+
+// ============================================================
+// BIRTHDAY EVENT
+// ============================================================
+function triggerBirthdayEvent() {
+  if (state.birthdayEventSeen) return;
+  state.birthdayEventSeen = true;
+
+  // Give birthday items
+  if (!state.ownedItems.includes('birthday-cake')) state.ownedItems.push('birthday-cake');
+  if (!state.ownedItems.includes('party-banner')) state.ownedItems.push('party-banner');
+
+  // Place them in the living room
+  state.placedItems.push({ itemId: 'party-banner', room: 2, gridX: 3, gridY: 0 });
+  state.placedItems.push({ itemId: 'birthday-cake', room: 2, gridX: 8, gridY: GRID_ROWS - 1 });
+
+  // Bonus coins
+  state.coins += 100;
+  state.totalCoinsEarned += 100;
+  updateCoinDisplay();
+
+  // Both mice to living room for the party
+  state.miceState.shadow.room = 2;
+  state.miceState.shadow.x = 150;
+  state.miceState.shadow.action = 'idle';
+  state.miceState.shadow.actionTimer = 6000;
+  state.miceState.cloud.room = 2;
+  state.miceState.cloud.x = 280;
+  state.miceState.cloud.action = 'idle';
+  state.miceState.cloud.actionTimer = 6000;
+
+  // Switch to living room
+  state.currentRoom = 2;
+  buildRoomTabs();
+
+  addHappiness(20);
+  saveGame();
+
+  // Celebration sequence
+  setTimeout(() => {
+    sfxFanfare();
+    showToast(`🎂 Happy Birthday ${CONFIG.twins.name1} & ${CONFIG.twins.name2}! 🎉`);
+    // Confetti burst
+    for (let i = 0; i < 20; i++) {
+      setTimeout(() => {
+        spawnFloatingEffect(
+          80 + Math.random() * (GAME_W - 160),
+          ROOM_Y + 50 + Math.random() * 100,
+          ['🎉','🎊','🎂','🧀','💛','⭐','🎈','✨'][Math.floor(Math.random() * 8)]
+        );
+      }, i * 80);
+    }
+  }, 500);
+
+  setTimeout(() => {
+    showToast('🧀 +100 bonus coins! The mice threw a party!');
+  }, 4000);
+
+  setTimeout(() => {
+    showToast('💌 Check the letter button for a special message!');
+  }, 7500);
+}
+
+// ============================================================
+// BIRTHDAY LETTER
+// ============================================================
+function openLetter() {
+  state.letterRead = true;
+  saveGame();
+  const container = document.getElementById('modal-container');
+  const msgHtml = CONFIG.birthdayMessage.replace(/\n/g, '<br>');
+  container.innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal-content" style="max-width:480px;">
+      <h2>💌 A Letter for You</h2>
+      <div class="letter-content">
+        <h3>🐭 Special Delivery 🐭</h3>
+        ${msgHtml}
+      </div>
+      <button class="close-btn" onclick="closeModal()">💛</button>
+    </div>
+  </div>`;
+}
+
+// ============================================================
+// PARTY HATS (drawn on mice during birthday)
+// ============================================================
+function drawPartyHat(x, y, action) {
+  if (!state.birthdayEventSeen) return;
+  const cx = Math.floor(x);
+  const cy = Math.floor(y);
+  const t = Date.now() / 1000;
+  const bob = action === 'sleeping' ? 0 : Math.sin(t * 3) * 0.6;
+
+  let hatX, hatY;
+  if (action === 'sleeping') {
+    hatX = cx + 17; hatY = cy + 1;
+  } else {
+    hatX = cx + 19; hatY = cy - 6 + bob;
+  }
+
+  // Hat body (cone)
+  ctx.fillStyle = '#FF1493';
+  ctx.beginPath();
+  ctx.moveTo(hatX, hatY - 10);
+  ctx.lineTo(hatX - 5, hatY + 2);
+  ctx.lineTo(hatX + 5, hatY + 2);
+  ctx.closePath();
+  ctx.fill();
+
+  // Stripe
+  ctx.fillStyle = '#FFD700';
+  ctx.fillRect(hatX - 4, hatY - 2, 8, 2);
+
+  // Pom pom on top
+  ctx.fillStyle = '#FFD700';
+  ctx.beginPath();
+  ctx.arc(hatX, hatY - 10, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// ============================================================
+// COIN FLOATING ANIMATION
+// ============================================================
+function spawnCoinEffect(amount, x, y) {
+  if (x === undefined) x = GAME_W / 2;
+  if (y === undefined) y = 30;
+  for (let i = 0; i < Math.min(amount / 2, 8); i++) {
+    setTimeout(() => {
+      spawnFloatingEffect(
+        x + (Math.random() - 0.5) * 40,
+        y + Math.random() * 20,
+        '🧀'
+      );
+    }, i * 120);
+  }
+}
+
+// ============================================================
+// HAPPINESS SYSTEM
+// ============================================================
+const HAPPINESS_DECAY_RATE = 0.0003; // very slow: ~1 point per ~55 minutes
+
+function getAverageHappiness() {
+  return Math.round((state.miceState.shadow.happiness + state.miceState.cloud.happiness) / 2);
+}
+
+function addHappiness(amount) {
+  state.miceState.shadow.happiness = Math.min(100, state.miceState.shadow.happiness + amount);
+  state.miceState.cloud.happiness = Math.min(100, state.miceState.cloud.happiness + amount);
+  updateHappinessDisplay();
+}
+
+function updateHappiness(dt) {
+  state.miceState.shadow.happiness = Math.max(10, state.miceState.shadow.happiness - HAPPINESS_DECAY_RATE * dt);
+  state.miceState.cloud.happiness = Math.max(10, state.miceState.cloud.happiness - HAPPINESS_DECAY_RATE * dt);
+  updateHappinessDisplay();
+}
+
+function updateHappinessDisplay() {
+  const avg = getAverageHappiness();
+  const el = document.getElementById('happiness-value');
+  if (el) el.textContent = avg;
+  // Color the heart based on level
+  const hd = document.getElementById('happiness-display');
+  if (hd) {
+    if (avg >= 70) hd.style.color = '#f5d68a';
+    else if (avg >= 40) hd.style.color = '#e8a040';
+    else hd.style.color = '#e06050';
+  }
+}
+
+// ============================================================
+// GOALS / WISHES SYSTEM
+// ============================================================
+const GOAL_TEMPLATES = [
+  { text: '{mouse} wants a cozy bed 🛏', itemId: 'matchbox-bed' },
+  { text: '{mouse} is craving cheese 🧀', itemId: 'cheese-wheel' },
+  { text: '{mouse} wants a coffee ☕', itemId: 'thimble-cup' },
+  { text: '{mouse} wants to doomscroll 💻', itemId: 'tiny-laptop' },
+  { text: '{mouse} needs a yoga session 🧘', itemId: 'yoga-mat' },
+  { text: '{mouse} wants to watch TV 📺', itemId: 'eraser-tv' },
+  { text: '{mouse} wants aesthetic lights ✨', itemId: 'fairy-lights' },
+  { text: '{mouse} wants a plant friend 🪴', itemId: 'tiny-plant' },
+  { text: '{mouse} needs a disco ball 🪩', itemId: 'disco-ball' },
+  { text: '{mouse} wants to sit somewhere 🛋', itemId: 'cardboard-couch' },
+  { text: '{mouse} craves sourdough 🍞', itemId: 'sourdough' },
+  { text: '{mouse} wants the vibes sign 📜', itemId: 'live-laugh-cheese' },
+];
+
+let goalCooldown = 20000 + Math.random() * 15000;
+
+function updateGoals(dt) {
+  // Check if current goal is fulfilled
+  if (state.activeGoal) {
+    const isPlaced = state.placedItems.some(p => p.itemId === state.activeGoal.itemId);
+    if (isPlaced) {
+      // Goal completed!
+      const bonus = 15;
+      state.coins += bonus;
+      state.totalCoinsEarned += bonus;
+      addHappiness(10);
+      updateCoinDisplay();
+      spawnCoinEffect(bonus);
+      sfxGoalComplete();
+      showToast(`✅ Goal complete! ${state.activeGoal.text} — +🧀${bonus} +❤️!`);
+      state.activeGoal = null;
+      updateGoalDisplay();
+      saveGame();
+      goalCooldown = 25000 + Math.random() * 20000;
+      return;
+    }
+  }
+
+  // Generate new goal if none active
+  if (!state.activeGoal) {
+    goalCooldown -= dt;
+    if (goalCooldown <= 0) {
+      generateNewGoal();
+      goalCooldown = 30000 + Math.random() * 20000;
+    }
+  }
+}
+
+function generateNewGoal() {
+  // Pick a goal for an item not yet placed
+  const unplaced = GOAL_TEMPLATES.filter(g =>
+    !state.placedItems.some(p => p.itemId === g.itemId)
+  );
+  if (unplaced.length === 0) return;
+
+  const template = unplaced[Math.floor(Math.random() * unplaced.length)];
+  const mouseKey = Math.random() < 0.5 ? 'shadow' : 'cloud';
+  const mouseName = CONFIG.mice[mouseKey].name;
+  const text = template.text.replace('{mouse}', mouseName);
+
+  state.activeGoal = { text, itemId: template.itemId, mouseKey };
+  updateGoalDisplay();
+  saveGame();
+
+  // Mouse says the wish
+  const mouse = state.miceState[mouseKey];
+  speechBubbles.push({
+    x: mouse.x + 14, y: MOUSE_FLOOR_Y - 10,
+    text: text, timer: 4000, maxTimer: 4000, mouseKey
+  });
+}
+
+function updateGoalDisplay() {
+  const el = document.getElementById('goal-display');
+  if (!el) return;
+  if (state.activeGoal) {
+    el.textContent = `🎯 ${state.activeGoal.text}`;
+    el.title = `Place ${FURNITURE.find(f => f.id === state.activeGoal.itemId)?.name || 'the item'} to complete!`;
+  } else {
+    el.textContent = '';
+    el.title = '';
+  }
+}
+
+// ============================================================
+// MOUSE SPRITE DRAWING
+// ============================================================
+const MOUSE_FLOOR_Y = ROOM_Y + ROOM_H - FLOOR_H - 20;
+
+function drawMouse(x, y, cfg, dir, frame, action) {
+  const cx = Math.floor(x);
+  const cy = Math.floor(y);
+  const t = Date.now() / 1000;
+
+  ctx.save();
+  if (dir < 0) {
+    ctx.translate(cx + 14, 0);
+    ctx.scale(-1, 1);
+    ctx.translate(-(cx + 14), 0);
+  }
+
+  if (action === 'sleeping') {
+    // Body
+    ctx.fillStyle = cfg.bodyColor;
+    ctx.beginPath();
+    ctx.ellipse(cx + 10, cy + 12, 11, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Belly highlight
+    ctx.fillStyle = cfg.bellyColor;
+    ctx.beginPath();
+    ctx.ellipse(cx + 10, cy + 13, 7, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Head tucked in
+    ctx.fillStyle = cfg.bodyColor;
+    ctx.beginPath();
+    ctx.ellipse(cx + 17, cy + 8, 6, 5, 0.3, 0, Math.PI * 2);
+    ctx.fill();
+    // Ear
+    ctx.fillStyle = cfg.earColor;
+    ctx.beginPath();
+    ctx.ellipse(cx + 19, cy + 3, 4, 5, 0.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffb8c0';
+    ctx.beginPath();
+    ctx.ellipse(cx + 19, cy + 3, 2.5, 3, 0.4, 0, Math.PI * 2);
+    ctx.fill();
+    // Tail curled
+    ctx.strokeStyle = cfg.bodyColor;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + 12);
+    ctx.quadraticCurveTo(cx - 8, cy + 6, cx - 4, cy + 2);
+    ctx.stroke();
+    // Zzz
+    const zOff = Math.sin(t * 2) * 2;
+    ctx.fillStyle = 'rgba(200,200,255,0.6)';
+    ctx.font = '8px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('z', cx + 22, cy - 1 + zOff);
+    ctx.font = '11px monospace';
+    ctx.fillText('z', cx + 27, cy - 7 + zOff * 1.3);
+    ctx.font = '13px monospace';
+    ctx.fillText('Z', cx + 32, cy - 14 + zOff * 1.6);
+    ctx.textAlign = 'left';
+  } else if (action === 'zoomies') {
+    // Fast running mouse with motion blur!
+    const zBob = Math.sin(t * 14) * 2;
+    const zFrame = Math.floor(t * 12) % 2;
+
+    // Motion lines behind
+    ctx.strokeStyle = 'rgba(200,180,140,0.3)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 4; i++) {
+      ctx.beginPath();
+      ctx.moveTo(cx - 4 - i * 6, cy + 6 + i * 3 + zBob);
+      ctx.lineTo(cx - 12 - i * 6, cy + 6 + i * 3 + zBob);
+      ctx.stroke();
+    }
+
+    // Shadow (stretched)
+    ctx.fillStyle = 'rgba(0,0,0,0.1)';
+    ctx.beginPath();
+    ctx.ellipse(cx + 14, cy + 20, 16, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Tail streaming
+    ctx.strokeStyle = cfg.bodyColor;
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + 10 + zBob);
+    ctx.quadraticCurveTo(cx - 12, cy + 4 + zBob, cx - 16, cy + 8 + zBob);
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+
+    // Legs (alternating fast)
+    ctx.fillStyle = cfg.bodyColor;
+    const legOff = zFrame * 4;
+    ctx.fillRect(cx + 4 + legOff, cy + 15 + zBob, 3, 6);
+    ctx.fillRect(cx + 14 - legOff, cy + 15 + zBob, 3, 6);
+    ctx.fillStyle = cfg.bellyColor;
+    ctx.fillRect(cx + 3 + legOff, cy + 20 + zBob, 5, 2);
+    ctx.fillRect(cx + 13 - legOff, cy + 20 + zBob, 5, 2);
+
+    // Body (stretched)
+    ctx.fillStyle = cfg.bodyColor;
+    ctx.beginPath();
+    ctx.ellipse(cx + 12, cy + 10 + zBob, 12, 7, -0.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = cfg.bellyColor;
+    ctx.beginPath();
+    ctx.ellipse(cx + 12, cy + 12 + zBob, 7, 4, -0.1, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Head (forward-leaning)
+    ctx.fillStyle = cfg.bodyColor;
+    ctx.beginPath();
+    ctx.ellipse(cx + 22, cy + 4 + zBob, 7, 5.5, 0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Ears (windswept)
+    ctx.fillStyle = cfg.earColor;
+    ctx.beginPath();
+    ctx.ellipse(cx + 17, cy - 3 + zBob, 4, 5, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffb8c0';
+    ctx.beginPath();
+    ctx.ellipse(cx + 17, cy - 3 + zBob, 2.5, 3, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = cfg.earColor;
+    ctx.beginPath();
+    ctx.ellipse(cx + 24, cy - 2 + zBob, 4, 5, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffb8c0';
+    ctx.beginPath();
+    ctx.ellipse(cx + 24, cy - 2 + zBob, 2.5, 3, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Wide excited eyes
+    ctx.fillStyle = '#111';
+    ctx.beginPath();
+    ctx.ellipse(cx + 20, cy + 2 + zBob, 2.5, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(cx + 25, cy + 2 + zBob, 2.5, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(cx + 20.5, cy + 1 + zBob, 1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx + 25.5, cy + 1 + zBob, 1, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Nose
+    ctx.fillStyle = cfg.noseColor;
+    ctx.beginPath();
+    ctx.ellipse(cx + 29, cy + 4 + zBob, 2, 1.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Open mouth (excitement!)
+    ctx.fillStyle = '#2a1a1a';
+    ctx.beginPath();
+    ctx.ellipse(cx + 27, cy + 6 + zBob, 2, 1.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+  } else {
+    // Standing / walking / idle / furniture-interaction mouse
+    const isFurnitureAction = ['doomscrolling','watching','yoga','eating','playing'].includes(action);
+    const breathe = Math.sin(t * 3) * 0.6;
+    const bob = action === 'walking' ? Math.sin(t * 10) * 1.5 : breathe;
+    const lean = action === 'walking' ? Math.sin(t * 10) * 0.03 :
+                 action === 'yoga' ? Math.sin(t * 2) * 0.06 : 0;
+
+    ctx.translate(cx + 14, cy + 18);
+    ctx.rotate(lean);
+    ctx.translate(-(cx + 14), -(cy + 18));
+
+    // Shadow on floor
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    ctx.beginPath();
+    ctx.ellipse(cx + 14, cy + 20, 12, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Tail
+    ctx.strokeStyle = cfg.bodyColor;
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    const tailWag = Math.sin(t * 4) * 4;
+    ctx.beginPath();
+    ctx.moveTo(cx + 2, cy + 12 + bob);
+    ctx.quadraticCurveTo(cx - 8, cy + 4 + tailWag, cx - 12, cy + 8 + tailWag);
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+
+    // Back legs
+    const legAnim = action === 'walking' ? Math.sin(t * 10) * 3 : 0;
+    ctx.fillStyle = cfg.bodyColor;
+    ctx.fillRect(cx + 4 - legAnim, cy + 16 + bob, 4, 5);
+    ctx.fillRect(cx + 12 + legAnim, cy + 16 + bob, 4, 5);
+    // Tiny feet
+    ctx.fillStyle = cfg.bellyColor;
+    ctx.fillRect(cx + 3 - legAnim, cy + 20 + bob, 5, 2);
+    ctx.fillRect(cx + 11 + legAnim, cy + 20 + bob, 5, 2);
+
+    // Body (rounded)
+    ctx.fillStyle = cfg.bodyColor;
+    ctx.beginPath();
+    ctx.ellipse(cx + 10, cy + 11 + bob, 10, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Belly
+    ctx.fillStyle = cfg.bellyColor;
+    ctx.beginPath();
+    ctx.ellipse(cx + 10, cy + 13 + bob, 6, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Head
+    ctx.fillStyle = cfg.bodyColor;
+    ctx.beginPath();
+    ctx.ellipse(cx + 19, cy + 5 + bob, 7, 6, 0.15, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Ears (big & round!)
+    // Left ear
+    ctx.fillStyle = cfg.earColor;
+    ctx.beginPath();
+    ctx.ellipse(cx + 15, cy - 4 + bob, 5, 6, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffb8c0';
+    ctx.beginPath();
+    ctx.ellipse(cx + 15, cy - 4 + bob, 3, 4, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+    // Right ear
+    ctx.fillStyle = cfg.earColor;
+    ctx.beginPath();
+    ctx.ellipse(cx + 23, cy - 4 + bob, 5, 6, 0.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffb8c0';
+    ctx.beginPath();
+    ctx.ellipse(cx + 23, cy - 4 + bob, 3, 4, 0.3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eyes (big & cute)
+    if (action === 'doomscrolling' || action === 'watching') {
+      // Screen-glow eyes
+      ctx.fillStyle = '#66ccff';
+      ctx.beginPath();
+      ctx.ellipse(cx + 17, cy + 3 + bob, 2.2, 2.8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(cx + 22, cy + 3 + bob, 2.2, 2.8, 0, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (action === 'yoga') {
+      // Closed peaceful eyes
+      ctx.strokeStyle = '#111';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(cx + 17, cy + 3 + bob, 2, 0.3, Math.PI - 0.3);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(cx + 22, cy + 3 + bob, 2, 0.3, Math.PI - 0.3);
+      ctx.stroke();
+    } else if (action === 'eating') {
+      // Happy squinty eyes
+      ctx.strokeStyle = '#111';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(cx + 17, cy + 4 + bob, 2, Math.PI + 0.3, -0.3);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(cx + 22, cy + 4 + bob, 2, Math.PI + 0.3, -0.3);
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = '#111';
+      ctx.beginPath();
+      ctx.ellipse(cx + 17, cy + 3 + bob, 2, 2.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(cx + 22, cy + 3 + bob, 2, 2.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Eye shine
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(cx + 17.5, cy + 2 + bob, 0.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(cx + 22.5, cy + 2 + bob, 0.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Nose (tiny pink)
+    ctx.fillStyle = cfg.noseColor;
+    ctx.beginPath();
+    ctx.ellipse(cx + 26, cy + 5 + bob, 2, 1.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Whiskers
+    ctx.strokeStyle = 'rgba(180,160,140,0.5)';
+    ctx.lineWidth = 0.7;
+    ctx.beginPath();
+    ctx.moveTo(cx + 25, cy + 5 + bob);
+    ctx.lineTo(cx + 32, cy + 2 + bob);
+    ctx.moveTo(cx + 25, cy + 6 + bob);
+    ctx.lineTo(cx + 32, cy + 7 + bob);
+    ctx.moveTo(cx + 25, cy + 5.5 + bob);
+    ctx.lineTo(cx + 33, cy + 4.5 + bob);
+    ctx.stroke();
+
+    // Tiny smile
+    ctx.strokeStyle = 'rgba(100,60,60,0.3)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.arc(cx + 23, cy + 6 + bob, 3, 0.2, 1.2);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+// ============================================================
+// MOUSE AI
+// ============================================================
+function updateMouse(mouse, dt, personality) {
+  // Animation timer
+  mouse.animTimer += dt;
+  if (mouse.animTimer > 180) {
+    mouse.frame = (mouse.frame + 1) % 4;
+    mouse.animTimer = 0;
+  }
+
+  // Action timer countdown
+  mouse.actionTimer -= dt;
+  if (mouse.actionTimer <= 0) {
+    pickNewAction(mouse, personality);
+  }
+
+  // Movement
+  if (mouse.action === 'walking' && mouse.targetX !== undefined) {
+    const speed = 0.05 * dt;
+    const dist = mouse.targetX - mouse.x;
+    if (Math.abs(dist) > speed) {
+      mouse.dir = dist > 0 ? 1 : -1;
+      mouse.x += mouse.dir * speed;
+    } else {
+      mouse.x = mouse.targetX;
+      mouse.targetX = undefined;
+      mouse.action = 'idle';
+      mouse.actionTimer = 1500 + Math.random() * 2000;
+    }
+  } else if (mouse.action === 'zoomies') {
+    const speed = 0.15 * dt;
+    mouse.x += mouse.dir * speed;
+    if (mouse.x > ROOM_W - 50) { mouse.dir = -1; }
+    if (mouse.x < 20) { mouse.dir = 1; }
+  } else if (mouse.targetX !== undefined) {
+    // Walk toward furniture target for any behavior
+    const speed = 0.04 * dt;
+    const dist = mouse.targetX - mouse.x;
+    if (Math.abs(dist) > speed) {
+      mouse.dir = dist > 0 ? 1 : -1;
+      mouse.x += mouse.dir * speed;
+    } else {
+      mouse.targetX = undefined;
+    }
+  }
+
+  // Clamp to room bounds
+  mouse.x = Math.max(15, Math.min(ROOM_W - 45, mouse.x));
+}
+
+function pickNewAction(mouse, personality) {
+  const roll = Math.random();
+
+  // Chance to switch rooms
+  if (roll < 0.1) {
+    const newRoom = Math.floor(Math.random() * ROOMS.length);
+    if (newRoom !== mouse.room) {
+      mouse.room = newRoom;
+      mouse.x = 30 + Math.random() * (ROOM_W - 90);
+    }
+    mouse.action = 'idle';
+    mouse.actionTimer = 1000 + Math.random() * 1500;
+    return;
+  }
+
+  // Check what furniture behaviors are available in this room
+  const roomItems = state.placedItems.filter(p => p.room === mouse.room);
+  const furnitureBehaviors = [];
+  roomItems.forEach(placed => {
+    const item = FURNITURE.find(f => f.id === placed.itemId);
+    if (item && item.mouseBehavior && !furnitureBehaviors.includes(item.mouseBehavior)) {
+      furnitureBehaviors.push({ behavior: item.mouseBehavior, placed });
+    }
+  });
+
+  // 40% chance to interact with furniture if any is available
+  if (furnitureBehaviors.length > 0 && Math.random() < 0.4) {
+    const pick = furnitureBehaviors[Math.floor(Math.random() * furnitureBehaviors.length)];
+    mouse.action = pick.behavior;
+    const targetPos = gridToGame(pick.placed.gridX, pick.placed.gridY);
+    mouse.targetX = targetPos.x + Math.random() * 10;
+    mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
+    mouse.actionTimer = 3000 + Math.random() * 4000;
+    if (pick.behavior === 'sleeping') mouse.actionTimer = 5000 + Math.random() * 5000;
+    if (pick.behavior === 'zoomies') mouse.actionTimer = 2000 + Math.random() * 2000;
+    return;
+  }
+
+  // Personality-weighted action selection
+  let weights;
+  if (personality === 'chaotic') {
+    weights = [
+      { action: 'idle', w: 20 },
+      { action: 'walking', w: 35 },
+      { action: 'sleeping', w: 12 },
+      { action: 'zoomies', w: 18 }
+    ];
+  } else {
+    weights = [
+      { action: 'idle', w: 30 },
+      { action: 'walking', w: 25 },
+      { action: 'sleeping', w: 30 },
+      { action: 'zoomies', w: 5 }
+    ];
+  }
+
+  const totalW = weights.reduce((s, w) => s + w.w, 0);
+  let pick = Math.random() * totalW;
+  let chosen = 'idle';
+  for (const w of weights) {
+    pick -= w.w;
+    if (pick <= 0) { chosen = w.action; break; }
+  }
+
+  mouse.action = chosen;
+
+  if (chosen === 'walking') {
+    mouse.targetX = 20 + Math.random() * (ROOM_W - 70);
+    mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
+    mouse.actionTimer = 8000;
+  } else if (chosen === 'sleeping') {
+    mouse.actionTimer = 5000 + Math.random() * 6000;
+  } else if (chosen === 'zoomies') {
+    mouse.actionTimer = 2500 + Math.random() * 2000;
+    mouse.dir = Math.random() < 0.5 ? 1 : -1;
+    if (mouse.room === state.currentRoom) sfxZoomies();
+  } else {
+    mouse.actionTimer = 2000 + Math.random() * 3000;
+  }
+}
+
+// Draw status bar at the bottom showing mouse names + actions
+function drawMouseStatus() {
+  const shadow = state.miceState.shadow;
+  const cloud = state.miceState.cloud;
+  const y = GAME_H - 10;
+
+  ctx.font = '10px monospace';
+
+  // Shadow status (left)
+  const actionIcons = { sleeping: '💤', walking: '🐾', zoomies: '💨', eating: '😋',
+    doomscrolling: '📱', watching: '📺', yoga: '🧘', playing: '🏃' };
+  const sIcon = actionIcons[shadow.action] || '✨';
+  ctx.fillStyle = '#888';
+  ctx.textAlign = 'left';
+  ctx.fillText(`${sIcon} ${CONFIG.mice.shadow.name}: ${shadow.action}`, 10, y);
+
+  // Room indicator if not in current room
+  if (shadow.room !== state.currentRoom) {
+    ctx.fillStyle = '#666';
+    ctx.fillText(`  (in ${ROOMS[shadow.room].icon})`, 10 + ctx.measureText(`${sIcon} ${CONFIG.mice.shadow.name}: ${shadow.action}`).width, y);
+  }
+
+  // Cloud status (right)
+  const cIcon = actionIcons[cloud.action] || '✨';
+  ctx.fillStyle = '#888';
+  ctx.textAlign = 'right';
+  ctx.fillText(`${cIcon} ${CONFIG.mice.cloud.name}: ${cloud.action}`, GAME_W - 10, y);
+
+  if (cloud.room !== state.currentRoom) {
+    const cloudText = `${cIcon} ${CONFIG.mice.cloud.name}: ${cloud.action}`;
+    ctx.fillStyle = '#666';
+    ctx.textAlign = 'right';
+    ctx.fillText(`(in ${ROOMS[cloud.room].icon})  `, GAME_W - 10 - ctx.measureText(cloudText).width, y);
+  }
+
+  ctx.textAlign = 'left';
+}
+
+// ============================================================
+// SPEECH BUBBLES & FLOATING EFFECTS
+// ============================================================
+const SHADOW_QUOTES = [
+  'no thoughts head empty', 'chaos mode activated', 'catch me if you can 💨',
+  'it\'s giving... gremlin', 'slay', 'built different tbh', 'caught in 4k 📸',
+  'living my best cheese life', 'zero chill, full send', 'main character energy',
+  'this is fine 🔥', 'unhinged and unbothered', 'speed run any%', 'yeet',
+  'bet', 'say less', 'lowkey feral rn', 'bestie wake up', 'ZOOM', 'not sorry 😈'
+];
+const CLOUD_QUOTES = [
+  'this is giving cozy', 'soft hours only 🌙', 'no thoughts, just vibes',
+  'not me napping again', 'it\'s giving... mouse', 'sleepy but slay',
+  'wholesome content only', 'living slow 🐌', 'comfort is key', 'gentle chaos',
+  'self care is sleeping', 'cozy era', 'manifesting cheese ✨', 'just existing 💫',
+  'zzz is a lifestyle', 'pls don\'t wake me', 'warm thoughts only', 'soft launch 🧀',
+  'cottagecore mouse', 'peace was always an option 🕊'
+];
+
+let speechBubbles = [];  // { x, y, text, timer, maxTimer, mouseKey }
+let floatingEffects = []; // { x, y, text, timer, vy }
+
+let speechCooldown = 8000 + Math.random() * 7000; // 8-15 sec
+
+function triggerSpeech(mouseKey) {
+  const mouse = state.miceState[mouseKey];
+  if (mouse.room !== state.currentRoom) return;
+  const quotes = mouseKey === 'shadow' ? SHADOW_QUOTES : CLOUD_QUOTES;
+  const text = quotes[Math.floor(Math.random() * quotes.length)];
+  speechBubbles = speechBubbles.filter(b => b.mouseKey !== mouseKey);
+  speechBubbles.push({
+    x: mouse.x + 14,
+    y: MOUSE_FLOOR_Y - 10,
+    text, timer: 3000, maxTimer: 3000, mouseKey
+  });
+  sfxSpeechBubble();
+}
+
+function updateSpeechBubbles(dt) {
+  speechCooldown -= dt;
+  if (speechCooldown <= 0) {
+    speechCooldown = 8000 + Math.random() * 7000;
+    // Pick a random mouse to speak
+    const mouseKey = Math.random() < 0.5 ? 'shadow' : 'cloud';
+    triggerSpeech(mouseKey);
+  }
+  speechBubbles.forEach(b => {
+    b.timer -= dt;
+    // Track mouse position
+    const mouse = state.miceState[b.mouseKey];
+    b.x = mouse.x + 14;
+    b.y = MOUSE_FLOOR_Y - 10;
+  });
+  speechBubbles = speechBubbles.filter(b => b.timer > 0);
+}
+
+function drawSpeechBubbles() {
+  speechBubbles.forEach(b => {
+    const alpha = Math.min(1, b.timer / 500); // fade out last 500ms
+    ctx.globalAlpha = alpha;
+    ctx.font = '9px monospace';
+    const tw = ctx.measureText(b.text).width;
+    const pw = tw + 12;
+    const ph = 18;
+    const px = Math.max(4, Math.min(GAME_W - pw - 4, b.x - pw / 2));
+    const py = b.y - ph - 8;
+
+    // Bubble bg
+    ctx.fillStyle = 'rgba(255,250,240,0.92)';
+    ctx.beginPath();
+    ctx.roundRect(px, py, pw, ph, 6);
+    ctx.fill();
+    // Bubble border
+    ctx.strokeStyle = 'rgba(180,150,100,0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(px, py, pw, ph, 6);
+    ctx.stroke();
+    // Tail triangle
+    ctx.fillStyle = 'rgba(255,250,240,0.92)';
+    ctx.beginPath();
+    ctx.moveTo(b.x - 4, py + ph);
+    ctx.lineTo(b.x, py + ph + 6);
+    ctx.lineTo(b.x + 4, py + ph);
+    ctx.fill();
+    // Text
+    ctx.fillStyle = '#3a2a1a';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(b.text, px + pw / 2, py + ph / 2);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.globalAlpha = 1.0;
+  });
+}
+
+function spawnFloatingEffect(x, y, text) {
+  floatingEffects.push({ x, y, text, timer: 1200, vy: -0.04 });
+}
+
+function updateFloatingEffects(dt) {
+  floatingEffects.forEach(e => {
+    e.timer -= dt;
+    e.y += e.vy * dt;
+    e.x += Math.sin(Date.now() / 200 + e.y) * 0.15;
+  });
+  floatingEffects = floatingEffects.filter(e => e.timer > 0);
+}
+
+function drawFloatingEffects() {
+  floatingEffects.forEach(e => {
+    const alpha = Math.min(1, e.timer / 400);
+    ctx.globalAlpha = alpha;
+    ctx.font = '14px serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(e.text, e.x, e.y);
+    ctx.textAlign = 'left';
+    ctx.globalAlpha = 1.0;
+  });
+}
+
+// ============================================================
+// CLICK-TO-PET
+// ============================================================
+function tryPetMouse(gx, gy) {
+  const mice = [
+    { key: 'shadow', state: state.miceState.shadow, cfg: CONFIG.mice.shadow },
+    { key: 'cloud', state: state.miceState.cloud, cfg: CONFIG.mice.cloud }
+  ];
+  for (const m of mice) {
+    if (m.state.room !== state.currentRoom) continue;
+    const mx = m.state.x;
+    const my = MOUSE_FLOOR_Y;
+    if (gx > mx - 5 && gx < mx + 30 && gy > my - 10 && gy < my + 25) {
+      // Pet this mouse!
+      sfxPet();
+      for (let i = 0; i < 5; i++) {
+        setTimeout(() => {
+          spawnFloatingEffect(
+            mx + 10 + (Math.random() - 0.5) * 20,
+            my - 5 - Math.random() * 15,
+            ['❤️', '💕', '💖', '💗', '🥰'][Math.floor(Math.random() * 5)]
+          );
+        }, i * 100);
+      }
+      // Mouse reacts
+      speechBubbles = speechBubbles.filter(b => b.mouseKey !== m.key);
+      const petQuotes = m.key === 'shadow'
+        ? ['okay that\'s nice', 'more pls 🥺', '*purrs in mouse*', 'acceptable', 'don\'t stop 👀']
+        : ['🥰🥰🥰', 'best day ever', '*happy squeak*', 'i love you', 'this is everything'];
+      speechBubbles.push({
+        x: mx + 14, y: MOUSE_FLOOR_Y - 10,
+        text: petQuotes[Math.floor(Math.random() * petQuotes.length)],
+        timer: 2500, maxTimer: 2500, mouseKey: m.key
+      });
+      // Briefly pause their action (they enjoy it)
+      m.state.action = 'idle';
+      m.state.actionTimer = 2500;
+      m.state.happiness = Math.min(100, (m.state.happiness || 80) + 5);
+      return true;
+    }
+  }
+  return false;
+}
+
+// ============================================================
+// MOUSE INTERACTIONS (when both in same room)
+// ============================================================
+let interactionCooldown = 12000 + Math.random() * 8000;
+
+function updateMouseInteractions(dt) {
+  const s = state.miceState.shadow;
+  const c = state.miceState.cloud;
+  if (s.room !== c.room) { interactionCooldown = 5000 + Math.random() * 5000; return; }
+
+  interactionCooldown -= dt;
+  if (interactionCooldown > 0) return;
+  interactionCooldown = 15000 + Math.random() * 10000;
+
+  const interaction = Math.random();
+
+  if (interaction < 0.35) {
+    // Nuzzle: move toward each other
+    const midX = (s.x + c.x) / 2;
+    s.action = 'walking'; s.targetX = midX - 15; s.dir = 1;
+    c.action = 'walking'; c.targetX = midX + 15; c.dir = -1;
+    s.actionTimer = 4000; c.actionTimer = 4000;
+    setTimeout(() => {
+      if (s.room === c.room && s.room === state.currentRoom) {
+        spawnFloatingEffect((s.x + c.x) / 2 + 14, MOUSE_FLOOR_Y - 10, '💕');
+        triggerSpeech(Math.random() < 0.5 ? 'shadow' : 'cloud');
+      }
+    }, 2000);
+  } else if (interaction < 0.65) {
+    // Play-chase: Shadow chases Cloud (or vice versa)
+    const chaser = Math.random() < 0.6 ? s : c;
+    const runner = chaser === s ? c : s;
+    const chaserKey = chaser === s ? 'shadow' : 'cloud';
+    runner.action = 'walking';
+    runner.targetX = Math.random() < 0.5 ? 40 : ROOM_W - 60;
+    runner.dir = runner.targetX > runner.x ? 1 : -1;
+    runner.actionTimer = 4000;
+    chaser.action = 'walking';
+    chaser.dir = runner.dir;
+    chaser.actionTimer = 4000;
+    // Chase after a small delay
+    setTimeout(() => {
+      chaser.targetX = runner.targetX + (Math.random() < 0.5 ? -20 : 20);
+    }, 400);
+    speechBubbles = speechBubbles.filter(b => b.mouseKey !== chaserKey);
+    speechBubbles.push({
+      x: chaser.x + 14, y: MOUSE_FLOOR_Y - 10,
+      text: chaserKey === 'shadow' ? 'get back here! 💨' : 'wheee! 🏃',
+      timer: 2000, maxTimer: 2000, mouseKey: chaserKey
+    });
+  } else {
+    // Judging: one mouse stares at the other
+    const judger = Math.random() < 0.6 ? s : c;
+    const judgerKey = judger === s ? 'shadow' : 'cloud';
+    judger.action = 'idle';
+    judger.actionTimer = 4000;
+    judger.dir = (judger === s ? c.x : s.x) > judger.x ? 1 : -1;
+    speechBubbles = speechBubbles.filter(b => b.mouseKey !== judgerKey);
+    speechBubbles.push({
+      x: judger.x + 14, y: MOUSE_FLOOR_Y - 10,
+      text: judgerKey === 'shadow'
+        ? ['sus 🤨', 'cringe', 'who asked?', 'bruh'][Math.floor(Math.random() * 4)]
+        : ['rude', 'don\'t look at me', 'why tho', '😐'][Math.floor(Math.random() * 4)],
+      timer: 3000, maxTimer: 3000, mouseKey: judgerKey
+    });
+  }
+}
+canvas.addEventListener('mousedown', e => handleCanvasInput(e.clientX, e.clientY));
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  handleCanvasInput(e.touches[0].clientX, e.touches[0].clientY);
+}, { passive: false });
+
+function handleCanvasInput(sx, sy) {
+  const pos = screenToGame(sx, sy);
+
+  // Cheese Chase input
+  if (cheeseChaseActive) {
+    if (cc.gameOver) {
+      endCheeseChase();
+      return;
+    }
+    ccInputY = pos.y;
+    return;
+  }
+
+  // Handle placement mode
+  if (state.placementMode || state.removeMode) {
+    handlePlacementClick(pos.x, pos.y);
+    return;
+  }
+  // Try petting a mouse
+  if (tryPetMouse(pos.x, pos.y)) return;
+}
+
+canvas.addEventListener('mousemove', e => {
+  if (cheeseChaseActive && !cc.gameOver) ccInputY = screenToGame(e.clientX, e.clientY).y;
+});
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (cheeseChaseActive && !cc.gameOver) ccInputY = screenToGame(e.touches[0].clientX, e.touches[0].clientY).y;
+}, { passive: false });
+
+document.addEventListener('keydown', e => {
+  if (cheeseChaseActive && !cc.gameOver) {
+    if (e.key === 'ArrowUp' || e.key === 'w') cc.mouseY -= 10;
+    if (e.key === 'ArrowDown' || e.key === 's') cc.mouseY += 10;
+  }
+});
+
+document.getElementById('title-screen').addEventListener('click', startGame);
+document.getElementById('title-screen').addEventListener('touchstart', e => {
+  e.preventDefault(); startGame();
+});
+
+// ============================================================
+// GAME START
+// ============================================================
+function startGame() {
+  if (state.gameStarted) return;
+  state.gameStarted = true;
+  document.getElementById('title-screen').style.display = 'none';
+  document.getElementById('hud').style.display = 'flex';
+  loadGame();
+  loadAudioPrefs();
+  initAudio();
+  updateCoinDisplay();
+  updateHappinessDisplay();
+  updateGoalDisplay();
+  buildRoomTabs();
+  initParticles();
+  triggerBirthdayEvent();
+  if (!audioMuted) startMusic();
+}
+
+// ============================================================
+// MAIN LOOP
+// ============================================================
+let lastTime = performance.now();
+
+function gameLoop(now) {
+  const dt = Math.min(now - lastTime, 50);
+  lastTime = now;
+
+  if (state.gameStarted) {
+    if (cheeseChaseActive) {
+      updateCheeseChase(dt);
+      updateFloatingEffects(dt);
+      ctx.clearRect(0, 0, GAME_W, GAME_H);
+      drawCheeseChase();
+    } else {
+      updateParticles(dt);
+      updateMouse(state.miceState.shadow, dt, CONFIG.mice.shadow.personality);
+      updateMouse(state.miceState.cloud, dt, CONFIG.mice.cloud.personality);
+      updateSpeechBubbles(dt);
+      updateFloatingEffects(dt);
+      updateMouseInteractions(dt);
+      updateHappiness(dt);
+      updateGoals(dt);
+
+      ctx.clearRect(0, 0, GAME_W, GAME_H);
+      drawRoom(state.currentRoom);
+
+      // Draw mice in current room
+      const shadow = state.miceState.shadow;
+      const cloud = state.miceState.cloud;
+      if (shadow.room === state.currentRoom) {
+        drawMouse(shadow.x, MOUSE_FLOOR_Y, CONFIG.mice.shadow, shadow.dir, shadow.frame, shadow.action);
+        drawPartyHat(shadow.x, MOUSE_FLOOR_Y, shadow.action);
+      }
+      if (cloud.room === state.currentRoom) {
+        drawMouse(cloud.x, MOUSE_FLOOR_Y, CONFIG.mice.cloud, cloud.dir, cloud.frame, cloud.action);
+        drawPartyHat(cloud.x, MOUSE_FLOOR_Y, cloud.action);
+      }
+
+      drawSpeechBubbles();
+      drawFloatingEffects();
+      drawMouseStatus();
+    }
+  }
+
+  requestAnimationFrame(gameLoop);
+}
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
