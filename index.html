@@ -234,17 +234,43 @@ html, body {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
   background: #2b1d0e; display: flex; flex-direction: column;
   justify-content: center; align-items: center; z-index: 200;
-  cursor: pointer;
+  cursor: pointer; overflow: hidden;
 }
 #title-screen h1 {
-  color: #f5d68a; font-size: 38px; margin-bottom: 6px;
+  color: #f5d68a; font-size: 38px; margin-bottom: 4px;
   text-shadow: 2px 2px 0 #1a0f05, 0 0 20px rgba(245,214,138,0.3);
 }
-#title-screen .subtitle { color: #a89070; font-size: 15px; margin-bottom: 30px; }
+#title-screen .subtitle { color: #a89070; font-size: 14px; margin-bottom: 8px; font-style: italic; }
+#title-screen .adventure-subtitle {
+  color: #c8a870; font-size: 16px; margin-bottom: 24px;
+  text-shadow: 0 0 12px rgba(200,168,112,0.4);
+}
 #title-screen .start-text {
   color: #f5d68a; font-size: 16px;
   animation: pulse 1.5s ease-in-out infinite;
-  margin-top: 20px;
+  margin-top: 16px;
+}
+#title-screen .mice-display {
+  display: flex; gap: 40px; align-items: flex-end; margin-bottom: 12px;
+}
+#title-screen .mouse-art {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+#title-screen .mouse-art .name {
+  color: #d0b888; font-size: 12px; font-weight: bold;
+}
+#title-screen canvas { border-radius: 8px; }
+/* Floating cheese/sparkle particles on title */
+.title-particle {
+  position: absolute; font-size: 16px; pointer-events: none;
+  animation: float-up 6s linear infinite;
+  opacity: 0.6;
+}
+@keyframes float-up {
+  0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+  10% { opacity: 0.6; }
+  90% { opacity: 0.6; }
+  100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
 }
 @keyframes pulse {
   0%, 100% { opacity: 1; }
@@ -339,6 +365,17 @@ html, body {
 <div id="title-screen">
   <h1>🐭 Mouse House 🐭</h1>
   <div class="subtitle">A cozy home for Pip & Chai</div>
+  <div class="mice-display">
+    <div class="mouse-art">
+      <canvas id="title-pip" width="56" height="50"></canvas>
+      <span class="name">Pip</span>
+    </div>
+    <div class="mouse-art">
+      <canvas id="title-chai" width="56" height="50"></canvas>
+      <span class="name">Chai</span>
+    </div>
+  </div>
+  <div class="adventure-subtitle">✨ The Adventures of Pip & Chai ✨</div>
   <div class="start-text">~ tap or click to start ~</div>
 </div>
 
@@ -581,24 +618,39 @@ function sfxUIClick() {
 }
 
 // --- Background music (gentle pentatonic loop) ---
-const MUSIC_NOTES = [
-  // 4-bar loop in C pentatonic, cozy and gentle
-  // [note freq, duration in ms]
-  [262, 300], [330, 300], [392, 300], [330, 300],
-  [440, 300], [392, 300], [330, 600],
-  [294, 300], [330, 300], [392, 300], [440, 300],
-  [392, 300], [330, 300], [262, 600],
-  [330, 300], [392, 300], [440, 300], [392, 300],
-  [330, 300], [294, 300], [262, 600],
-  [392, 300], [330, 300], [294, 300], [330, 300],
-  [262, 300], [294, 300], [262, 600],
+// Multiple melodic phrases that cycle for variety
+const MUSIC_PHRASES = [
+  // Phrase A: gentle ascending (C major pentatonic)
+  [[262,300],[294,300],[330,300],[392,300],[440,300],[392,300],[330,600],
+   [294,300],[330,300],[262,600]],
+  // Phrase B: playful skip pattern
+  [[330,200],[392,200],[330,200],[440,400],[392,300],[330,300],[294,300],[262,600],
+   [294,200],[330,200],[392,600]],
+  // Phrase C: lullaby feel (slower, wider intervals)
+  [[262,500],[392,500],[330,400],[294,300],[262,300],
+   [330,500],[440,500],[392,400],[330,600]],
+  // Phrase D: cheerful bounce
+  [[392,200],[392,200],[440,400],[330,200],[330,200],[392,400],
+   [294,300],[330,300],[392,300],[440,300],[392,600]],
+  // Phrase E: descending calm
+  [[523,400],[440,300],[392,300],[330,400],[294,300],[262,300],
+   [294,300],[330,300],[262,600]],
+  // Phrase F: call and response
+  [[262,300],[330,300],[392,600],[0,200],
+   [440,300],[392,300],[330,600],[0,200],
+   [294,300],[330,300],[262,600]],
 ];
 
+let musicPhraseIndex = 0;
 let musicNoteIndex = 0;
+let musicPhrase = MUSIC_PHRASES[0];
 
 function startMusic() {
   if (!audioCtx || musicPlaying) return;
   musicPlaying = true;
+  musicPhraseIndex = Math.floor(Math.random() * MUSIC_PHRASES.length);
+  musicPhrase = MUSIC_PHRASES[musicPhraseIndex];
+  musicNoteIndex = 0;
   playMusicNote();
 }
 
@@ -609,36 +661,59 @@ function stopMusic() {
 
 function playMusicNote() {
   if (!musicPlaying || audioMuted) { musicPlaying = false; return; }
-  const [freq, dur] = MUSIC_NOTES[musicNoteIndex % MUSIC_NOTES.length];
+
+  // Advance to next phrase when current one finishes
+  if (musicNoteIndex >= musicPhrase.length) {
+    musicPhraseIndex = (musicPhraseIndex + 1 + Math.floor(Math.random() * (MUSIC_PHRASES.length - 1))) % MUSIC_PHRASES.length;
+    musicPhrase = MUSIC_PHRASES[musicPhraseIndex];
+    musicNoteIndex = 0;
+  }
+
+  const [freq, dur] = musicPhrase[musicNoteIndex];
   musicNoteIndex++;
 
-  // Soft triangle wave melody
-  const osc = audioCtx.createOscillator();
-  const g = audioCtx.createGain();
-  osc.type = 'triangle';
-  osc.frequency.value = freq;
-  g.gain.value = 0.08;
-  // Gentle attack and release
-  g.gain.setValueAtTime(0, audioCtx.currentTime);
-  g.gain.linearRampToValueAtTime(0.08, audioCtx.currentTime + 0.03);
-  g.gain.setTargetAtTime(0, audioCtx.currentTime + (dur / 1000) * 0.6, (dur / 1000) * 0.15);
-  osc.connect(g);
-  g.connect(musicGain);
-  osc.start(audioCtx.currentTime);
-  osc.stop(audioCtx.currentTime + dur / 1000 + 0.1);
+  if (freq > 0) {
+    // Soft triangle wave melody
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = freq;
+    g.gain.setValueAtTime(0, audioCtx.currentTime);
+    g.gain.linearRampToValueAtTime(0.08, audioCtx.currentTime + 0.04);
+    g.gain.setTargetAtTime(0, audioCtx.currentTime + (dur / 1000) * 0.6, (dur / 1000) * 0.15);
+    osc.connect(g);
+    g.connect(musicGain);
+    osc.start(audioCtx.currentTime);
+    osc.stop(audioCtx.currentTime + dur / 1000 + 0.1);
 
-  // Subtle harmony (fifth below, very quiet)
-  if (musicNoteIndex % 4 === 0) {
-    const osc2 = audioCtx.createOscillator();
-    const g2 = audioCtx.createGain();
-    osc2.type = 'sine';
-    osc2.frequency.value = freq * 0.667;
-    g2.gain.value = 0.03;
-    g2.gain.setTargetAtTime(0, audioCtx.currentTime + (dur / 1000) * 0.5, (dur / 1000) * 0.2);
-    osc2.connect(g2);
-    g2.connect(musicGain);
-    osc2.start(audioCtx.currentTime);
-    osc2.stop(audioCtx.currentTime + dur / 1000 + 0.15);
+    // Harmony: soft fifth or third below on some notes
+    if (musicNoteIndex % 3 === 0) {
+      const harmRatio = musicNoteIndex % 6 === 0 ? 0.667 : 0.8; // fifth or major third
+      const osc2 = audioCtx.createOscillator();
+      const g2 = audioCtx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.value = freq * harmRatio;
+      g2.gain.value = 0.03;
+      g2.gain.setTargetAtTime(0, audioCtx.currentTime + (dur / 1000) * 0.5, (dur / 1000) * 0.2);
+      osc2.connect(g2);
+      g2.connect(musicGain);
+      osc2.start(audioCtx.currentTime);
+      osc2.stop(audioCtx.currentTime + dur / 1000 + 0.15);
+    }
+
+    // Occasional soft bass note on phrase downbeats
+    if (musicNoteIndex === 1) {
+      const osc3 = audioCtx.createOscillator();
+      const g3 = audioCtx.createGain();
+      osc3.type = 'sine';
+      osc3.frequency.value = freq * 0.5;
+      g3.gain.value = 0.025;
+      g3.gain.setTargetAtTime(0, audioCtx.currentTime + 0.3, 0.15);
+      osc3.connect(g3);
+      g3.connect(musicGain);
+      osc3.start(audioCtx.currentTime);
+      osc3.stop(audioCtx.currentTime + 0.6);
+    }
   }
 
   musicTimeout = setTimeout(playMusicNote, dur);
@@ -4707,15 +4782,34 @@ function handleCanvasInput(sx, sy, originalEvent) {
 }
 
 // Double-click on placed furniture to reposition (opens shop if needed)
+// Double-click on status bar room icon to jump to that mouse's room
 canvas.addEventListener('dblclick', e => {
   if (cheeseChaseActive || mouseMazeActive) return;
   const pos = screenToGame(e.clientX, e.clientY);
+
+  // Check status bar area (bottom 20px) — double-click room icon to jump
+  if (pos.y > GAME_H - 20) {
+    const pip = state.miceState.pip;
+    const chai = state.miceState.chai;
+    if (pos.x < GAME_W / 2 && pip.room !== state.currentRoom) {
+      switchRoom(pip.room);
+      showToast(`Jumped to ${CONFIG.mice.pip.name} in ${ROOMS[pip.room].icon} ${ROOMS[pip.room].name}`);
+      return;
+    }
+    if (pos.x >= GAME_W / 2 && chai.room !== state.currentRoom) {
+      switchRoom(chai.room);
+      showToast(`Jumped to ${CONFIG.mice.chai.name} in ${ROOMS[chai.room].icon} ${ROOMS[chai.room].name}`);
+      return;
+    }
+    return;
+  }
+
+  // Furniture reposition
   const placedIdx = findPlacedItemAt(pos.x, pos.y);
   if (placedIdx < 0) return;
   const placed = state.placedItems[placedIdx];
   const item = FURNITURE.find(f => f.id === placed.itemId);
   if (!item || item.exerciseRoom) return;
-  // Open shop if not already open
   if (!state.shopOpen) {
     state.shopOpen = true;
     refreshShopFlyout();
@@ -4763,6 +4857,69 @@ document.addEventListener('keydown', e => {
     if (e.key === 'ArrowRight' || e.key === 'd') { e.preventDefault(); mz.moveQueue.push('right'); }
   }
 });
+
+// ============================================================
+// TITLE SCREEN — draw mice and spawn floating particles
+// ============================================================
+(function initTitleScreen() {
+  // Draw a simple mouse portrait on a small canvas
+  function drawTitleMouse(canvasId, cfg, dir) {
+    const tc = document.getElementById(canvasId);
+    if (!tc) return;
+    const c = tc.getContext('2d');
+    c.clearRect(0, 0, 56, 50);
+    c.save();
+    c.translate(28, 28);
+    c.scale(1.8 * dir, 1.8);
+    // Body
+    c.fillStyle = cfg.bodyColor;
+    c.beginPath(); c.ellipse(0, 4, 10, 8, 0, 0, Math.PI * 2); c.fill();
+    // Head
+    c.beginPath(); c.ellipse(8, -2, 7, 6, 0.2, 0, Math.PI * 2); c.fill();
+    // Ears
+    c.fillStyle = cfg.earColor;
+    c.beginPath(); c.ellipse(11, -9, 5, 4, 0.3, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.ellipse(5, -9, 4, 3.5, -0.2, 0, Math.PI * 2); c.fill();
+    // Inner ears
+    c.fillStyle = '#ffb6c1';
+    c.beginPath(); c.ellipse(11, -9, 3, 2.5, 0.3, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.ellipse(5, -9, 2.5, 2, -0.2, 0, Math.PI * 2); c.fill();
+    // Eye
+    c.fillStyle = '#111';
+    c.beginPath(); c.arc(11, -3, 1.8, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#fff';
+    c.beginPath(); c.arc(11.5, -3.5, 0.7, 0, Math.PI * 2); c.fill();
+    // Nose
+    c.fillStyle = '#ffb6c1';
+    c.beginPath(); c.arc(15, -1, 1.5, 0, Math.PI * 2); c.fill();
+    // Whiskers
+    c.strokeStyle = '#999'; c.lineWidth = 0.5;
+    c.beginPath(); c.moveTo(14, -1); c.lineTo(20, -3); c.stroke();
+    c.beginPath(); c.moveTo(14, 0); c.lineTo(20, 1); c.stroke();
+    // Tail
+    c.strokeStyle = cfg.earColor; c.lineWidth = 1.5; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(-10, 4);
+    c.quadraticCurveTo(-16, -2, -13, -6); c.stroke();
+    c.restore();
+  }
+  drawTitleMouse('title-pip', CONFIG.mice.pip, 1);
+  drawTitleMouse('title-chai', CONFIG.mice.chai, -1);
+
+  // Spawn floating particles
+  const titleEl = document.getElementById('title-screen');
+  const emojis = ['🧀','✨','💕','🐭','🌙','⭐','🧶','🍞','☕'];
+  for (let i = 0; i < 12; i++) {
+    const span = document.createElement('span');
+    span.className = 'title-particle';
+    span.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    span.style.left = (5 + Math.random() * 90) + '%';
+    span.style.bottom = (-10 - Math.random() * 20) + '%';
+    span.style.animationDelay = (Math.random() * 6) + 's';
+    span.style.animationDuration = (5 + Math.random() * 4) + 's';
+    span.style.fontSize = (14 + Math.random() * 10) + 'px';
+    titleEl.appendChild(span);
+  }
+})();
 
 document.getElementById('title-screen').addEventListener('click', startGame);
 document.getElementById('title-screen').addEventListener('touchstart', e => {
