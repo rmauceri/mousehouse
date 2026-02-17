@@ -237,29 +237,61 @@ html, body {
   cursor: pointer; overflow: hidden;
 }
 #title-screen h1 {
-  color: #f5d68a; font-size: 38px; margin-bottom: 4px;
-  text-shadow: 2px 2px 0 #1a0f05, 0 0 20px rgba(245,214,138,0.3);
+  color: #f5d68a; font-size: 52px; margin-bottom: 2px; letter-spacing: 2px;
+  text-shadow: 3px 3px 0 #1a0f05, 0 0 30px rgba(245,214,138,0.4);
 }
-#title-screen .subtitle { color: #a89070; font-size: 14px; margin-bottom: 8px; font-style: italic; }
 #title-screen .adventure-subtitle {
-  color: #c8a870; font-size: 16px; margin-bottom: 24px;
+  color: #c8a870; font-size: 16px; margin-bottom: 18px;
   text-shadow: 0 0 12px rgba(200,168,112,0.4);
 }
 #title-screen .start-text {
   color: #f5d68a; font-size: 16px;
   animation: pulse 1.5s ease-in-out infinite;
-  margin-top: 16px;
+  margin-top: 12px;
 }
 #title-screen .mice-display {
-  display: flex; gap: 40px; align-items: flex-end; margin-bottom: 12px;
+  display: flex; gap: 30px; align-items: flex-end; margin-bottom: 14px;
 }
 #title-screen .mouse-art {
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
 }
 #title-screen .mouse-art .name {
-  color: #d0b888; font-size: 12px; font-weight: bold;
+  color: #d0b888; font-size: 13px; font-weight: bold;
 }
 #title-screen canvas { border-radius: 8px; }
+#title-screen .title-buttons {
+  display: flex; gap: 12px; margin-top: 14px;
+}
+#title-screen .title-buttons button {
+  background: rgba(245,214,138,0.15); border: 1px solid #6b5030;
+  color: #f5d68a; font-size: 13px; padding: 6px 16px; border-radius: 6px;
+  cursor: pointer; font-family: monospace; transition: all 0.2s;
+}
+#title-screen .title-buttons button:hover {
+  background: rgba(245,214,138,0.3); border-color: #f5d68a;
+}
+#title-about-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.7); z-index: 210; display: none;
+  justify-content: center; align-items: center;
+}
+#title-about-overlay.visible { display: flex; }
+#title-about-box {
+  background: #2b1d0e; border: 2px solid #6b5030; border-radius: 12px;
+  padding: 20px 24px; max-width: 380px; max-height: 80vh; overflow-y: auto;
+  color: #e8d5b5; font-family: monospace; font-size: 12px; line-height: 1.6;
+}
+#title-about-box h2 { color: #f5d68a; font-size: 18px; margin: 0 0 8px; }
+#title-about-box h3 { color: #c8a870; font-size: 13px; margin: 10px 0 4px; }
+#title-about-box p { margin: 4px 0; }
+#title-about-box ul { margin: 4px 0 4px 16px; padding: 0; }
+#title-about-box li { margin: 2px 0; }
+#title-about-box .close-about {
+  display: block; margin: 12px auto 0; background: #6b5030; border: none;
+  color: #f5d68a; padding: 6px 20px; border-radius: 6px; cursor: pointer;
+  font-family: monospace; font-size: 13px;
+}
+#title-about-box .close-about:hover { background: #8b6840; }
 /* Floating cheese/sparkle particles on title */
 .title-particle {
   position: absolute; font-size: 16px; pointer-events: none;
@@ -363,20 +395,55 @@ html, body {
 <div id="trash-zone">🗑</div>
 
 <div id="title-screen">
-  <h1>🐭 Mouse House 🐭</h1>
-  <div class="subtitle">A cozy home for Pip & Chai</div>
+  <h1>Mouse House</h1>
   <div class="mice-display">
     <div class="mouse-art">
-      <canvas id="title-pip" width="56" height="50"></canvas>
+      <canvas id="title-pip" width="120" height="110"></canvas>
       <span class="name">Pip</span>
     </div>
     <div class="mouse-art">
-      <canvas id="title-chai" width="56" height="50"></canvas>
+      <canvas id="title-chai" width="120" height="110"></canvas>
       <span class="name">Chai</span>
     </div>
   </div>
   <div class="adventure-subtitle">✨ The Adventures of Pip & Chai ✨</div>
   <div class="start-text">~ tap or click to start ~</div>
+  <div class="title-buttons">
+    <button id="title-about-btn" onclick="event.stopPropagation(); toggleTitleAbout()">📖 About</button>
+    <button id="title-mute-btn" onclick="event.stopPropagation(); toggleTitleMute()">🔊 Sound</button>
+  </div>
+</div>
+
+<div id="title-about-overlay" onclick="closeTitleAbout()">
+  <div id="title-about-box" onclick="event.stopPropagation()">
+    <h2>🐭 Mouse House</h2>
+    <p>A cozy virtual pet game for Nico & Rose! Watch Pip and Chai explore their dollhouse, buy them furniture, and play mini-games together.</p>
+    <h3>🏠 Features</h3>
+    <ul>
+      <li><b>4 rooms</b> — Bedroom, Kitchen, Living Room & Exercise Room, each with platforms and ramps</li>
+      <li><b>20+ furniture items</b> — Buy from the Moustazon shop and place anywhere</li>
+      <li><b>3 mini-games</b> — Cheese Chase, Doomscroll & Mouse Maze</li>
+      <li><b>Exercise Wheel</b> — Watch the mice spin (and get flung!)</li>
+      <li><b>Mouse AI</b> — Pip & Chai explore, climb, nap, chase each other, and share thoughts</li>
+    </ul>
+    <h3>🪙 How to Play</h3>
+    <ul>
+      <li>Earn coins by petting mice, playing mini-games, and completing goals</li>
+      <li>Spend coins in the <b>Moustazon</b> shop (🛍 button) to buy furniture</li>
+      <li>Drag items from the tray to place them; double-click placed items to reposition</li>
+      <li>Click empty space to close the shop (light dismiss)</li>
+      <li>Switch rooms using the tabs at the top</li>
+    </ul>
+    <h3>💡 Tips</h3>
+    <ul>
+      <li><b>Pet the mice!</b> Click/tap on them for coins and happiness</li>
+      <li><b>Double-click status bar</b> (bottom) to jump to a mouse's room</li>
+      <li><b>Goals</b> appear at the top — complete them for bonus coins</li>
+      <li><b>Loot Crumbs</b> button in the shop gives free coins (once per day)</li>
+      <li>Mice have personalities: Pip is chaotic & hungry, Chai is cozy & chill</li>
+    </ul>
+    <button class="close-about" onclick="closeTitleAbout()">Got it! 🐭</button>
+  </div>
 </div>
 
 <div id="modal-container"></div>
@@ -4862,48 +4929,101 @@ document.addEventListener('keydown', e => {
 // TITLE SCREEN — draw mice and spawn floating particles
 // ============================================================
 (function initTitleScreen() {
-  // Draw a simple mouse portrait on a small canvas
-  function drawTitleMouse(canvasId, cfg, dir) {
+  // Draw a large mouse portrait — Pip standing alert, Chai sitting cozy
+  function drawTitleMouse(canvasId, cfg, dir, pose) {
     const tc = document.getElementById(canvasId);
     if (!tc) return;
     const c = tc.getContext('2d');
-    c.clearRect(0, 0, 56, 50);
+    const W = tc.width, H = tc.height;
+    c.clearRect(0, 0, W, H);
     c.save();
-    c.translate(28, 28);
-    c.scale(1.8 * dir, 1.8);
-    // Body
-    c.fillStyle = cfg.bodyColor;
-    c.beginPath(); c.ellipse(0, 4, 10, 8, 0, 0, Math.PI * 2); c.fill();
-    // Head
-    c.beginPath(); c.ellipse(8, -2, 7, 6, 0.2, 0, Math.PI * 2); c.fill();
-    // Ears
-    c.fillStyle = cfg.earColor;
-    c.beginPath(); c.ellipse(11, -9, 5, 4, 0.3, 0, Math.PI * 2); c.fill();
-    c.beginPath(); c.ellipse(5, -9, 4, 3.5, -0.2, 0, Math.PI * 2); c.fill();
-    // Inner ears
-    c.fillStyle = '#ffb6c1';
-    c.beginPath(); c.ellipse(11, -9, 3, 2.5, 0.3, 0, Math.PI * 2); c.fill();
-    c.beginPath(); c.ellipse(5, -9, 2.5, 2, -0.2, 0, Math.PI * 2); c.fill();
-    // Eye
-    c.fillStyle = '#111';
-    c.beginPath(); c.arc(11, -3, 1.8, 0, Math.PI * 2); c.fill();
-    c.fillStyle = '#fff';
-    c.beginPath(); c.arc(11.5, -3.5, 0.7, 0, Math.PI * 2); c.fill();
-    // Nose
-    c.fillStyle = '#ffb6c1';
-    c.beginPath(); c.arc(15, -1, 1.5, 0, Math.PI * 2); c.fill();
-    // Whiskers
-    c.strokeStyle = '#999'; c.lineWidth = 0.5;
-    c.beginPath(); c.moveTo(14, -1); c.lineTo(20, -3); c.stroke();
-    c.beginPath(); c.moveTo(14, 0); c.lineTo(20, 1); c.stroke();
-    // Tail
-    c.strokeStyle = cfg.earColor; c.lineWidth = 1.5; c.lineCap = 'round';
-    c.beginPath(); c.moveTo(-10, 4);
-    c.quadraticCurveTo(-16, -2, -13, -6); c.stroke();
+    c.translate(W / 2, H / 2 + 8);
+    const sc = 3.6;
+    c.scale(sc * dir, sc);
+
+    if (pose === 'standing') {
+      // Standing/alert pose — body more upright, one paw raised
+      // Body (slightly tilted up)
+      c.fillStyle = cfg.bodyColor;
+      c.beginPath(); c.ellipse(0, 6, 9, 7, -0.15, 0, Math.PI * 2); c.fill();
+      // Head (higher, looking forward)
+      c.beginPath(); c.ellipse(7, -4, 7, 6, 0.1, 0, Math.PI * 2); c.fill();
+      // Ears
+      c.fillStyle = cfg.earColor;
+      c.beginPath(); c.ellipse(10, -12, 5, 4.5, 0.2, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(3, -11, 4.5, 4, -0.3, 0, Math.PI * 2); c.fill();
+      // Inner ears
+      c.fillStyle = '#ffb6c1';
+      c.beginPath(); c.ellipse(10, -12, 3, 2.8, 0.2, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(3, -11, 2.8, 2.5, -0.3, 0, Math.PI * 2); c.fill();
+      // Eye (larger, expressive)
+      c.fillStyle = '#111';
+      c.beginPath(); c.arc(10, -4, 2.2, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#fff';
+      c.beginPath(); c.arc(10.7, -4.8, 0.9, 0, Math.PI * 2); c.fill();
+      // Nose
+      c.fillStyle = '#ffb6c1';
+      c.beginPath(); c.arc(14, -3, 1.6, 0, Math.PI * 2); c.fill();
+      // Whiskers
+      c.strokeStyle = '#999'; c.lineWidth = 0.4;
+      c.beginPath(); c.moveTo(13, -3); c.lineTo(20, -5); c.stroke();
+      c.beginPath(); c.moveTo(13, -2); c.lineTo(20, -1); c.stroke();
+      c.beginPath(); c.moveTo(13, -1); c.lineTo(19, 2); c.stroke();
+      // Front legs — one raised!
+      c.fillStyle = cfg.bodyColor;
+      c.fillRect(4, 11, 3, 5);
+      // Raised paw
+      c.beginPath(); c.ellipse(8, 8, 2.5, 2, 0.5, 0, Math.PI * 2); c.fill();
+      // Back leg
+      c.fillRect(-4, 11, 3, 5);
+      // Paws
+      c.fillStyle = cfg.earColor;
+      c.beginPath(); c.ellipse(5.5, 16, 2.5, 1.2, 0, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(-2.5, 16, 2.5, 1.2, 0, 0, Math.PI * 2); c.fill();
+      // Tail (curled up high)
+      c.strokeStyle = cfg.earColor; c.lineWidth = 1.5; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(-9, 5);
+      c.bezierCurveTo(-16, -2, -18, -8, -13, -10); c.stroke();
+    } else {
+      // Sitting/cozy pose — rounder, paws tucked, head tilted
+      // Body (rounder, sitting)
+      c.fillStyle = cfg.bodyColor;
+      c.beginPath(); c.ellipse(0, 5, 10, 9, 0, 0, Math.PI * 2); c.fill();
+      // Head (tilted slightly)
+      c.beginPath(); c.ellipse(8, -3, 7, 6, -0.15, 0, Math.PI * 2); c.fill();
+      // Ears
+      c.fillStyle = cfg.earColor;
+      c.beginPath(); c.ellipse(12, -10, 5, 4.5, 0.4, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(4, -10, 4.5, 4, -0.1, 0, Math.PI * 2); c.fill();
+      // Inner ears
+      c.fillStyle = '#ffb6c1';
+      c.beginPath(); c.ellipse(12, -10, 3, 2.8, 0.4, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(4, -10, 2.8, 2.5, -0.1, 0, Math.PI * 2); c.fill();
+      // Eye (half-closed, cozy)
+      c.fillStyle = '#111';
+      c.beginPath(); c.ellipse(11, -3, 2, 1.4, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#fff';
+      c.beginPath(); c.arc(11.5, -3.6, 0.7, 0, Math.PI * 2); c.fill();
+      // Nose
+      c.fillStyle = '#ffb6c1';
+      c.beginPath(); c.arc(15, -2, 1.6, 0, Math.PI * 2); c.fill();
+      // Whiskers
+      c.strokeStyle = '#999'; c.lineWidth = 0.4;
+      c.beginPath(); c.moveTo(14, -2); c.lineTo(21, -4); c.stroke();
+      c.beginPath(); c.moveTo(14, -1); c.lineTo(21, 0); c.stroke();
+      // Front paws tucked under chin
+      c.fillStyle = cfg.earColor;
+      c.beginPath(); c.ellipse(6, 12, 3, 1.5, 0.2, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(0, 13, 3, 1.5, -0.1, 0, Math.PI * 2); c.fill();
+      // Tail (wrapped around body)
+      c.strokeStyle = cfg.earColor; c.lineWidth = 1.5; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(-10, 6);
+      c.bezierCurveTo(-15, 10, -12, 14, -6, 13); c.stroke();
+    }
     c.restore();
   }
-  drawTitleMouse('title-pip', CONFIG.mice.pip, 1);
-  drawTitleMouse('title-chai', CONFIG.mice.chai, -1);
+  drawTitleMouse('title-pip', CONFIG.mice.pip, 1, 'standing');
+  drawTitleMouse('title-chai', CONFIG.mice.chai, -1, 'sitting');
 
   // Spawn floating particles
   const titleEl = document.getElementById('title-screen');
@@ -4921,10 +5041,106 @@ document.addEventListener('keydown', e => {
   }
 })();
 
-document.getElementById('title-screen').addEventListener('click', startGame);
-document.getElementById('title-screen').addEventListener('touchstart', e => {
-  e.preventDefault(); startGame();
+// Title screen ambient sound
+let titleAudioCtx = null;
+let titleMusicPlaying = false;
+let titleMusicTimeout = null;
+let titleMuted = false;
+
+function initTitleAudio() {
+  if (titleAudioCtx) return;
+  titleAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+const TITLE_MELODY = [
+  [392, 600], [330, 400], [294, 400], [262, 800], [0, 300],
+  [294, 400], [330, 400], [392, 600], [330, 800], [0, 400],
+  [262, 400], [294, 400], [330, 600], [392, 400], [330, 800], [0, 600],
+];
+let titleNoteIdx = 0;
+
+function startTitleMusic() {
+  if (!titleAudioCtx || titleMusicPlaying) return;
+  titleMusicPlaying = true;
+  titleNoteIdx = 0;
+  playTitleNote();
+}
+
+function stopTitleMusic() {
+  titleMusicPlaying = false;
+  if (titleMusicTimeout) clearTimeout(titleMusicTimeout);
+}
+
+function playTitleNote() {
+  if (!titleMusicPlaying || titleMuted) { titleMusicPlaying = false; return; }
+  const [freq, dur] = TITLE_MELODY[titleNoteIdx % TITLE_MELODY.length];
+  titleNoteIdx++;
+  if (freq > 0) {
+    const osc = titleAudioCtx.createOscillator();
+    const g = titleAudioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = freq;
+    g.gain.setValueAtTime(0, titleAudioCtx.currentTime);
+    g.gain.linearRampToValueAtTime(0.05, titleAudioCtx.currentTime + 0.05);
+    g.gain.setTargetAtTime(0, titleAudioCtx.currentTime + (dur / 1000) * 0.5, (dur / 1000) * 0.2);
+    osc.connect(g); g.connect(titleAudioCtx.destination);
+    osc.start(titleAudioCtx.currentTime);
+    osc.stop(titleAudioCtx.currentTime + dur / 1000 + 0.15);
+  }
+  titleMusicTimeout = setTimeout(playTitleNote, dur);
+}
+
+function toggleTitleMute() {
+  titleMuted = !titleMuted;
+  const btn = document.getElementById('title-mute-btn');
+  btn.textContent = titleMuted ? '🔇 Sound' : '🔊 Sound';
+  if (titleMuted) {
+    stopTitleMusic();
+  } else {
+    initTitleAudio();
+    startTitleMusic();
+  }
+}
+
+function toggleTitleAbout() {
+  const overlay = document.getElementById('title-about-overlay');
+  overlay.classList.toggle('visible');
+}
+function closeTitleAbout() {
+  document.getElementById('title-about-overlay').classList.remove('visible');
+}
+
+// Start title music on first interaction (to satisfy autoplay policy)
+let titleAudioStarted = false;
+document.getElementById('title-screen').addEventListener('mousedown', () => {
+  if (!titleAudioStarted) {
+    titleAudioStarted = true;
+    if (!titleMuted) { initTitleAudio(); startTitleMusic(); }
+  }
+}, { once: false });
+document.getElementById('title-screen').addEventListener('touchstart', () => {
+  if (!titleAudioStarted) {
+    titleAudioStarted = true;
+    if (!titleMuted) { initTitleAudio(); startTitleMusic(); }
+  }
+}, { passive: true });
+
+document.getElementById('title-screen').addEventListener('click', e => {
+  // Don't start game if about overlay is showing or clicking buttons
+  if (document.getElementById('title-about-overlay').classList.contains('visible')) return;
+  startGame();
 });
+document.getElementById('title-screen').addEventListener('touchstart', e => {
+  if (document.getElementById('title-about-overlay').classList.contains('visible')) return;
+  if (e.target.closest('.title-buttons')) return;
+  e.preventDefault();
+  // Start title audio on first touch
+  if (!titleAudioStarted) {
+    titleAudioStarted = true;
+    if (!titleMuted) { initTitleAudio(); startTitleMusic(); }
+  }
+  startGame();
+}, { passive: false });
 
 // ============================================================
 // GAME START
@@ -4932,7 +5148,9 @@ document.getElementById('title-screen').addEventListener('touchstart', e => {
 function startGame() {
   if (state.gameStarted) return;
   state.gameStarted = true;
+  stopTitleMusic();
   document.getElementById('title-screen').style.display = 'none';
+  document.getElementById('title-about-overlay').style.display = 'none';
   document.getElementById('hud').style.display = 'flex';
   loadGame();
   loadAudioPrefs();
