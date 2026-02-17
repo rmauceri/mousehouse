@@ -92,19 +92,94 @@ html, body {
 }
 #toast.show { opacity: 1; }
 
-/* ---- Placement bar ---- */
-#placement-bar {
-  position: fixed; bottom: 0; left: 0; width: 100%;
-  background: rgba(30,20,10,0.9); padding: 8px; display: none;
-  z-index: 20; border-top: 2px solid #f5d68a; text-align: center;
+/* ---- Placement bar (legacy, hidden) ---- */
+#placement-bar { display: none !important; }
+
+/* ---- Shop Flyout Panel ---- */
+#shop-flyout {
+  position: fixed; top: 0; right: 0; width: 280px; height: 100%;
+  background: rgba(30,20,10,0.95); border-left: 2px solid #a07040;
+  z-index: 30; transform: translateX(100%); transition: transform 0.3s ease;
+  display: flex; flex-direction: column; font-family: 'Courier New', monospace;
+  overflow: hidden;
 }
-#placement-bar .info { color: #f5d68a; font-size: 13px; margin-bottom: 6px; font-family: 'Courier New', monospace; }
-#placement-bar button {
+#shop-flyout.open { transform: translateX(0); }
+#shop-flyout .flyout-header {
+  padding: 10px 14px; border-bottom: 2px solid #a07040;
+  display: flex; justify-content: space-between; align-items: center;
+  flex-shrink: 0;
+}
+#shop-flyout .flyout-header h2 { color: #f5d68a; font-size: 16px; margin: 0; }
+#shop-flyout .flyout-close {
+  background: none; border: none; color: #f5d68a; font-size: 20px;
+  cursor: pointer; padding: 2px 6px; line-height: 1;
+}
+#shop-flyout .flyout-coins {
+  text-align: center; color: #a89070; font-size: 12px; padding: 6px 14px;
+  border-bottom: 1px solid rgba(160,112,64,0.3); flex-shrink: 0;
+}
+#shop-flyout .flyout-coins strong { color: #f5d68a; }
+#shop-flyout .flyout-items {
+  flex: 1; overflow-y: auto; padding: 8px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+  align-content: start;
+}
+#shop-flyout .flyout-item {
+  background: #2b1d0e; border: 2px solid #6b5030; border-radius: 6px;
+  padding: 8px 4px; text-align: center; cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+#shop-flyout .flyout-item:hover { border-color: #f5d68a; }
+#shop-flyout .flyout-item.owned { border-color: #7bc67e; }
+#shop-flyout .flyout-item.cant-afford { opacity: 0.35; cursor: not-allowed; }
+#shop-flyout .flyout-item .fi-icon { font-size: 22px; }
+#shop-flyout .flyout-item .fi-name { color: #f5d68a; font-size: 10px; font-weight: bold; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#shop-flyout .flyout-item .fi-price { color: #a89070; font-size: 10px; margin-top: 2px; }
+#shop-flyout .flyout-item.owned .fi-price { color: #7bc67e; }
+#shop-flyout .flyout-footer {
+  padding: 8px 14px; border-top: 2px solid #a07040; flex-shrink: 0;
+  text-align: center;
+}
+#shop-flyout .flyout-footer button {
   background: #3d2b1a; color: #f5d68a; border: 2px solid #a07040;
-  padding: 6px 16px; margin: 0 4px; cursor: pointer; border-radius: 4px;
-  font-family: 'Courier New', monospace; font-size: 13px;
+  padding: 6px 14px; cursor: pointer; border-radius: 4px;
+  font-family: 'Courier New', monospace; font-size: 12px; width: 100%;
+  margin-bottom: 4px;
 }
-#placement-bar button:hover { background: #5a3d24; }
+#shop-flyout .flyout-footer button:hover { background: #5a3d24; }
+#shop-flyout .flyout-footer .loot-info { color: #a89070; font-size: 9px; margin-top: 2px; }
+
+/* ---- Item Tray (bottom palette) ---- */
+#item-tray {
+  position: fixed; bottom: 0; left: 0; width: 100%; height: 72px;
+  background: rgba(30,20,10,0.92); border-top: 2px solid #a07040;
+  z-index: 30; display: none; overflow-x: auto; overflow-y: hidden;
+  white-space: nowrap; padding: 6px 10px;
+  -webkit-overflow-scrolling: touch;
+}
+#item-tray.open { display: flex; align-items: center; gap: 6px; }
+.tray-item {
+  display: inline-flex; flex-direction: column; align-items: center;
+  background: #2b1d0e; border: 2px solid #6b5030; border-radius: 6px;
+  padding: 4px 8px; cursor: grab; user-select: none; -webkit-user-select: none;
+  flex-shrink: 0; min-width: 56px; transition: border-color 0.15s;
+}
+.tray-item:hover { border-color: #f5d68a; }
+.tray-item.active { border-color: #f5d68a; background: #3d2b1a; }
+.tray-item .ti-icon { font-size: 20px; pointer-events: none; }
+.tray-item .ti-name { font-size: 8px; color: #a89070; pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 50px; }
+
+/* ---- Trash Zone ---- */
+#trash-zone {
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 120px; height: 50px; background: rgba(200,50,50,0.7);
+  border: 2px dashed #ff6666; border-radius: 10px 10px 0 0;
+  z-index: 31; display: none; justify-content: center; align-items: center;
+  color: #fff; font-size: 24px; font-family: 'Courier New', monospace;
+  pointer-events: none;
+}
+#trash-zone.visible { display: flex; }
+#trash-zone.hover { background: rgba(200,50,50,0.95); border-color: #ff4444; }
 
 /* ---- Birthday letter ---- */
 .letter-content {
@@ -178,9 +253,26 @@ html, body {
   <button id="btn-remove-mode">🗑 Remove</button>
 </div>
 
+<div id="shop-flyout">
+  <div class="flyout-header">
+    <h2>🛒 Moustazon</h2>
+    <button class="flyout-close" id="flyout-close-btn">✖</button>
+  </div>
+  <div class="flyout-coins">Free 2-day delivery | 🧀 <strong id="flyout-coin-display">0</strong> coins</div>
+  <div class="flyout-items" id="flyout-items"></div>
+  <div class="flyout-footer">
+    <button id="flyout-loot-btn">🎁 Loot Crumbs — Free Mystery Item!</button>
+    <div class="loot-info" id="flyout-loot-info"></div>
+  </div>
+</div>
+
+<div id="item-tray"></div>
+
+<div id="trash-zone">🗑</div>
+
 <div id="title-screen">
   <h1>🐭 Mouse House 🐭</h1>
-  <div class="subtitle">A cozy home for Shadow & Cloud</div>
+  <div class="subtitle">A cozy home for Pip & Chai</div>
   <div class="start-text">~ tap or click to start ~</div>
 </div>
 
@@ -192,15 +284,17 @@ html, body {
 // ============================================================
 const CONFIG = {
   mice: {
-    shadow: {
-      name: 'Shadow', bodyColor: '#4a4a4a', earColor: '#3a3a3a',
+    pip: {
+      name: 'Pip', bodyColor: '#4a4a4a', earColor: '#3a3a3a',
       bellyColor: '#5e5e5e', eyeColor: '#111', noseColor: '#ffaaaa',
-      personality: 'chaotic' // more zoomies, sarcastic quotes
+      personality: 'chaotic', // more zoomies, sarcastic quotes
+      scale: 1.15 // Pip is slightly larger than Chai
     },
-    cloud: {
-      name: 'Cloud', bodyColor: '#b8b8b8', earColor: '#a5a5a5',
+    chai: {
+      name: 'Chai', bodyColor: '#b8b8b8', earColor: '#a5a5a5',
       bellyColor: '#d0d0d0', eyeColor: '#222', noseColor: '#ffbbbb',
-      personality: 'chill' // more sleeping, wholesome quotes
+      personality: 'chill', // more sleeping, wholesome quotes
+      scale: 1.0
     }
   },
   twins: { name1: 'Nico', name2: 'Rose', age: 20, birthday: 'February 21' },
@@ -211,7 +305,7 @@ Happy 20th birthday! 🎂
 
 Twenty years of watching you two grow into the amazing, hilarious, kind humans you are. From tiny babies to tiny-mouse enthusiasts, you've filled every day with joy (and chaos, but mostly joy).
 
-Shadow and Cloud are lucky to have you — and so am I.
+Pip and Chai are lucky to have you — and so am I.
 
 Here's a little mouse house for you to make your own. Decorate it, play some games, and know that every pixel was placed with love.
 
@@ -401,6 +495,20 @@ function sfxSpeechBubble() {
   playTone(f, 0.03, 'sine', 0.06);
 }
 
+function sfxWheelSpin() {
+  if (!audioCtx) return;
+  playTone(300, 0.05, 'triangle', 0.04);
+  setTimeout(() => playTone(350, 0.05, 'triangle', 0.04), 60);
+}
+
+function sfxWheelFling() {
+  if (!audioCtx) return;
+  playTone(600, 0.06, 'sawtooth', 0.1);
+  setTimeout(() => playTone(400, 0.08, 'sawtooth', 0.08), 50);
+  setTimeout(() => playTone(250, 0.12, 'triangle', 0.06), 120);
+  setTimeout(() => playNoise(0.08, 0.1), 200);
+}
+
 function sfxUIClick() {
   if (!audioCtx) return;
   playTone(800, 0.03, 'square', 0.06);
@@ -501,8 +609,8 @@ let state = {
   ownedItems: [],
   placedItems: [],
   miceState: {
-    shadow: { x: 120, y: 0, room: 0, action: 'idle', actionTimer: 0, dir: 1, frame: 0, animTimer: 0, happiness: 80 },
-    cloud:  { x: 250, y: 0, room: 1, action: 'idle', actionTimer: 0, dir: -1, frame: 0, animTimer: 0, happiness: 80 }
+    pip: { x: 120, y: 0, room: 0, action: 'idle', actionTimer: 0, dir: 1, frame: 0, animTimer: 0, happiness: 80 },
+    chai:  { x: 250, y: 0, room: 1, action: 'idle', actionTimer: 0, dir: -1, frame: 0, animTimer: 0, happiness: 80 }
   },
   birthdayEventSeen: false,
   letterRead: false,
@@ -510,6 +618,8 @@ let state = {
   totalCoinsEarned: 0,
   placementMode: null,
   removeMode: false,
+  dragState: { active: false, itemId: null, screenX: 0, screenY: 0, fromPlaced: false, fromPlacedIdx: -1 },
+  shopOpen: false,
   gameStarted: false,
   activeGoal: null
 };
@@ -585,6 +695,9 @@ const FURNITURE = [
   { id: 'party-banner', name: 'Party Banner', icon: '🎉', price: 0,
     desc: "It's giving... birthday.", w: 3, h: 1,
     color: '#FF1493', mouseBehavior: null, birthday: true, wallMount: true },
+  { id: 'exercise-wheel', name: 'Exercise Wheel', icon: '🎡', price: 0,
+    desc: 'Cardio queen era. Spin to win.', w: 3, h: 3,
+    color: '#708898', mouseBehavior: 'wheeling', exerciseRoom: true },
 ];
 
 // ============================================================
@@ -676,8 +789,8 @@ function loadGame() {
       state.totalCoinsEarned = d.totalCoinsEarned ?? 0;
       state.activeGoal = d.activeGoal ?? null;
       if (d.miceState) {
-        Object.assign(state.miceState.shadow, d.miceState.shadow || {});
-        Object.assign(state.miceState.cloud, d.miceState.cloud || {});
+        Object.assign(state.miceState.pip, d.miceState.pip || d.miceState.shadow || {});
+        Object.assign(state.miceState.chai, d.miceState.chai || d.miceState.cloud || {});
       }
     }
   } catch (e) {}
@@ -687,6 +800,8 @@ function closeModal() { document.getElementById('modal-container').innerHTML = '
 
 function updateCoinDisplay() {
   document.getElementById('coin-display').textContent = state.coins;
+  const flyoutCoins = document.getElementById('flyout-coin-display');
+  if (flyoutCoins) flyoutCoins.textContent = state.coins;
 }
 
 // ============================================================
@@ -710,6 +825,12 @@ const ROOMS = [
     wallTop: '#6e5a4a', wallBot: '#5c4a3a', floor: '#6b5a48', floorAlt: '#5e4e3e',
     baseboard: '#7a6a5a', ceiling: '#806a50', accent: '#a08a60',
     windowNight: '#2e1a1a', windowGlow: '#4e2a2a', shelfColor: '#7a6a50'
+  },
+  {
+    name: 'Exercise Room', icon: '🏃',
+    wallTop: '#4a5a6e', wallBot: '#3a4a5c', floor: '#5a6050', floorAlt: '#4e5444',
+    baseboard: '#6a7a8a', ceiling: '#5a6a80', accent: '#6080a0',
+    windowNight: '#1a1a2e', windowGlow: '#2a2a4e', shelfColor: '#6a7a8a'
   }
 ];
 
@@ -907,11 +1028,17 @@ function drawRoom(roomIndex) {
   const roomItems = state.placedItems.filter(p => p.room === roomIndex);
   roomItems.forEach(placed => {
     const item = FURNITURE.find(f => f.id === placed.itemId);
-    if (item) drawFurnitureItem(item, placed.gridX, placed.gridY);
+    if (!item) return;
+    // Exercise wheel gets custom rendering
+    if (item.id === 'exercise-wheel') {
+      drawExerciseWheel(placed);
+    } else {
+      drawFurnitureItem(item, placed.gridX, placed.gridY);
+    }
   });
 
-  // -- Grid overlay in placement/remove mode --
-  if (state.placementMode || state.removeMode) {
+  // -- Grid overlay in placement/drag mode --
+  if (state.placementMode || state.removeMode || state.dragState.active) {
     ctx.strokeStyle = 'rgba(245,214,138,0.18)';
     ctx.lineWidth = 0.5;
     for (let r = 0; r < GRID_ROWS; r++) {
@@ -919,6 +1046,38 @@ function drawRoom(roomIndex) {
         const pos = gridToGame(c, r);
         ctx.strokeRect(pos.x, pos.y, GRID_SIZE, GRID_SIZE);
       }
+    }
+  }
+
+  // -- Drag ghost preview --
+  if (state.dragState.active) {
+    const ds = state.dragState;
+    const dragItem = FURNITURE.find(f => f.id === ds.itemId);
+    if (dragItem) {
+      const gPos = screenToGame(ds.screenX, ds.screenY);
+      // Center the item on cursor
+      const centerOffX = (dragItem.w * GRID_SIZE) / 2;
+      const centerOffY = (dragItem.h * GRID_SIZE) / 2;
+      const grid = gameToGrid(gPos.x - centerOffX + GRID_SIZE / 2, gPos.y - centerOffY + GRID_SIZE / 2);
+      const excludeIdx = ds.fromPlaced ? ds.fromPlacedIdx : undefined;
+      const valid = isPlacementValid(ds.itemId, grid.col, grid.row, excludeIdx);
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      if (!valid) {
+        // Red tint for invalid position
+        ctx.globalAlpha = 0.4;
+      }
+      // Draw at snapped grid position
+      const snapPos = gridToGame(grid.col, grid.row);
+      if (dragItem.id !== 'exercise-wheel') {
+        drawFurnitureItem(dragItem, grid.col, grid.row);
+      }
+      if (!valid) {
+        // Red overlay
+        ctx.fillStyle = 'rgba(255,50,50,0.3)';
+        ctx.fillRect(snapPos.x, snapPos.y, dragItem.w * GRID_SIZE, dragItem.h * GRID_SIZE);
+      }
+      ctx.restore();
     }
   }
 
@@ -946,46 +1105,926 @@ function drawFurnitureItem(item, gx, gy) {
   const pos = gridToGame(gx, gy);
   const w = item.w * GRID_SIZE;
   const h = item.h * GRID_SIZE;
+  const x = pos.x, y = pos.y;
+  const t = Date.now() / 1000;
+
+  // Parse item.color into r,g,b for shade derivation
+  const _cc = item.color;
+  const _pr = parseInt(_cc.slice(1,3),16), _pg = parseInt(_cc.slice(3,5),16), _pb = parseInt(_cc.slice(5,7),16);
+  const lighter = `rgb(${Math.min(_pr+40,255)},${Math.min(_pg+40,255)},${Math.min(_pb+40,255)})`;
+  const darker  = `rgb(${Math.max(_pr-40,0)},${Math.max(_pg-40,0)},${Math.max(_pb-40,0)})`;
+  const darkest = `rgb(${Math.max(_pr-70,0)},${Math.max(_pg-70,0)},${Math.max(_pb-70,0)})`;
 
   // Drop shadow
   ctx.fillStyle = 'rgba(0,0,0,0.18)';
   ctx.beginPath();
-  ctx.roundRect(pos.x + 2, pos.y + 2, w, h, 3);
+  ctx.roundRect(x + 2, y + 2, w, h, 3);
   ctx.fill();
 
-  // Main body
-  ctx.fillStyle = item.color;
-  ctx.beginPath();
-  ctx.roundRect(pos.x, pos.y, w, h, 3);
-  ctx.fill();
+  switch (item.id) {
 
-  // Top highlight
-  ctx.fillStyle = 'rgba(255,255,255,0.18)';
-  ctx.fillRect(pos.x + 2, pos.y + 1, w - 4, 3);
+  case 'matchbox-bed': { // 2x1 48x24
+    // Matchbox body
+    ctx.fillStyle = item.color;
+    ctx.beginPath(); ctx.roundRect(x, y+4, 48, 20, 2); ctx.fill();
+    ctx.fillStyle = darker;
+    ctx.fillRect(x+1, y+22, 46, 2); // bottom edge
+    // Matchbox inner tray
+    ctx.fillStyle = lighter;
+    ctx.fillRect(x+3, y+6, 42, 14);
+    // Pillow
+    ctx.fillStyle = '#f0eee8';
+    ctx.beginPath(); ctx.roundRect(x+5, y+8, 10, 8, 2); ctx.fill();
+    ctx.fillStyle = '#ddd';
+    ctx.fillRect(x+6, y+12, 8, 1);
+    // Blanket/quilt
+    ctx.fillStyle = '#6ba36b';
+    ctx.beginPath(); ctx.roundRect(x+17, y+7, 26, 12, 2); ctx.fill();
+    ctx.fillStyle = '#5a8f5a';
+    ctx.fillRect(x+17, y+13, 26, 1);
+    ctx.fillRect(x+29, y+7, 1, 12);
+    // Striker strip on side
+    ctx.fillStyle = '#3a2510';
+    ctx.fillRect(x+1, y+8, 2, 12);
+    break;
+  }
 
-  // Bottom edge
-  ctx.fillStyle = 'rgba(0,0,0,0.15)';
-  ctx.fillRect(pos.x + 1, pos.y + h - 2, w - 2, 2);
+  case 'thimble-cup': { // 1x1 24x24
+    // Thimble body (tapered)
+    ctx.fillStyle = item.color;
+    ctx.beginPath();
+    ctx.moveTo(x+6, y+22); ctx.lineTo(x+4, y+8);
+    ctx.quadraticCurveTo(x+12, y+3, x+20, y+8);
+    ctx.lineTo(x+18, y+22); ctx.closePath(); ctx.fill();
+    // Highlight
+    ctx.fillStyle = lighter;
+    ctx.fillRect(x+8, y+8, 3, 12);
+    // Dimple dots near top
+    ctx.fillStyle = darker;
+    for (let r = 0; r < 2; r++) for (let c = 0; c < 4; c++) {
+      ctx.fillRect(x+7+c*3, y+6+r*3, 1, 1);
+    }
+    // Rim
+    ctx.fillStyle = darkest;
+    ctx.fillRect(x+4, y+7, 16, 1);
+    // Base
+    ctx.fillStyle = darker;
+    ctx.fillRect(x+6, y+22, 12, 2);
+    // Steam wisps
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 2; i++) {
+      const sx = x+10+i*5, sy = y+3;
+      const off = Math.sin(t*2+i*2)*2;
+      ctx.beginPath(); ctx.moveTo(sx, sy);
+      ctx.quadraticCurveTo(sx+off, sy-4, sx-off, sy-7);
+      ctx.stroke();
+    }
+    break;
+  }
 
-  // Emoji icon centered
-  const iconSize = Math.min(w, h) - 4;
-  ctx.font = `${iconSize}px serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(item.icon, pos.x + w / 2, pos.y + h / 2 + 1);
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
+  case 'bottlecap-plate': { // 1x1 24x24
+    const cx = x+12, cy = y+14;
+    // Crimped edge
+    ctx.fillStyle = item.color;
+    ctx.beginPath();
+    for (let i = 0; i < 16; i++) {
+      const a = (i/16)*Math.PI*2, r = i%2===0 ? 10 : 8.5;
+      const px = cx+Math.cos(a)*r, py = cy+Math.sin(a)*r;
+      i===0 ? ctx.moveTo(px,py) : ctx.lineTo(px,py);
+    }
+    ctx.closePath(); ctx.fill();
+    // Inner flat area
+    ctx.fillStyle = lighter;
+    ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI*2); ctx.fill();
+    // Food crumbs
+    ctx.fillStyle = '#c89040';
+    ctx.fillRect(cx-2, cy-1, 2, 2);
+    ctx.fillRect(cx+2, cy+1, 1, 1);
+    ctx.fillRect(cx-1, cy+3, 2, 1);
+    break;
+  }
 
-  // Glow effect for special items
-  if (item.id === 'fairy-lights' || item.id === 'disco-ball' || item.id === 'ring-light') {
-    const glow = ctx.createRadialGradient(
-      pos.x + w / 2, pos.y + h / 2, 2,
-      pos.x + w / 2, pos.y + h / 2, w
-    );
+  case 'fairy-lights': { // 3x1 72x24
+    // Wire
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x+2, y+10);
+    for (let i = 0; i < 72; i += 4) {
+      ctx.lineTo(x+i, y+10 + Math.sin(i*0.15)*3);
+    }
+    ctx.stroke();
+    // Bulbs
+    const colors = ['#ff4444','#44ff44','#4488ff','#ffdd00','#ff88ff','#00ffcc','#ffaa00','#88aaff'];
+    for (let i = 0; i < 8; i++) {
+      const bx = x+6+i*8.5, by = y+10+Math.sin((6+i*8.5)*0.15)*3;
+      const twinkle = 0.5 + 0.5*Math.sin(t*4 + i*1.7);
+      ctx.globalAlpha = 0.4 + twinkle*0.6;
+      ctx.fillStyle = colors[i];
+      ctx.beginPath(); ctx.arc(bx, by+2, 2.5, 0, Math.PI*2); ctx.fill();
+      // Glow around bulb
+      ctx.globalAlpha = twinkle*0.25;
+      ctx.beginPath(); ctx.arc(bx, by+2, 5, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    // Overall glow
+    const glow = ctx.createRadialGradient(x+36, y+12, 4, x+36, y+12, 40);
     glow.addColorStop(0, 'rgba(255,240,180,0.12)');
     glow.addColorStop(1, 'rgba(255,240,180,0)');
     ctx.fillStyle = glow;
-    ctx.fillRect(pos.x - w / 2, pos.y - h / 2, w * 2, h * 2);
+    ctx.fillRect(x-10, y-10, 92, 44);
+    break;
+  }
+
+  case 'tiny-laptop': { // 1x1 24x24
+    // Base/keyboard
+    ctx.fillStyle = darker;
+    ctx.fillRect(x+3, y+15, 18, 7);
+    ctx.fillStyle = darkest;
+    ctx.fillRect(x+5, y+17, 14, 3); // keyboard area
+    // Tiny key dots
+    ctx.fillStyle = '#555';
+    for (let r = 0; r < 2; r++) for (let c = 0; c < 5; c++)
+      ctx.fillRect(x+6+c*3, y+17+r*2, 2, 1);
+    // Screen (tilted back)
+    ctx.fillStyle = item.color;
+    ctx.fillRect(x+3, y+4, 18, 12);
+    // Screen content
+    ctx.fillStyle = '#1a2a4a';
+    ctx.fillRect(x+5, y+5, 14, 9);
+    // Blue glow on screen
+    ctx.fillStyle = '#4488cc';
+    ctx.fillRect(x+6, y+7, 12, 2);
+    ctx.fillStyle = '#335577';
+    ctx.fillRect(x+6, y+10, 8, 1);
+    ctx.fillRect(x+6, y+12, 10, 1);
+    // Hinge
+    ctx.fillStyle = darkest;
+    ctx.fillRect(x+3, y+15, 18, 1);
+    break;
+  }
+
+  case 'yoga-mat': { // 2x1 48x24
+    // Flat mat
+    ctx.fillStyle = item.color;
+    ctx.beginPath(); ctx.roundRect(x+2, y+14, 40, 8, 2); ctx.fill();
+    // Stripe
+    ctx.fillStyle = lighter;
+    ctx.fillRect(x+4, y+17, 36, 2);
+    // Rolled curl at right end
+    ctx.fillStyle = darker;
+    ctx.beginPath();
+    ctx.arc(x+43, y+18, 4, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = item.color;
+    ctx.beginPath();
+    ctx.arc(x+43, y+18, 2.5, 0, Math.PI*2); ctx.fill();
+    // Mat thickness shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.1)';
+    ctx.fillRect(x+2, y+21, 40, 2);
+    break;
+  }
+
+  case 'live-laugh-cheese': { // 2x1 48x24
+    // Frame
+    ctx.fillStyle = '#a08050';
+    ctx.beginPath(); ctx.roundRect(x+2, y+3, 44, 18, 2); ctx.fill();
+    // Inner
+    ctx.fillStyle = item.color;
+    ctx.fillRect(x+4, y+5, 40, 14);
+    // Text "LLL"
+    ctx.fillStyle = '#8B7355';
+    ctx.font = '7px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('LLL', x+24, y+12);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    // Small cheese doodle
+    ctx.fillStyle = '#ffd700';
+    ctx.fillRect(x+37, y+14, 4, 3);
+    ctx.fillStyle = '#daa520';
+    ctx.fillRect(x+38, y+15, 1, 1);
+    break;
+  }
+
+  case 'sourdough': { // 1x1 24x24
+    // Jar
+    ctx.fillStyle = '#a09080';
+    ctx.fillRect(x+5, y+10, 14, 12);
+    ctx.fillStyle = '#8a7a6a';
+    ctx.fillRect(x+5, y+10, 14, 2); // rim
+    // Dough blob rising out
+    ctx.fillStyle = item.color;
+    ctx.beginPath();
+    ctx.moveTo(x+6, y+12);
+    ctx.quadraticCurveTo(x+8, y+5, x+12, y+5);
+    ctx.quadraticCurveTo(x+16, y+4, x+18, y+12);
+    ctx.closePath(); ctx.fill();
+    // Bubbles
+    ctx.fillStyle = darker;
+    ctx.beginPath(); ctx.arc(x+10, y+8, 1.5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x+14, y+7, 1, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x+12, y+10, 1, 0, Math.PI*2); ctx.fill();
+    break;
+  }
+
+  case 'ring-light': { // 1x1 24x24
+    const cx = x+12, cy = y+10;
+    // Stand
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx, cy+6); ctx.lineTo(cx, y+22); ctx.stroke();
+    ctx.fillStyle = '#555';
+    ctx.fillRect(cx-4, y+21, 8, 2);
+    // Ring
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI*2); ctx.stroke();
+    // Bright white glow
+    ctx.strokeStyle = 'rgba(255,255,230,0.5)';
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI*2); ctx.stroke();
+    // Overall glow
+    const glow = ctx.createRadialGradient(cx, cy, 4, cx, cy, 20);
+    glow.addColorStop(0, 'rgba(255,250,220,0.15)');
+    glow.addColorStop(1, 'rgba(255,250,220,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(x-8, y-8, 40, 40);
+    break;
+  }
+
+  case 'cardboard-couch': { // 2x1 48x24
+    // Main body
+    ctx.fillStyle = item.color;
+    ctx.beginPath(); ctx.roundRect(x+2, y+6, 44, 16, 2); ctx.fill();
+    // Armrests
+    ctx.fillStyle = darker;
+    ctx.fillRect(x+2, y+4, 6, 18);
+    ctx.fillRect(x+40, y+4, 6, 18);
+    // Seat cushion line
+    ctx.fillStyle = lighter;
+    ctx.fillRect(x+9, y+10, 30, 2);
+    // Corrugated cardboard lines
+    ctx.strokeStyle = darker;
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i < 6; i++) {
+      const ly = y+8+i*2.5;
+      ctx.beginPath(); ctx.moveTo(x+9, ly);
+      for (let lx = 0; lx < 30; lx += 3) {
+        ctx.lineTo(x+9+lx+1.5, ly + (lx%6===0?1:-1));
+      }
+      ctx.stroke();
+    }
+    // Bottom edge
+    ctx.fillStyle = darkest;
+    ctx.fillRect(x+2, y+21, 44, 2);
+    break;
+  }
+
+  case 'spool-table': { // 1x1 24x24
+    const cx = x+12;
+    // Top disc
+    ctx.fillStyle = item.color;
+    ctx.beginPath(); ctx.ellipse(cx, y+7, 10, 4, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = lighter;
+    ctx.beginPath(); ctx.ellipse(cx, y+6, 8, 3, 0, 0, Math.PI*2); ctx.fill();
+    // Center hole
+    ctx.fillStyle = darker;
+    ctx.beginPath(); ctx.arc(cx, y+6, 2, 0, Math.PI*2); ctx.fill();
+    // Narrow body
+    ctx.fillStyle = item.color;
+    ctx.fillRect(cx-4, y+7, 8, 10);
+    // Thread wrapping hints
+    ctx.fillStyle = '#dda0dd';
+    ctx.fillRect(cx-4, y+9, 8, 2);
+    ctx.fillRect(cx-4, y+13, 8, 2);
+    // Base disc
+    ctx.fillStyle = darker;
+    ctx.beginPath(); ctx.ellipse(cx, y+18, 10, 4, 0, 0, Math.PI*2); ctx.fill();
+    break;
+  }
+
+  case 'eraser-tv': { // 1x1 24x24
+    // Antenna
+    ctx.strokeStyle = '#888';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x+9, y+7); ctx.lineTo(x+6, y+2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+15, y+7); ctx.lineTo(x+18, y+2); ctx.stroke();
+    // TV body (eraser shape)
+    ctx.fillStyle = '#e8a0a8';
+    ctx.beginPath(); ctx.roundRect(x+3, y+7, 18, 14, 2); ctx.fill();
+    // Eraser band at bottom
+    ctx.fillStyle = '#3050a0';
+    ctx.fillRect(x+3, y+17, 18, 4);
+    // Screen
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(x+5, y+8, 14, 8);
+    // Static lines
+    ctx.fillStyle = '#445';
+    const staticOff = Math.floor(t * 8) % 4;
+    for (let i = 0; i < 4; i++) {
+      const sy = y+9+((i*2+staticOff)%8);
+      if (sy < y+16) ctx.fillRect(x+5, sy, 14, 1);
+    }
+    // Screen flicker
+    ctx.fillStyle = `rgba(150,180,200,${0.05+0.05*Math.sin(t*10)})`;
+    ctx.fillRect(x+5, y+8, 14, 8);
+    break;
+  }
+
+  case 'ethernet-rope': { // 1x1 24x24
+    // Coiled cable
+    ctx.strokeStyle = item.color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x+12, y+14, 6, 0.3, Math.PI*1.8); ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x+12, y+14, 3.5, 0.8, Math.PI*1.5); ctx.stroke();
+    // RJ45 connector end
+    ctx.fillStyle = '#ccc';
+    ctx.fillRect(x+17, y+8, 4, 6);
+    ctx.fillStyle = '#aaa';
+    ctx.fillRect(x+18, y+9, 2, 4);
+    // Clip on connector
+    ctx.fillStyle = '#ddd';
+    ctx.fillRect(x+18, y+7, 2, 2);
+    // Cable coming off connector
+    ctx.strokeStyle = item.color;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x+19, y+14); ctx.lineTo(x+18, y+17); ctx.stroke();
+    break;
+  }
+
+  case 'cork-stool': { // 1x1 24x24
+    // Cork body (upright cylinder)
+    ctx.fillStyle = item.color;
+    ctx.beginPath(); ctx.roundRect(x+6, y+5, 12, 17, 3); ctx.fill();
+    // Lighter front face
+    ctx.fillStyle = lighter;
+    ctx.fillRect(x+8, y+7, 8, 13);
+    // Dot texture
+    ctx.fillStyle = darker;
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 3; c++) {
+      ctx.fillRect(x+8+c*3, y+8+r*3.5, 1, 1);
+    }
+    // Top
+    ctx.fillStyle = lighter;
+    ctx.beginPath(); ctx.ellipse(x+12, y+6, 6, 2.5, 0, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = darker;
+    ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.ellipse(x+12, y+6, 6, 2.5, 0, 0, Math.PI*2); ctx.stroke();
+    break;
+  }
+
+  case 'tiny-plant': { // 1x1 24x24
+    // Pot (trapezoid)
+    ctx.fillStyle = '#b5651d';
+    ctx.beginPath();
+    ctx.moveTo(x+6, y+13); ctx.lineTo(x+8, y+22);
+    ctx.lineTo(x+16, y+22); ctx.lineTo(x+18, y+13);
+    ctx.closePath(); ctx.fill();
+    // Pot rim
+    ctx.fillStyle = '#c97a3a';
+    ctx.fillRect(x+5, y+12, 14, 2);
+    // Soil
+    ctx.fillStyle = '#4a3520';
+    ctx.beginPath(); ctx.ellipse(x+12, y+13, 6, 2, 0, 0, Math.PI*2); ctx.fill();
+    // Leaves
+    ctx.fillStyle = item.color;
+    ctx.beginPath(); ctx.ellipse(x+10, y+8, 3, 5, -0.3, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#1e7a1e';
+    ctx.beginPath(); ctx.ellipse(x+14, y+9, 2.5, 4, 0.3, 0, Math.PI*2); ctx.fill();
+    // Tiny stem
+    ctx.strokeStyle = '#2d5a1e';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x+12, y+13); ctx.lineTo(x+12, y+8); ctx.stroke();
+    break;
+  }
+
+  case 'disco-ball': { // 1x1 24x24
+    const cx = x+12, cy = y+12;
+    // String at top
+    ctx.strokeStyle = '#888';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(cx, y+1); ctx.lineTo(cx, y+5); ctx.stroke();
+    // Ball body
+    ctx.fillStyle = item.color;
+    ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI*2); ctx.fill();
+    // Faceted mirror tiles
+    for (let r = -2; r <= 2; r++) {
+      for (let c = -2; c <= 2; c++) {
+        const tx = cx + c*3, ty = cy + r*3;
+        if ((tx-cx)**2+(ty-cy)**2 < 49) {
+          const shimmer = 0.3 + 0.7*Math.sin(t*3 + r*2.1 + c*1.7);
+          ctx.fillStyle = `rgba(255,255,255,${shimmer*0.6})`;
+          ctx.fillRect(tx-1, ty-1, 2.5, 2.5);
+        }
+      }
+    }
+    // Sparkle reflections scattered
+    for (let i = 0; i < 4; i++) {
+      const sa = t*2 + i*1.57;
+      const sr = 10 + Math.sin(t*1.3+i)*2;
+      const sx = cx + Math.cos(sa)*sr, sy = cy + Math.sin(sa)*sr;
+      if (sx > x && sx < x+24 && sy > y && sy < y+24) {
+        ctx.fillStyle = `rgba(255,255,200,${0.4+0.4*Math.sin(t*5+i)})`;
+        ctx.fillRect(sx-1, sy-1, 2, 2);
+      }
+    }
+    // Glow
+    const glow = ctx.createRadialGradient(cx, cy, 3, cx, cy, 18);
+    glow.addColorStop(0, 'rgba(255,240,180,0.12)');
+    glow.addColorStop(1, 'rgba(255,240,180,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(x-8, y-8, 40, 40);
+    break;
+  }
+
+  case 'among-us-bean': { // 1x1 24x24
+    // Body (bean shape)
+    ctx.fillStyle = item.color;
+    ctx.beginPath();
+    ctx.moveTo(x+8, y+5);
+    ctx.quadraticCurveTo(x+18, y+3, x+18, y+10);
+    ctx.lineTo(x+18, y+16);
+    ctx.quadraticCurveTo(x+18, y+21, x+15, y+21);
+    ctx.lineTo(x+14, y+17);
+    ctx.lineTo(x+10, y+17);
+    ctx.lineTo(x+9, y+21);
+    ctx.quadraticCurveTo(x+6, y+21, x+6, y+16);
+    ctx.lineTo(x+6, y+10);
+    ctx.quadraticCurveTo(x+6, y+5, x+8, y+5);
+    ctx.closePath(); ctx.fill();
+    // Visor
+    ctx.fillStyle = '#87CEEB';
+    ctx.beginPath();
+    ctx.moveTo(x+7, y+7);
+    ctx.quadraticCurveTo(x+7, y+12, x+12, y+12);
+    ctx.quadraticCurveTo(x+17, y+12, x+17, y+9);
+    ctx.quadraticCurveTo(x+17, y+6, x+12, y+6);
+    ctx.quadraticCurveTo(x+7, y+6, x+7, y+7);
+    ctx.closePath(); ctx.fill();
+    // Visor shine
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fillRect(x+9, y+7, 3, 2);
+    // Backpack bump
+    ctx.fillStyle = darker;
+    ctx.beginPath();
+    ctx.roundRect(x+17, y+10, 4, 7, 1);
+    ctx.fill();
+    break;
+  }
+
+  case 'cheese-wheel': { // 1x1 24x24
+    // Wedge shape (3D-ish)
+    // Top face
+    ctx.fillStyle = item.color;
+    ctx.beginPath();
+    ctx.moveTo(x+4, y+8); ctx.lineTo(x+20, y+8);
+    ctx.lineTo(x+20, y+14); ctx.lineTo(x+4, y+14);
+    ctx.closePath(); ctx.fill();
+    // Front face (darker wedge)
+    ctx.fillStyle = darker;
+    ctx.beginPath();
+    ctx.moveTo(x+4, y+14); ctx.lineTo(x+20, y+14);
+    ctx.lineTo(x+18, y+21); ctx.lineTo(x+6, y+21);
+    ctx.closePath(); ctx.fill();
+    // Side face
+    ctx.fillStyle = darkest;
+    ctx.beginPath();
+    ctx.moveTo(x+20, y+8); ctx.lineTo(x+22, y+10);
+    ctx.lineTo(x+20, y+16); ctx.lineTo(x+20, y+14);
+    ctx.closePath(); ctx.fill();
+    // Holes
+    ctx.fillStyle = darker;
+    ctx.beginPath(); ctx.arc(x+10, y+11, 2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x+16, y+10, 1.5, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = darkest;
+    ctx.beginPath(); ctx.arc(x+9, y+17, 1.5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x+15, y+17, 1, 0, Math.PI*2); ctx.fill();
+    // Rind edge
+    ctx.fillStyle = '#daa520';
+    ctx.fillRect(x+4, y+7, 16, 1);
+    break;
+  }
+
+  case 'stamp-painting': { // 1x1 24x24
+    // Frame
+    ctx.fillStyle = '#8B7355';
+    ctx.beginPath(); ctx.roundRect(x+2, y+3, 20, 18, 1); ctx.fill();
+    // Inner canvas
+    ctx.fillStyle = '#faf0e6';
+    ctx.fillRect(x+4, y+5, 16, 14);
+    // Colorful abstract splotches
+    ctx.fillStyle = '#e04060';
+    ctx.beginPath(); ctx.arc(x+8, y+10, 3, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#4080e0';
+    ctx.beginPath(); ctx.arc(x+15, y+13, 2.5, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#40c060';
+    ctx.fillRect(x+11, y+7, 4, 4);
+    ctx.fillStyle = '#e0c040';
+    ctx.beginPath(); ctx.arc(x+8, y+15, 2, 0, Math.PI*2); ctx.fill();
+    break;
+  }
+
+  case 'tiny-hoodie': { // 1x1 24x24
+    // Hook
+    ctx.strokeStyle = '#999';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x+12, y+2); ctx.lineTo(x+12, y+5);
+    ctx.arc(x+12, y+4, 2, -Math.PI/2, Math.PI/2);
+    ctx.stroke();
+    // Body
+    ctx.fillStyle = item.color;
+    ctx.beginPath(); ctx.roundRect(x+5, y+7, 14, 13, 2); ctx.fill();
+    // Hood bump
+    ctx.fillStyle = darker;
+    ctx.beginPath();
+    ctx.arc(x+12, y+7, 5, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = item.color;
+    ctx.beginPath();
+    ctx.arc(x+12, y+7, 3.5, Math.PI, 0); ctx.fill();
+    // Sleeves
+    ctx.fillStyle = darker;
+    ctx.fillRect(x+3, y+9, 3, 7);
+    ctx.fillRect(x+18, y+9, 3, 7);
+    // Front pocket
+    ctx.fillStyle = darkest;
+    ctx.fillRect(x+8, y+15, 8, 3);
+    // Drawstrings
+    ctx.strokeStyle = lighter;
+    ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(x+10, y+8); ctx.lineTo(x+10, y+11); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+14, y+8); ctx.lineTo(x+14, y+11); ctx.stroke();
+    break;
+  }
+
+  case 'birthday-cake': { // 1x1 24x24
+    // Bottom layer
+    ctx.fillStyle = item.color;
+    ctx.beginPath(); ctx.roundRect(x+4, y+14, 16, 8, 2); ctx.fill();
+    // Frosting drips
+    ctx.fillStyle = lighter;
+    ctx.fillRect(x+4, y+14, 16, 3);
+    ctx.fillRect(x+6, y+17, 2, 2);
+    ctx.fillRect(x+14, y+17, 2, 2);
+    // Top layer
+    ctx.fillStyle = darker;
+    ctx.beginPath(); ctx.roundRect(x+6, y+10, 12, 5, 1); ctx.fill();
+    ctx.fillStyle = item.color;
+    ctx.fillRect(x+6, y+10, 12, 2);
+    // Candle
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(x+11, y+4, 2, 6);
+    // Flame
+    const flicker = Math.sin(t*8)*0.5;
+    ctx.fillStyle = '#ff8800';
+    ctx.beginPath();
+    ctx.ellipse(x+12, y+3+flicker, 1.5, 2.5, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#ffdd00';
+    ctx.beginPath();
+    ctx.ellipse(x+12, y+3+flicker, 0.8, 1.5, 0, 0, Math.PI*2);
+    ctx.fill();
+    break;
+  }
+
+  case 'party-banner': { // 3x1 72x24
+    // String
+    ctx.strokeStyle = '#888';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x+2, y+6);
+    ctx.quadraticCurveTo(x+36, y+10, x+70, y+6);
+    ctx.stroke();
+    // Pennant flags
+    const flagColors = ['#ff4466','#44bbff','#ffcc00','#66dd66','#ff88dd','#ff8844','#aa88ff','#44ffcc'];
+    for (let i = 0; i < 8; i++) {
+      const fx = x+6+i*8;
+      const fy = y+6 + Math.sin((fx-x)/72*Math.PI)*4;
+      ctx.fillStyle = flagColors[i % flagColors.length];
+      ctx.beginPath();
+      ctx.moveTo(fx-3, fy); ctx.lineTo(fx+3, fy);
+      ctx.lineTo(fx, fy+10);
+      ctx.closePath(); ctx.fill();
+    }
+    break;
+  }
+
+  default: {
+    // Fallback: colored rect + emoji (for unknown items)
+    ctx.fillStyle = item.color;
+    ctx.beginPath(); ctx.roundRect(x, y, w, h, 3); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.fillRect(x+2, y+1, w-4, 3);
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.fillRect(x+1, y+h-2, w-2, 2);
+    const iconSize = Math.min(w, h) - 4;
+    ctx.font = `${iconSize}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(item.icon, x + w/2, y + h/2 + 1);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    break;
+  }
+
+  } // end switch
+}
+
+// ============================================================
+// EXERCISE WHEEL SYSTEM
+// ============================================================
+let wheelState = {
+  angle: 0,        // current rotation angle
+  speed: 0,        // spin speed (rad/frame)
+  miceOn: [],      // keys of mice currently on the wheel ('pip', 'chai')
+  flingTimer: 0,   // cooldown before another fling can happen
+  flingTarget: null // mouse key being flung
+};
+
+function getWheelPlacement() {
+  return state.placedItems.find(p => p.itemId === 'exercise-wheel' && p.room === state.currentRoom);
+}
+
+function getWheelCenter(placed) {
+  const pos = gridToGame(placed.gridX, placed.gridY);
+  const w = 3 * GRID_SIZE; // wheel is 3x3 grid
+  const h = 3 * GRID_SIZE;
+  return { x: pos.x + w / 2, y: pos.y + h / 2 };
+}
+
+function drawExerciseWheel(placed) {
+  const center = getWheelCenter(placed);
+  const radius = 32;
+  const t = Date.now() / 1000;
+
+  // Wheel stand / frame
+  ctx.fillStyle = '#5a4a3a';
+  ctx.fillRect(center.x - 3, center.y + radius - 4, 6, 12);
+  // Base feet
+  ctx.fillRect(center.x - 14, center.y + radius + 6, 28, 4);
+  ctx.fillStyle = '#4a3a2a';
+  ctx.fillRect(center.x - 12, center.y + radius + 8, 24, 3);
+
+  // Axle shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.15)';
+  ctx.beginPath();
+  ctx.ellipse(center.x, center.y + radius + 8, 18, 3, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Outer wheel ring
+  ctx.strokeStyle = '#8a9aaa';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Inner wheel ring (running surface)
+  ctx.strokeStyle = '#6a7a8a';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, radius - 5, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Spokes (rotate with wheel)
+  ctx.strokeStyle = 'rgba(138,154,170,0.5)';
+  ctx.lineWidth = 1.5;
+  const numSpokes = 8;
+  for (let i = 0; i < numSpokes; i++) {
+    const a = wheelState.angle + (i / numSpokes) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(center.x + Math.cos(a) * 6, center.y + Math.sin(a) * 6);
+    ctx.lineTo(center.x + Math.cos(a) * (radius - 2), center.y + Math.sin(a) * (radius - 2));
+    ctx.stroke();
+  }
+
+  // Hub (center axle)
+  ctx.fillStyle = '#aabbcc';
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#8a9aaa';
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Running treads on inner surface (rotating marks)
+  ctx.fillStyle = 'rgba(90,100,110,0.3)';
+  for (let i = 0; i < 16; i++) {
+    const a = wheelState.angle + (i / 16) * Math.PI * 2;
+    const tx = center.x + Math.cos(a) * (radius - 3);
+    const ty = center.y + Math.sin(a) * (radius - 3);
+    ctx.fillRect(tx - 1, ty - 1, 2, 2);
+  }
+
+  // Draw mice on the wheel
+  wheelState.miceOn.forEach((mouseKey, idx) => {
+    const mouse = state.miceState[mouseKey];
+    const cfg = CONFIG.mice[mouseKey];
+    if (mouse.action !== 'wheeling') return;
+
+    // Mouse runs at bottom-inside of wheel, offset by wheel rotation
+    // The mouse stays at roughly the bottom but the wheel rotates around it
+    const mouseAngle = Math.PI / 2 + Math.sin(t * 3) * 0.15; // slight bobbing
+    const runRadius = radius - 14;
+    const mx = center.x + Math.cos(mouseAngle) * runRadius - 14;
+    const my = center.y + Math.sin(mouseAngle) * runRadius - 20;
+
+    // Running legs animation synced to wheel speed
+    const runFrame = Math.floor(t * 8 * Math.max(1, wheelState.speed * 8)) % 4;
+    drawMouse(mx, my, cfg, 1, runFrame, 'walking');
+  });
+
+  // Metallic sheen on wheel (top highlight)
+  ctx.strokeStyle = 'rgba(200,220,240,0.2)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, radius, -Math.PI * 0.7, -Math.PI * 0.3);
+  ctx.stroke();
+}
+
+function updateExerciseWheel(dt) {
+  // Find wheel in exercise room (room 3)
+  const wheelPlaced = state.placedItems.find(p => p.itemId === 'exercise-wheel');
+  if (!wheelPlaced) return;
+
+  // Update fling cooldown
+  if (wheelState.flingTimer > 0) wheelState.flingTimer -= dt;
+
+  // Check which mice are on the wheel
+  const onWheel = [];
+  ['pip', 'chai'].forEach(key => {
+    const mouse = state.miceState[key];
+    if (mouse.action === 'wheeling' && mouse.room === wheelPlaced.room) {
+      onWheel.push(key);
+    }
+  });
+  wheelState.miceOn = onWheel;
+
+  // Update wheel speed based on mice running
+  if (onWheel.length > 0) {
+    const targetSpeed = onWheel.length === 1 ? 0.04 : 0.08; // faster with two mice
+    wheelState.speed += (targetSpeed - wheelState.speed) * 0.02;
+  } else {
+    // Slow down gradually
+    wheelState.speed *= 0.98;
+    if (wheelState.speed < 0.001) wheelState.speed = 0;
+  }
+
+  wheelState.angle += wheelState.speed * dt * 0.06;
+
+  // Two-mouse interaction: one gets flung off!
+  if (onWheel.length === 2 && wheelState.flingTimer <= 0 && Math.random() < 0.0008 * dt) {
+    const flingKey = Math.random() < 0.5 ? onWheel[0] : onWheel[1];
+    const stayKey = flingKey === onWheel[0] ? onWheel[1] : onWheel[0];
+    flingMouseOffWheel(flingKey, stayKey, wheelPlaced);
+  }
+
+  // Occasional wheel squeak sound
+  if (onWheel.length > 0 && Math.random() < 0.001 * dt) {
+    sfxWheelSpin();
+  }
+}
+
+function flingMouseOffWheel(flingKey, stayKey, wheelPlaced) {
+  const mouse = state.miceState[flingKey];
+  const center = getWheelCenter(wheelPlaced);
+
+  // Fling the mouse!
+  mouse.action = 'flung';
+  mouse.actionTimer = 2500;
+  mouse.flingVX = (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 2);
+  mouse.flingVY = -(3 + Math.random() * 2);
+  mouse.flingX = center.x - 14;
+  mouse.flingY = center.y + 10;
+  mouse.flingBounced = false;
+
+  wheelState.flingTimer = 12000; // cooldown before next fling
+  wheelState.speed *= 1.5; // wheel speeds up from the fling
+
+  sfxWheelFling();
+
+  // Flung mouse reaction
+  const flingQuotes = [
+    'YEET 😵‍💫', 'I\'m flying!! 💫', 'was not ready', 'AAAA', 
+    'parkour??', 'didn\'t sign up for this', '10/10 landing', 'ow',
+    'that was on purpose actually', 'wheeeee! ...ow'
+  ];
+  speechBubbles.push({
+    x: mouse.flingX + 14, y: mouse.flingY - 10,
+    text: flingQuotes[Math.floor(Math.random() * flingQuotes.length)],
+    timer: 3000, maxTimer: 3000, mouseKey: flingKey
+  });
+
+  // Staying mouse reaction (delayed)
+  setTimeout(() => {
+    const stayQuotes = [
+      'lmaooo 😂', 'skill issue', 'MY wheel now', 'byeee 👋',
+      'should\'ve held on', 'couldn\'t be me', 'ratio + flung'
+    ];
+    speechBubbles.push({
+      x: state.miceState[stayKey].x + 14, y: MOUSE_FLOOR_Y - 10,
+      text: stayQuotes[Math.floor(Math.random() * stayQuotes.length)],
+      timer: 3000, maxTimer: 3000, mouseKey: stayKey
+    });
+  }, 800);
+
+  // Floating stars around flung mouse
+  for (let i = 0; i < 5; i++) {
+    setTimeout(() => {
+      spawnFloatingEffect(
+        mouse.flingX + 14 + (Math.random() - 0.5) * 30,
+        mouse.flingY + (Math.random() - 0.5) * 20,
+        ['⭐', '💫', '😵‍💫', '✨', '💥'][i]
+      );
+    }, i * 100 + 200);
+  }
+}
+
+function updateFlungMouse(mouse, dt) {
+  if (mouse.action !== 'flung') return false;
+
+  const gravity = 0.008 * dt;
+  mouse.flingVY += gravity;
+  mouse.flingX += mouse.flingVX * dt * 0.06;
+  mouse.flingY += mouse.flingVY * dt * 0.06;
+
+  // Bounce off floor
+  if (mouse.flingY >= MOUSE_FLOOR_Y && !mouse.flingBounced) {
+    mouse.flingBounced = true;
+    mouse.flingVY = -Math.abs(mouse.flingVY) * 0.4;
+    mouse.flingVX *= 0.5;
+    // Small bounce sound
+    sfxSqueak();
+  }
+
+  // Settle on floor
+  if (mouse.flingBounced && mouse.flingY >= MOUSE_FLOOR_Y) {
+    mouse.flingY = MOUSE_FLOOR_Y;
+    mouse.x = Math.max(15, Math.min(ROOM_W - 45, mouse.flingX));
+    mouse.action = 'idle';
+    mouse.actionTimer = 3000 + Math.random() * 2000;
+    mouse.dir = Math.random() < 0.5 ? 1 : -1;
+    return false;
+  }
+
+  // Bounce off walls
+  if (mouse.flingX < 15) { mouse.flingX = 15; mouse.flingVX = Math.abs(mouse.flingVX) * 0.5; }
+  if (mouse.flingX > ROOM_W - 45) { mouse.flingX = ROOM_W - 45; mouse.flingVX = -Math.abs(mouse.flingVX) * 0.5; }
+
+  return true; // still flying
+}
+
+function drawFlungMouse(mouse, cfg) {
+  if (mouse.action !== 'flung') return;
+  const t = Date.now() / 1000;
+
+  // Tumbling rotation
+  const tumble = t * 8;
+
+  ctx.save();
+  const cx = mouse.flingX + 14;
+  const cy = mouse.flingY + 10;
+  ctx.translate(cx, cy);
+  ctx.rotate(Math.sin(tumble) * 0.5);
+  ctx.translate(-cx, -cy);
+
+  drawMouse(mouse.flingX, mouse.flingY, cfg, 1, 0, 'idle');
+
+  // Dizzy stars orbiting
+  if (mouse.flingBounced) {
+    const starR = 12;
+    for (let i = 0; i < 3; i++) {
+      const sa = t * 4 + (i / 3) * Math.PI * 2;
+      ctx.font = '8px serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('⭐', cx + Math.cos(sa) * starR, cy - 12 + Math.sin(sa) * 4);
+    }
+    ctx.textAlign = 'left';
+  }
+
+  ctx.restore();
+}
+
+// ============================================================
+// EXERCISE ROOM SETUP (auto-place wheel)
+// ============================================================
+function ensureExerciseRoomSetup() {
+  // Auto-place the exercise wheel in the exercise room if not already placed
+  const hasWheel = state.placedItems.some(p => p.itemId === 'exercise-wheel');
+  if (!hasWheel) {
+    if (!state.ownedItems.includes('exercise-wheel')) {
+      state.ownedItems.push('exercise-wheel');
+    }
+    // Place wheel centered in exercise room (room 3)
+    state.placedItems.push({
+      itemId: 'exercise-wheel', room: 3,
+      gridX: Math.floor(GRID_COLS / 2) - 1, gridY: GRID_ROWS - 3
+    });
+    saveGame();
   }
 }
 
@@ -993,28 +2032,35 @@ function drawFurnitureItem(item, gx, gy) {
 // FURNITURE PLACEMENT & REMOVAL
 // ============================================================
 function startPlacement(itemId) {
-  closeModal();
   state.placementMode = itemId;
   state.removeMode = false;
-  const item = FURNITURE.find(f => f.id === itemId);
-  document.getElementById('placement-info').textContent =
-    `Placing: ${item.icon} ${item.name} — tap a spot in the room`;
-  document.getElementById('placement-bar').style.display = 'block';
+  highlightTrayItem(itemId);
 }
 
 function cancelPlacement() {
   state.placementMode = null;
   state.removeMode = false;
-  document.getElementById('placement-bar').style.display = 'none';
+  state.dragState = { active: false, itemId: null, screenX: 0, screenY: 0, fromPlaced: false, fromPlacedIdx: -1 };
+  document.getElementById('trash-zone').classList.remove('visible', 'hover');
 }
 
 function toggleRemoveMode() {
-  state.removeMode = !state.removeMode;
-  state.placementMode = state.removeMode ? '__remove__' : null;
-  document.getElementById('placement-info').textContent = state.removeMode
-    ? '🗑 Remove mode: tap a placed item to remove it'
-    : 'Cancelled';
-  if (!state.removeMode) cancelPlacement();
+  // No longer used as a separate mode — kept as no-op for compatibility
+}
+
+function isPlacementValid(itemId, col, row, excludeIdx) {
+  const item = FURNITURE.find(f => f.id === itemId);
+  if (!item) return false;
+  if (col < 0 || row < 0 || col + item.w > GRID_COLS || row + item.h > GRID_ROWS) return false;
+  const overlaps = state.placedItems.some((p, idx) => {
+    if (excludeIdx !== undefined && idx === excludeIdx) return false;
+    if (p.room !== state.currentRoom) return false;
+    const pi = FURNITURE.find(f => f.id === p.itemId);
+    if (!pi) return false;
+    return !(col + item.w <= p.gridX || p.gridX + pi.w <= col ||
+             row + item.h <= p.gridY || p.gridY + pi.h <= row);
+  });
+  return !overlaps;
 }
 
 function handlePlacementClick(gx, gy) {
@@ -1030,8 +2076,13 @@ function handlePlacementClick(gx, gy) {
              grid.row >= p.gridY && grid.row < p.gridY + it.h;
     });
     if (idx >= 0) {
-      const removed = state.placedItems.splice(idx, 1)[0];
+      const removed = state.placedItems[idx];
       const item = FURNITURE.find(f => f.id === removed.itemId);
+      if (item?.exerciseRoom) {
+        showToast("Can't remove the wheel! 🎡 The mice would riot.");
+        return;
+      }
+      state.placedItems.splice(idx, 1);
       showToast(`Removed ${item?.name || 'item'} 🗑`);
       saveGame();
     }
@@ -1041,22 +2092,8 @@ function handlePlacementClick(gx, gy) {
   const item = FURNITURE.find(f => f.id === state.placementMode);
   if (!item) return;
 
-  // Bounds check
-  if (grid.col + item.w > GRID_COLS || grid.row + item.h > GRID_ROWS) {
+  if (!isPlacementValid(item.id, grid.col, grid.row)) {
     showToast("Doesn't fit there! 🐭");
-    return;
-  }
-
-  // Overlap check
-  const overlaps = state.placedItems.some(p => {
-    if (p.room !== state.currentRoom) return false;
-    const pi = FURNITURE.find(f => f.id === p.itemId);
-    if (!pi) return false;
-    return !(grid.col + item.w <= p.gridX || p.gridX + pi.w <= grid.col ||
-             grid.row + item.h <= p.gridY || p.gridY + pi.h <= grid.row);
-  });
-  if (overlaps) {
-    showToast("Something's already there! 🧀");
     return;
   }
 
@@ -1070,24 +2107,21 @@ function handlePlacementClick(gx, gy) {
   cancelPlacement();
   addHappiness(3);
   saveGame();
-
-  // Make mice react to newly placed item
+  refreshShopFlyout();
+  refreshItemTray();
   reactToNewFurniture(item);
 }
 
 function reactToNewFurniture(item) {
-  // Both mice in the current room get curious
-  ['shadow', 'cloud'].forEach(key => {
+  ['pip', 'chai'].forEach(key => {
     const mouse = state.miceState[key];
     if (mouse.room !== state.currentRoom) return;
-    // Walk toward the new item
     const placed = state.placedItems[state.placedItems.length - 1];
     const targetPos = gridToGame(placed.gridX, placed.gridY);
     mouse.action = 'walking';
-    mouse.targetX = targetPos.x + (key === 'shadow' ? -10 : 20);
+    mouse.targetX = targetPos.x + (key === 'pip' ? -10 : 20);
     mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
     mouse.actionTimer = 5000;
-    // After reaching it, do a curious speech bubble
     setTimeout(() => {
       if (mouse.room === state.currentRoom) {
         const curiosity = ['ooh what\'s this? 👀', 'new thing! 🎉', '*sniff sniff*',
@@ -1101,53 +2135,254 @@ function reactToNewFurniture(item) {
   });
 }
 
-// Wire up placement bar buttons
-document.getElementById('btn-cancel-place').addEventListener('click', cancelPlacement);
-document.getElementById('btn-remove-mode').addEventListener('click', toggleRemoveMode);
+// ============================================================
+// SHOP FLYOUT PANEL
+// ============================================================
+function toggleShopFlyout() {
+  state.shopOpen = !state.shopOpen;
+  const flyout = document.getElementById('shop-flyout');
+  const tray = document.getElementById('item-tray');
+  if (state.shopOpen) {
+    refreshShopFlyout();
+    refreshItemTray();
+    flyout.classList.add('open');
+    tray.classList.add('open');
+  } else {
+    flyout.classList.remove('open');
+    tray.classList.remove('open');
+    cancelPlacement();
+  }
+}
 
-// ============================================================
-// MOUSTAZON SHOP
-// ============================================================
-function openShop() {
-  const container = document.getElementById('modal-container');
+function closeShopFlyout() {
+  state.shopOpen = false;
+  document.getElementById('shop-flyout').classList.remove('open');
+  document.getElementById('item-tray').classList.remove('open');
+  cancelPlacement();
+}
+
+function refreshShopFlyout() {
   const owned = new Set(state.ownedItems);
-  let html = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()">
-    <div class="modal-content" style="min-width:320px;max-width:520px;">
-      <h2>🛒 Moustazon Prime™</h2>
-      <p style="text-align:center;color:#a89070;font-size:11px;margin-bottom:10px;">
-        Free 2-day delivery to any mouse hole &nbsp;|&nbsp; 🧀 <strong style="color:#f5d68a">${state.coins}</strong> coins
-      </p>
-      <div class="shop-grid">`;
-
+  const container = document.getElementById('flyout-items');
+  document.getElementById('flyout-coin-display').textContent = state.coins;
+  let html = '';
   FURNITURE.forEach(item => {
     if (item.birthday && !state.birthdayEventSeen) return;
+    if (item.exerciseRoom) return;
     const isOwned = owned.has(item.id);
     const canAfford = state.coins >= item.price;
-    const clickAction = isOwned
-      ? `startPlacement('${item.id}')`
-      : (canAfford ? `buyItem('${item.id}')` : '');
-    html += `<div class="shop-item ${isOwned ? 'owned' : ''}"
-              onclick="${clickAction}"
-              style="${!isOwned && !canAfford ? 'opacity:0.35;cursor:not-allowed;' : ''}">
-      <div class="item-icon">${item.icon}</div>
-      <div class="item-name">${item.name}</div>
-      <div class="item-desc">${item.desc}</div>
-      <div class="item-price">${isOwned ? '✅ Owned — tap to place' : (item.price === 0 ? '🎁 Free!' : `🧀 ${item.price}`)}</div>
+    const cls = isOwned ? 'owned' : (!canAfford ? 'cant-afford' : '');
+    html += `<div class="flyout-item ${cls}" data-item-id="${item.id}">
+      <div class="fi-icon">${item.icon}</div>
+      <div class="fi-name">${item.name}</div>
+      <div class="fi-price">${isOwned ? '✅ Owned' : (item.price === 0 ? '🎁 Free!' : '🧀 ' + item.price)}</div>
     </div>`;
   });
-
-  html += `</div>
-    <div style="text-align:center;margin-top:12px;">
-      <button class="minigame-btn" onclick="lootCrumbs()" style="width:65%;">
-        🎁 Loot Crumbs — Free Mystery Item!
-      </button>
-      <p style="color:#a89070;font-size:10px;margin-top:4px;">
-        ${state.lootCrumbsUsed > 0 ? `Opened ${state.lootCrumbsUsed} times. Totally not addictive.` : 'Ironic gacha. Always free. No regrets.'}
-      </p>
-    </div>
-    <button class="close-btn" onclick="closeModal()">Close Shop</button>
-    </div></div>`;
   container.innerHTML = html;
+  // Attach click handlers
+  container.querySelectorAll('.flyout-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const id = el.dataset.itemId;
+      const isOwned = state.ownedItems.includes(id);
+      if (isOwned) {
+        startPlacement(id);
+        showToast('Drag from the tray below to place! 👇');
+      } else {
+        const item = FURNITURE.find(f => f.id === id);
+        if (item && state.coins >= item.price) {
+          buyItem(id);
+        }
+      }
+    });
+  });
+  // Update loot info
+  const lootInfo = document.getElementById('flyout-loot-info');
+  lootInfo.textContent = state.lootCrumbsUsed > 0
+    ? `Opened ${state.lootCrumbsUsed} times. Totally not addictive.`
+    : 'Ironic gacha. Always free. No regrets.';
+}
+
+function refreshItemTray() {
+  const tray = document.getElementById('item-tray');
+  const owned = new Set(state.ownedItems);
+  let html = '';
+  FURNITURE.forEach(item => {
+    if (!owned.has(item.id)) return;
+    if (item.exerciseRoom) return;
+    if (item.birthday && !state.birthdayEventSeen) return;
+    const isActive = state.placementMode === item.id;
+    html += `<div class="tray-item ${isActive ? 'active' : ''}" data-item-id="${item.id}">
+      <div class="ti-icon">${item.icon}</div>
+      <div class="ti-name">${item.name}</div>
+    </div>`;
+  });
+  tray.innerHTML = html;
+}
+
+function highlightTrayItem(itemId) {
+  document.querySelectorAll('.tray-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.itemId === itemId);
+  });
+  // Scroll tray item into view
+  const active = document.querySelector(`.tray-item[data-item-id="${itemId}"]`);
+  if (active) active.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+}
+
+// ============================================================
+// DRAG & DROP PLACEMENT SYSTEM
+// ============================================================
+function startDrag(itemId, sx, sy, fromPlaced, fromPlacedIdx) {
+  state.dragState = {
+    active: true, itemId, screenX: sx, screenY: sy,
+    fromPlaced: !!fromPlaced, fromPlacedIdx: fromPlacedIdx ?? -1
+  };
+  state.placementMode = itemId;
+  document.getElementById('trash-zone').classList.add('visible');
+}
+
+function updateDrag(sx, sy) {
+  if (!state.dragState.active) return;
+  state.dragState.screenX = sx;
+  state.dragState.screenY = sy;
+  // Check trash zone hover
+  const trashEl = document.getElementById('trash-zone');
+  const trashRect = trashEl.getBoundingClientRect();
+  const inTrash = sx >= trashRect.left && sx <= trashRect.right &&
+                  sy >= trashRect.top && sy <= trashRect.bottom;
+  trashEl.classList.toggle('hover', inTrash);
+}
+
+function endDrag(sx, sy) {
+  if (!state.dragState.active) return;
+  const ds = state.dragState;
+
+  // Check if dropped on trash zone
+  const trashEl = document.getElementById('trash-zone');
+  const trashRect = trashEl.getBoundingClientRect();
+  const inTrash = sx >= trashRect.left && sx <= trashRect.right &&
+                  sy >= trashRect.top && sy <= trashRect.bottom;
+
+  if (inTrash && ds.fromPlaced && ds.fromPlacedIdx >= 0) {
+    const removed = state.placedItems[ds.fromPlacedIdx];
+    const item = FURNITURE.find(f => f.id === removed?.itemId);
+    if (item?.exerciseRoom) {
+      showToast("Can't remove the wheel! 🎡 The mice would riot.");
+    } else if (removed) {
+      state.placedItems.splice(ds.fromPlacedIdx, 1);
+      showToast(`Removed ${item?.name || 'item'} 🗑`);
+      saveGame();
+      refreshShopFlyout();
+      refreshItemTray();
+    }
+    cancelPlacement();
+    return;
+  }
+
+  // Try to place on canvas
+  const pos = screenToGame(sx, sy);
+  const item = FURNITURE.find(f => f.id === ds.itemId);
+  if (!item) { cancelPlacement(); return; }
+  // Use same centering as ghost preview
+  const centerOffX = (item.w * GRID_SIZE) / 2;
+  const centerOffY = (item.h * GRID_SIZE) / 2;
+  const grid = gameToGrid(pos.x - centerOffX + GRID_SIZE / 2, pos.y - centerOffY + GRID_SIZE / 2);
+
+  const excludeIdx = ds.fromPlaced ? ds.fromPlacedIdx : undefined;
+  if (isPlacementValid(ds.itemId, grid.col, grid.row, excludeIdx)) {
+    if (ds.fromPlaced && ds.fromPlacedIdx >= 0) {
+      // Repositioning — update existing entry
+      state.placedItems[ds.fromPlacedIdx].gridX = grid.col;
+      state.placedItems[ds.fromPlacedIdx].gridY = grid.row;
+      sfxPlace();
+      showToast(`Moved ${item.icon} ${item.name}!`);
+    } else {
+      // New placement
+      state.placedItems.push({
+        itemId: item.id, room: state.currentRoom,
+        gridX: grid.col, gridY: grid.row
+      });
+      sfxPlace();
+      showToast(`Placed ${item.icon} ${item.name}!`);
+      addHappiness(3);
+      reactToNewFurniture(item);
+    }
+    saveGame();
+    refreshShopFlyout();
+    refreshItemTray();
+  } else {
+    if (ds.fromPlaced) {
+      // Repositioning failed — item stays where it was (already still in array)
+      showToast("Can't place there! 🐭");
+    }
+    // New placement from tray — just cancel, item returns to tray
+  }
+  cancelPlacement();
+}
+
+function findPlacedItemAt(gx, gy) {
+  const grid = gameToGrid(gx, gy);
+  const idx = state.placedItems.findIndex(p => {
+    if (p.room !== state.currentRoom) return false;
+    const it = FURNITURE.find(f => f.id === p.itemId);
+    if (!it) return false;
+    return grid.col >= p.gridX && grid.col < p.gridX + it.w &&
+           grid.row >= p.gridY && grid.row < p.gridY + it.h;
+  });
+  return idx;
+}
+
+// Wire up flyout buttons
+document.getElementById('flyout-close-btn').addEventListener('click', closeShopFlyout);
+document.getElementById('flyout-loot-btn').addEventListener('click', () => {
+  lootCrumbs();
+});
+
+// Wire up tray drag events (delegated)
+(function setupTrayDrag() {
+  const tray = document.getElementById('item-tray');
+
+  tray.addEventListener('mousedown', e => {
+    const tile = e.target.closest('.tray-item');
+    if (!tile) return;
+    e.preventDefault();
+    startDrag(tile.dataset.itemId, e.clientX, e.clientY, false, -1);
+  });
+  tray.addEventListener('touchstart', e => {
+    const tile = e.target.closest('.tray-item');
+    if (!tile) return;
+    e.preventDefault();
+    const t = e.touches[0];
+    startDrag(tile.dataset.itemId, t.clientX, t.clientY, false, -1);
+  }, { passive: false });
+})();
+
+// Global mouse/touch move & up for drag
+document.addEventListener('mousemove', e => {
+  if (state.dragState.active) {
+    e.preventDefault();
+    updateDrag(e.clientX, e.clientY);
+  }
+});
+document.addEventListener('touchmove', e => {
+  if (state.dragState.active) {
+    e.preventDefault();
+    updateDrag(e.touches[0].clientX, e.touches[0].clientY);
+  }
+}, { passive: false });
+document.addEventListener('mouseup', e => {
+  if (state.dragState.active) {
+    endDrag(e.clientX, e.clientY);
+  }
+});
+document.addEventListener('touchend', e => {
+  if (state.dragState.active) {
+    const t = e.changedTouches[0];
+    endDrag(t.clientX, t.clientY);
+  }
+});
+
+function openShop() {
+  toggleShopFlyout();
 }
 
 function buyItem(itemId) {
@@ -1159,11 +2394,12 @@ function buyItem(itemId) {
   updateCoinDisplay();
   saveGame();
   showToast(`Bought ${item.icon} ${item.name}! ${item.desc}`);
-  openShop(); // refresh shop
+  refreshShopFlyout();
+  refreshItemTray();
 }
 
 function lootCrumbs() {
-  const unowned = FURNITURE.filter(f => !state.ownedItems.includes(f.id) && !f.birthday);
+  const unowned = FURNITURE.filter(f => !state.ownedItems.includes(f.id) && !f.birthday && !f.exerciseRoom);
   if (unowned.length === 0) {
     showToast('You own everything! Go touch grass. 🌱');
     return;
@@ -1174,7 +2410,8 @@ function lootCrumbs() {
   sfxBuy();
   saveGame();
   showToast(`🎁 Loot Crumb opened! You got: ${item.icon} ${item.name}!`);
-  openShop(); // refresh shop
+  refreshShopFlyout();
+  refreshItemTray();
 }
 
 // Wire up HUD buttons
@@ -1198,6 +2435,9 @@ function openMinigames() {
       </button>
       <button class="minigame-btn" onclick="startDoomscroll()">
         📱 Doomscroll<br><span style="font-size:11px;color:#a89070;">Touch grass? Never heard of it.</span>
+      </button>
+      <button class="minigame-btn" onclick="startMouseMaze()">
+        🏁 Mouse Maze<br><span style="font-size:11px;color:#a89070;">Navigate the maze, collect cheese!</span>
       </button>
       <button class="close-btn" onclick="closeModal()">Back</button>
     </div>
@@ -1399,7 +2639,7 @@ function drawCheeseChase() {
 
   // Player mouse
   const mFrame = Math.floor(cc.distance / 15) % 4;
-  drawMouse(35, cc.mouseY - 10, CONFIG.mice.shadow, 1, mFrame, 'walking');
+  drawMouse(35, cc.mouseY - 10, CONFIG.mice.pip, 1, mFrame, 'walking');
 
   // Floating effects (sparkles on cheese collect)
   drawFloatingEffects();
@@ -1468,7 +2708,7 @@ const DOOMSCROLL_POSTS = [
   { text: 'my mouse learned to high five today 🥺', good: true, user: '@tinypaws' },
   { text: 'cheese board appreciation post 🧀✨', good: true, user: '@cheeseboard_daily' },
   { text: 'reminder: you are loved and valid 💛', good: true, user: '@wholesomemouse' },
-  { text: `${CONFIG.mice.shadow.name} and ${CONFIG.mice.cloud.name} fan account 🐭🐭`, good: true, user: '@mouse_stan' },
+  { text: `${CONFIG.mice.pip.name} and ${CONFIG.mice.chai.name} fan account 🐭🐭`, good: true, user: '@mouse_stan' },
   { text: 'POV: the mouse found the cheese stash', good: true, user: '@mousemoments' },
   { text: 'tiny mouse in a tiny hat. that\'s it. that\'s the post.', good: true, user: '@tinyhat' },
   { text: 'cozy mouse house tour 🏠🐭 (it\'s perfect)', good: true, user: '@cozymouse' },
@@ -1600,6 +2840,353 @@ function doomscrollAction(liked) {
 }
 
 // ============================================================
+// MOUSE MAZE MINI-GAME
+// ============================================================
+let mouseMazeActive = false;
+let mz = {};
+
+function generateMaze(cols, rows) {
+  // Recursive backtracker algorithm
+  const grid = [];
+  for (let r = 0; r < rows; r++) {
+    grid[r] = [];
+    for (let c = 0; c < cols; c++) {
+      grid[r][c] = { top: true, right: true, bottom: true, left: true, visited: false };
+    }
+  }
+  const stack = [];
+  let cur = { r: 0, c: 0 };
+  grid[0][0].visited = true;
+  const dirs = [
+    { dr: -1, dc: 0, wall: 'top', opp: 'bottom' },
+    { dr: 1, dc: 0, wall: 'bottom', opp: 'top' },
+    { dr: 0, dc: -1, wall: 'left', opp: 'right' },
+    { dr: 0, dc: 1, wall: 'right', opp: 'left' }
+  ];
+  function neighbors(r, c) {
+    return dirs.filter(d => {
+      const nr = r + d.dr, nc = c + d.dc;
+      return nr >= 0 && nr < rows && nc >= 0 && nc < cols && !grid[nr][nc].visited;
+    });
+  }
+  let totalVisited = 1;
+  const totalCells = rows * cols;
+  while (totalVisited < totalCells) {
+    const nb = neighbors(cur.r, cur.c);
+    if (nb.length > 0) {
+      const pick = nb[Math.floor(Math.random() * nb.length)];
+      stack.push(cur);
+      grid[cur.r][cur.c][pick.wall] = false;
+      cur = { r: cur.r + pick.dr, c: cur.c + pick.dc };
+      grid[cur.r][cur.c][pick.opp] = false;
+      grid[cur.r][cur.c].visited = true;
+      totalVisited++;
+    } else {
+      cur = stack.pop();
+    }
+  }
+  return grid;
+}
+
+function startMouseMaze() {
+  closeModal();
+  mouseMazeActive = true;
+  mz = {
+    level: 1,
+    totalScore: 0,
+    totalCheese: 0
+  };
+  initMazeLevel(mz.level);
+}
+
+function initMazeLevel(level) {
+  const cols = 6 + level * 2;  // 8, 10, 12
+  const rows = 5 + level;      // 6, 7, 8
+  const grid = generateMaze(cols, rows);
+  const cellW = Math.floor((GAME_W - 20) / cols);
+  const cellH = Math.floor((GAME_H - 50) / rows);
+  const cellSize = Math.min(cellW, cellH, 36);
+  const mazeW = cols * cellSize;
+  const mazeH = rows * cellSize;
+  const ox = Math.floor((GAME_W - mazeW) / 2);
+  const oy = Math.floor((GAME_H - 30 - mazeH) / 2) + 28;
+
+  // Place cheese in random dead-end or interior cells
+  const cheeses = [];
+  const numCheese = 3 + level * 2;
+  const candidates = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (r === 0 && c === 0) continue;
+      if (r === rows - 1 && c === cols - 1) continue;
+      candidates.push({ r, c });
+    }
+  }
+  candidates.sort(() => Math.random() - 0.5);
+  for (let i = 0; i < Math.min(numCheese, candidates.length); i++) {
+    cheeses.push({ r: candidates[i].r, c: candidates[i].c, collected: false });
+  }
+
+  Object.assign(mz, {
+    grid, cols, rows, cellSize, ox, oy,
+    playerR: 0, playerC: 0,
+    exitR: rows - 1, exitC: cols - 1,
+    cheeses,
+    moves: 0,
+    startTime: Date.now(),
+    elapsed: 0,
+    levelComplete: false,
+    gameOver: false,
+    animX: 0, animY: 0, // smooth animation offset
+    moveQueue: [],
+    inputCooldown: 0
+  });
+  mz.animX = 0;
+  mz.animY = 0;
+}
+
+function updateMouseMaze(dt) {
+  if (!mouseMazeActive || mz.gameOver || mz.levelComplete) return;
+  mz.elapsed = Date.now() - mz.startTime;
+
+  // Smooth animation toward current cell
+  mz.animX += (0 - mz.animX) * 0.2;
+  mz.animY += (0 - mz.animY) * 0.2;
+
+  // Process move queue
+  if (mz.inputCooldown > 0) mz.inputCooldown -= dt;
+  if (mz.moveQueue.length > 0 && mz.inputCooldown <= 0) {
+    const dir = mz.moveQueue.shift();
+    tryMazeMove(dir);
+    mz.inputCooldown = 80;
+  }
+}
+
+function tryMazeMove(dir) {
+  if (mz.levelComplete || mz.gameOver) return;
+  const cell = mz.grid[mz.playerR][mz.playerC];
+  let dr = 0, dc = 0;
+  if (dir === 'up' && !cell.top) dr = -1;
+  else if (dir === 'down' && !cell.bottom) dr = 1;
+  else if (dir === 'left' && !cell.left) dc = -1;
+  else if (dir === 'right' && !cell.right) dc = 1;
+  else return;
+
+  mz.animX = -dc * mz.cellSize;
+  mz.animY = -dr * mz.cellSize;
+  mz.playerR += dr;
+  mz.playerC += dc;
+  mz.moves++;
+
+  // Check cheese collection
+  mz.cheeses.forEach(ch => {
+    if (!ch.collected && ch.r === mz.playerR && ch.c === mz.playerC) {
+      ch.collected = true;
+      mz.totalCheese++;
+      sfxCheeseCollect();
+      const px = mz.ox + mz.playerC * mz.cellSize + mz.cellSize / 2;
+      const py = mz.oy + mz.playerR * mz.cellSize + mz.cellSize / 2;
+      spawnFloatingEffect(px, py, '✨');
+    }
+  });
+
+  // Check exit
+  if (mz.playerR === mz.exitR && mz.playerC === mz.exitC) {
+    mz.levelComplete = true;
+    const timeBonus = Math.max(0, 30 - Math.floor(mz.elapsed / 1000));
+    mz.totalScore += mz.cheeses.filter(c => c.collected).length * 3 + timeBonus;
+    sfxGoalComplete();
+  }
+}
+
+function drawMouseMaze() {
+  if (!mouseMazeActive) return;
+  const t = Date.now() / 1000;
+
+  // Background
+  ctx.fillStyle = '#1a0f05';
+  ctx.fillRect(0, 0, GAME_W, GAME_H);
+
+  // HUD bar
+  ctx.fillStyle = 'rgba(26,15,5,0.85)';
+  ctx.fillRect(0, 0, GAME_W, 26);
+  ctx.fillStyle = '#f5d68a';
+  ctx.font = '12px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(`🧀 ${mz.totalCheese}`, 10, 17);
+  ctx.textAlign = 'center';
+  ctx.fillText(`Level ${mz.level}/3`, GAME_W / 2, 17);
+  ctx.textAlign = 'right';
+  const secs = Math.floor((mz.elapsed || 0) / 1000);
+  ctx.fillText(`⏱ ${secs}s  |  ${mz.moves} moves`, GAME_W - 10, 17);
+  ctx.textAlign = 'left';
+
+  const { grid, cols, rows, cellSize, ox, oy } = mz;
+
+  // Maze floor
+  ctx.fillStyle = '#2b1d0e';
+  ctx.fillRect(ox - 2, oy - 2, cols * cellSize + 4, rows * cellSize + 4);
+
+  // Draw cells
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const cx = ox + c * cellSize;
+      const cy = oy + r * cellSize;
+      const cell = grid[r][c];
+
+      // Cell floor
+      ctx.fillStyle = (r + c) % 2 === 0 ? '#3d2b1a' : '#362618';
+      ctx.fillRect(cx, cy, cellSize, cellSize);
+
+      // Walls
+      ctx.strokeStyle = '#a07040';
+      ctx.lineWidth = 2;
+      if (cell.top) {
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + cellSize, cy); ctx.stroke();
+      }
+      if (cell.left) {
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx, cy + cellSize); ctx.stroke();
+      }
+      if (cell.bottom) {
+        ctx.beginPath(); ctx.moveTo(cx, cy + cellSize); ctx.lineTo(cx + cellSize, cy + cellSize); ctx.stroke();
+      }
+      if (cell.right) {
+        ctx.beginPath(); ctx.moveTo(cx + cellSize, cy); ctx.lineTo(cx + cellSize, cy + cellSize); ctx.stroke();
+      }
+    }
+  }
+
+  // Outer border
+  ctx.strokeStyle = '#c89050';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(ox, oy, cols * cellSize, rows * cellSize);
+
+  // Exit marker (glowing)
+  const exX = ox + mz.exitC * cellSize;
+  const exY = oy + mz.exitR * cellSize;
+  const glow = 0.4 + 0.3 * Math.sin(t * 3);
+  ctx.fillStyle = `rgba(100, 220, 100, ${glow})`;
+  ctx.fillRect(exX + 2, exY + 2, cellSize - 4, cellSize - 4);
+  ctx.font = `${Math.min(cellSize - 6, 16)}px serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🚪', exX + cellSize / 2, exY + cellSize / 2);
+
+  // Cheese items
+  mz.cheeses.forEach(ch => {
+    if (ch.collected) return;
+    const chX = ox + ch.c * cellSize + cellSize / 2;
+    const chY = oy + ch.r * cellSize + cellSize / 2;
+    const bob = Math.sin(t * 2 + ch.r + ch.c) * 2;
+    ctx.font = `${Math.min(cellSize - 8, 14)}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🧀', chX, chY + bob);
+  });
+
+  // Player mouse (Chai) with smooth animation
+  const pxBase = ox + mz.playerC * cellSize;
+  const pyBase = oy + mz.playerR * cellSize;
+  const px = pxBase + mz.animX;
+  const py = pyBase + mz.animY;
+  // Scale mouse to fit cell
+  const mouseDrawSize = Math.min(cellSize - 4, 28);
+  const mScale = mouseDrawSize / 28;
+  ctx.save();
+  const mcx = px + cellSize / 2;
+  const mcy = py + cellSize / 2;
+  ctx.translate(mcx, mcy);
+  ctx.scale(mScale, mScale);
+  ctx.translate(-mcx, -mcy);
+  drawMouse(px + (cellSize - 28) / 2, py + (cellSize - 20) / 2 - 2, CONFIG.mice.chai, 1, Math.floor(t * 4) % 4, 'walking');
+  ctx.restore();
+
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+
+  // Floating effects
+  drawFloatingEffects();
+
+  // Level complete overlay
+  if (mz.levelComplete) {
+    ctx.fillStyle = 'rgba(26,15,5,0.75)';
+    ctx.fillRect(0, 0, GAME_W, GAME_H);
+    ctx.fillStyle = '#f5d68a';
+    ctx.font = '24px monospace';
+    ctx.textAlign = 'center';
+    if (mz.level >= 3) {
+      ctx.fillText('🎉 Maze Complete!', GAME_W / 2, GAME_H / 2 - 40);
+      const timeBonus = Math.max(0, 30 - Math.floor(mz.elapsed / 1000));
+      ctx.font = '13px monospace';
+      ctx.fillStyle = '#e8d5b5';
+      ctx.fillText(`Cheese: 🧀 ${mz.totalCheese}  |  Time bonus: +${timeBonus}`, GAME_W / 2, GAME_H / 2 - 5);
+      const earned = mz.totalScore;
+      ctx.fillStyle = '#f5d68a';
+      ctx.font = '16px monospace';
+      ctx.fillText(`Earned: 🧀 ${earned} coins!`, GAME_W / 2, GAME_H / 2 + 25);
+      ctx.fillStyle = '#a89070';
+      ctx.font = '12px monospace';
+      ctx.fillText('tap / click to continue', GAME_W / 2, GAME_H / 2 + 55);
+    } else {
+      ctx.fillText(`✅ Level ${mz.level} Clear!`, GAME_W / 2, GAME_H / 2 - 20);
+      ctx.font = '13px monospace';
+      ctx.fillStyle = '#e8d5b5';
+      ctx.fillText(`Cheese collected: 🧀 ${mz.totalCheese}`, GAME_W / 2, GAME_H / 2 + 10);
+      ctx.fillStyle = '#a89070';
+      ctx.font = '12px monospace';
+      ctx.fillText('tap / click for next level', GAME_W / 2, GAME_H / 2 + 40);
+    }
+    ctx.textAlign = 'left';
+  }
+}
+
+function endMouseMaze() {
+  const earned = mz.totalScore;
+  state.coins += earned;
+  state.totalCoinsEarned += earned;
+  addHappiness(6);
+  updateCoinDisplay();
+  saveGame();
+  mouseMazeActive = false;
+  sfxCoinCollect();
+  spawnCoinEffect(earned, GAME_W / 2, GAME_H / 2 - 20);
+  showToast(`Mouse Maze: earned 🧀 ${earned} coins!`);
+}
+
+function handleMazeInput(sx, sy) {
+  if (mz.levelComplete) {
+    if (mz.level >= 3) {
+      endMouseMaze();
+    } else {
+      mz.level++;
+      initMazeLevel(mz.level);
+    }
+    return;
+  }
+}
+
+// Maze swipe/drag support
+let mazeSwipeStart = null;
+
+function mazeSwipeBegin(sx, sy) {
+  mazeSwipeStart = { x: sx, y: sy };
+}
+
+function mazeSwipeEnd(sx, sy) {
+  if (!mazeSwipeStart) return;
+  const dx = sx - mazeSwipeStart.x;
+  const dy = sy - mazeSwipeStart.y;
+  mazeSwipeStart = null;
+  const minDist = 15;
+  if (Math.abs(dx) < minDist && Math.abs(dy) < minDist) return;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    mz.moveQueue.push(dx > 0 ? 'right' : 'left');
+  } else {
+    mz.moveQueue.push(dy > 0 ? 'down' : 'up');
+  }
+}
+
+// ============================================================
 // BIRTHDAY EVENT
 // ============================================================
 function triggerBirthdayEvent() {
@@ -1620,14 +3207,14 @@ function triggerBirthdayEvent() {
   updateCoinDisplay();
 
   // Both mice to living room for the party
-  state.miceState.shadow.room = 2;
-  state.miceState.shadow.x = 150;
-  state.miceState.shadow.action = 'idle';
-  state.miceState.shadow.actionTimer = 6000;
-  state.miceState.cloud.room = 2;
-  state.miceState.cloud.x = 280;
-  state.miceState.cloud.action = 'idle';
-  state.miceState.cloud.actionTimer = 6000;
+  state.miceState.pip.room = 2;
+  state.miceState.pip.x = 150;
+  state.miceState.pip.action = 'idle';
+  state.miceState.pip.actionTimer = 6000;
+  state.miceState.chai.room = 2;
+  state.miceState.chai.x = 280;
+  state.miceState.chai.action = 'idle';
+  state.miceState.chai.actionTimer = 6000;
 
   // Switch to living room
   state.currentRoom = 2;
@@ -1741,18 +3328,18 @@ function spawnCoinEffect(amount, x, y) {
 const HAPPINESS_DECAY_RATE = 0.0003; // very slow: ~1 point per ~55 minutes
 
 function getAverageHappiness() {
-  return Math.round((state.miceState.shadow.happiness + state.miceState.cloud.happiness) / 2);
+  return Math.round((state.miceState.pip.happiness + state.miceState.chai.happiness) / 2);
 }
 
 function addHappiness(amount) {
-  state.miceState.shadow.happiness = Math.min(100, state.miceState.shadow.happiness + amount);
-  state.miceState.cloud.happiness = Math.min(100, state.miceState.cloud.happiness + amount);
+  state.miceState.pip.happiness = Math.min(100, state.miceState.pip.happiness + amount);
+  state.miceState.chai.happiness = Math.min(100, state.miceState.chai.happiness + amount);
   updateHappinessDisplay();
 }
 
 function updateHappiness(dt) {
-  state.miceState.shadow.happiness = Math.max(10, state.miceState.shadow.happiness - HAPPINESS_DECAY_RATE * dt);
-  state.miceState.cloud.happiness = Math.max(10, state.miceState.cloud.happiness - HAPPINESS_DECAY_RATE * dt);
+  state.miceState.pip.happiness = Math.max(10, state.miceState.pip.happiness - HAPPINESS_DECAY_RATE * dt);
+  state.miceState.chai.happiness = Math.max(10, state.miceState.chai.happiness - HAPPINESS_DECAY_RATE * dt);
   updateHappinessDisplay();
 }
 
@@ -1829,7 +3416,7 @@ function generateNewGoal() {
   if (unplaced.length === 0) return;
 
   const template = unplaced[Math.floor(Math.random() * unplaced.length)];
-  const mouseKey = Math.random() < 0.5 ? 'shadow' : 'cloud';
+  const mouseKey = Math.random() < 0.5 ? 'pip' : 'chai';
   const mouseName = CONFIG.mice[mouseKey].name;
   const text = template.text.replace('{mouse}', mouseName);
 
@@ -1863,11 +3450,20 @@ function updateGoalDisplay() {
 const MOUSE_FLOOR_Y = ROOM_Y + ROOM_H - FLOOR_H - 20;
 
 function drawMouse(x, y, cfg, dir, frame, action) {
+  const mouseScale = cfg.scale || 1.0;
   const cx = Math.floor(x);
   const cy = Math.floor(y);
   const t = Date.now() / 1000;
 
   ctx.save();
+  // Apply mouse-specific scale (Pip is larger)
+  if (mouseScale !== 1.0) {
+    const pivotX = cx + 14;
+    const pivotY = cy + 20; // scale from feet so they stay on ground
+    ctx.translate(pivotX, pivotY);
+    ctx.scale(mouseScale, mouseScale);
+    ctx.translate(-pivotX, -pivotY);
+  }
   if (dir < 0) {
     ctx.translate(cx + 14, 0);
     ctx.scale(-1, 1);
@@ -2177,6 +3773,29 @@ function drawMouse(x, y, cfg, dir, frame, action) {
 // MOUSE AI
 // ============================================================
 function updateMouse(mouse, dt, personality) {
+  // Handle flung state separately
+  if (mouse.action === 'flung') {
+    updateFlungMouse(mouse, dt);
+    return;
+  }
+
+  // Wheeling mice don't move normally — they're on the wheel
+  if (mouse.action === 'wheeling') {
+    mouse.actionTimer -= dt;
+    if (mouse.actionTimer <= 0) {
+      mouse.action = 'idle';
+      mouse.actionTimer = 2000 + Math.random() * 2000;
+      // Step off the wheel — reposition to nearby floor
+      const wheelPlaced = state.placedItems.find(p => p.itemId === 'exercise-wheel' && p.room === mouse.room);
+      if (wheelPlaced) {
+        const center = getWheelCenter(wheelPlaced);
+        mouse.x = center.x + (Math.random() < 0.5 ? -40 : 40);
+        mouse.x = Math.max(15, Math.min(ROOM_W - 45, mouse.x));
+      }
+    }
+    return;
+  }
+
   // Animation timer
   mouse.animTimer += dt;
   if (mouse.animTimer > 180) {
@@ -2251,7 +3870,20 @@ function pickNewAction(mouse, personality) {
 
   // 40% chance to interact with furniture if any is available
   if (furnitureBehaviors.length > 0 && Math.random() < 0.4) {
-    const pick = furnitureBehaviors[Math.floor(Math.random() * furnitureBehaviors.length)];
+    let pick;
+    // Pip is hungrier — strongly prefers food items
+    const foodBehaviors = furnitureBehaviors.filter(fb => fb.behavior === 'eating');
+    if (personality === 'chaotic' && foodBehaviors.length > 0 && Math.random() < 0.6) {
+      pick = foodBehaviors[Math.floor(Math.random() * foodBehaviors.length)];
+    } else {
+      // Both mice love the exercise wheel — high preference
+      const wheelBehaviors = furnitureBehaviors.filter(fb => fb.behavior === 'wheeling');
+      if (wheelBehaviors.length > 0 && Math.random() < 0.5) {
+        pick = wheelBehaviors[0];
+      } else {
+        pick = furnitureBehaviors[Math.floor(Math.random() * furnitureBehaviors.length)];
+      }
+    }
     mouse.action = pick.behavior;
     const targetPos = gridToGame(pick.placed.gridX, pick.placed.gridY);
     mouse.targetX = targetPos.x + Math.random() * 10;
@@ -2259,6 +3891,7 @@ function pickNewAction(mouse, personality) {
     mouse.actionTimer = 3000 + Math.random() * 4000;
     if (pick.behavior === 'sleeping') mouse.actionTimer = 5000 + Math.random() * 5000;
     if (pick.behavior === 'zoomies') mouse.actionTimer = 2000 + Math.random() * 2000;
+    if (pick.behavior === 'wheeling') mouse.actionTimer = 6000 + Math.random() * 8000; // mice love the wheel
     return;
   }
 
@@ -2307,37 +3940,38 @@ function pickNewAction(mouse, personality) {
 
 // Draw status bar at the bottom showing mouse names + actions
 function drawMouseStatus() {
-  const shadow = state.miceState.shadow;
-  const cloud = state.miceState.cloud;
+  const pip = state.miceState.pip;
+  const chai = state.miceState.chai;
   const y = GAME_H - 10;
 
   ctx.font = '10px monospace';
 
-  // Shadow status (left)
+  // Pip status (left)
   const actionIcons = { sleeping: '💤', walking: '🐾', zoomies: '💨', eating: '😋',
-    doomscrolling: '📱', watching: '📺', yoga: '🧘', playing: '🏃' };
-  const sIcon = actionIcons[shadow.action] || '✨';
+    doomscrolling: '📱', watching: '📺', yoga: '🧘', playing: '🏃',
+    wheeling: '🎡', flung: '😵‍💫' };
+  const sIcon = actionIcons[pip.action] || '✨';
   ctx.fillStyle = '#888';
   ctx.textAlign = 'left';
-  ctx.fillText(`${sIcon} ${CONFIG.mice.shadow.name}: ${shadow.action}`, 10, y);
+  ctx.fillText(`${sIcon} ${CONFIG.mice.pip.name}: ${pip.action}`, 10, y);
 
   // Room indicator if not in current room
-  if (shadow.room !== state.currentRoom) {
+  if (pip.room !== state.currentRoom) {
     ctx.fillStyle = '#666';
-    ctx.fillText(`  (in ${ROOMS[shadow.room].icon})`, 10 + ctx.measureText(`${sIcon} ${CONFIG.mice.shadow.name}: ${shadow.action}`).width, y);
+    ctx.fillText(`  (in ${ROOMS[pip.room].icon})`, 10 + ctx.measureText(`${sIcon} ${CONFIG.mice.pip.name}: ${pip.action}`).width, y);
   }
 
-  // Cloud status (right)
-  const cIcon = actionIcons[cloud.action] || '✨';
+  // Chai status (right)
+  const cIcon = actionIcons[chai.action] || '✨';
   ctx.fillStyle = '#888';
   ctx.textAlign = 'right';
-  ctx.fillText(`${cIcon} ${CONFIG.mice.cloud.name}: ${cloud.action}`, GAME_W - 10, y);
+  ctx.fillText(`${cIcon} ${CONFIG.mice.chai.name}: ${chai.action}`, GAME_W - 10, y);
 
-  if (cloud.room !== state.currentRoom) {
-    const cloudText = `${cIcon} ${CONFIG.mice.cloud.name}: ${cloud.action}`;
+  if (chai.room !== state.currentRoom) {
+    const chaiText = `${cIcon} ${CONFIG.mice.chai.name}: ${chai.action}`;
     ctx.fillStyle = '#666';
     ctx.textAlign = 'right';
-    ctx.fillText(`(in ${ROOMS[cloud.room].icon})  `, GAME_W - 10 - ctx.measureText(cloudText).width, y);
+    ctx.fillText(`(in ${ROOMS[chai.room].icon})  `, GAME_W - 10 - ctx.measureText(chaiText).width, y);
   }
 
   ctx.textAlign = 'left';
@@ -2346,20 +3980,30 @@ function drawMouseStatus() {
 // ============================================================
 // SPEECH BUBBLES & FLOATING EFFECTS
 // ============================================================
-const SHADOW_QUOTES = [
+const PIP_QUOTES = [
   'no thoughts head empty', 'chaos mode activated', 'catch me if you can 💨',
   'it\'s giving... gremlin', 'slay', 'built different tbh', 'caught in 4k 📸',
   'living my best cheese life', 'zero chill, full send', 'main character energy',
   'this is fine 🔥', 'unhinged and unbothered', 'speed run any%', 'yeet',
-  'bet', 'say less', 'lowkey feral rn', 'bestie wake up', 'ZOOM', 'not sorry 😈'
+  'bet', 'say less', 'lowkey feral rn', 'bestie wake up', 'ZOOM', 'not sorry 😈',
+  'is there more cheese??', 'snack break? snack break.', 'I smell food 👃',
+  'built different (and hungry)', 'cheese is a personality trait'
 ];
-const CLOUD_QUOTES = [
+const CHAI_QUOTES = [
   'this is giving cozy', 'soft hours only 🌙', 'no thoughts, just vibes',
   'not me napping again', 'it\'s giving... mouse', 'sleepy but slay',
   'wholesome content only', 'living slow 🐌', 'comfort is key', 'gentle chaos',
   'self care is sleeping', 'cozy era', 'manifesting cheese ✨', 'just existing 💫',
   'zzz is a lifestyle', 'pls don\'t wake me', 'warm thoughts only', 'soft launch 🧀',
   'cottagecore mouse', 'peace was always an option 🕊'
+];
+
+const WHEEL_QUOTES = [
+  'CARDIO 💪', 'fitness era', 'running from my problems',
+  'marathon training arc', 'can\'t stop won\'t stop', 'legs go brrr',
+  'gym rat? no. gym MOUSE', 'my fitbit is shaking',
+  'hot mouse summer prep', 'this counts as a marathon right',
+  'i am speed 🏃', 'wheeeeel!', 'spinning into my best self'
 ];
 
 let speechBubbles = [];  // { x, y, text, timer, maxTimer, mouseKey }
@@ -2370,7 +4014,12 @@ let speechCooldown = 8000 + Math.random() * 7000; // 8-15 sec
 function triggerSpeech(mouseKey) {
   const mouse = state.miceState[mouseKey];
   if (mouse.room !== state.currentRoom) return;
-  const quotes = mouseKey === 'shadow' ? SHADOW_QUOTES : CLOUD_QUOTES;
+  let quotes;
+  if (mouse.action === 'wheeling') {
+    quotes = WHEEL_QUOTES;
+  } else {
+    quotes = mouseKey === 'pip' ? PIP_QUOTES : CHAI_QUOTES;
+  }
   const text = quotes[Math.floor(Math.random() * quotes.length)];
   speechBubbles = speechBubbles.filter(b => b.mouseKey !== mouseKey);
   speechBubbles.push({
@@ -2386,15 +4035,27 @@ function updateSpeechBubbles(dt) {
   if (speechCooldown <= 0) {
     speechCooldown = 8000 + Math.random() * 7000;
     // Pick a random mouse to speak
-    const mouseKey = Math.random() < 0.5 ? 'shadow' : 'cloud';
+    const mouseKey = Math.random() < 0.5 ? 'pip' : 'chai';
     triggerSpeech(mouseKey);
   }
   speechBubbles.forEach(b => {
     b.timer -= dt;
-    // Track mouse position
+    // Track mouse position (handle wheel and flung states)
     const mouse = state.miceState[b.mouseKey];
-    b.x = mouse.x + 14;
-    b.y = MOUSE_FLOOR_Y - 10;
+    if (mouse.action === 'flung' && mouse.flingX !== undefined) {
+      b.x = mouse.flingX + 14;
+      b.y = mouse.flingY - 10;
+    } else if (mouse.action === 'wheeling') {
+      const wheelPlaced = state.placedItems.find(p => p.itemId === 'exercise-wheel' && p.room === mouse.room);
+      if (wheelPlaced) {
+        const center = getWheelCenter(wheelPlaced);
+        b.x = center.x;
+        b.y = center.y - 40;
+      }
+    } else {
+      b.x = mouse.x + 14;
+      b.y = MOUSE_FLOOR_Y - 10;
+    }
   });
   speechBubbles = speechBubbles.filter(b => b.timer > 0);
 }
@@ -2469,8 +4130,8 @@ function drawFloatingEffects() {
 // ============================================================
 function tryPetMouse(gx, gy) {
   const mice = [
-    { key: 'shadow', state: state.miceState.shadow, cfg: CONFIG.mice.shadow },
-    { key: 'cloud', state: state.miceState.cloud, cfg: CONFIG.mice.cloud }
+    { key: 'pip', state: state.miceState.pip, cfg: CONFIG.mice.pip },
+    { key: 'chai', state: state.miceState.chai, cfg: CONFIG.mice.chai }
   ];
   for (const m of mice) {
     if (m.state.room !== state.currentRoom) continue;
@@ -2490,8 +4151,8 @@ function tryPetMouse(gx, gy) {
       }
       // Mouse reacts
       speechBubbles = speechBubbles.filter(b => b.mouseKey !== m.key);
-      const petQuotes = m.key === 'shadow'
-        ? ['okay that\'s nice', 'more pls 🥺', '*purrs in mouse*', 'acceptable', 'don\'t stop 👀']
+      const petQuotes = m.key === 'pip'
+        ? ['okay that\'s nice', 'more pls 🥺', '*purrs in mouse*', 'acceptable', 'don\'t stop 👀', 'feed me tho']
         : ['🥰🥰🥰', 'best day ever', '*happy squeak*', 'i love you', 'this is everything'];
       speechBubbles.push({
         x: mx + 14, y: MOUSE_FLOOR_Y - 10,
@@ -2514,8 +4175,8 @@ function tryPetMouse(gx, gy) {
 let interactionCooldown = 12000 + Math.random() * 8000;
 
 function updateMouseInteractions(dt) {
-  const s = state.miceState.shadow;
-  const c = state.miceState.cloud;
+  const s = state.miceState.pip;
+  const c = state.miceState.chai;
   if (s.room !== c.room) { interactionCooldown = 5000 + Math.random() * 5000; return; }
 
   interactionCooldown -= dt;
@@ -2533,14 +4194,14 @@ function updateMouseInteractions(dt) {
     setTimeout(() => {
       if (s.room === c.room && s.room === state.currentRoom) {
         spawnFloatingEffect((s.x + c.x) / 2 + 14, MOUSE_FLOOR_Y - 10, '💕');
-        triggerSpeech(Math.random() < 0.5 ? 'shadow' : 'cloud');
+        triggerSpeech(Math.random() < 0.5 ? 'pip' : 'chai');
       }
     }, 2000);
   } else if (interaction < 0.65) {
-    // Play-chase: Shadow chases Cloud (or vice versa)
+    // Play-chase: Pip chases Chai (or vice versa)
     const chaser = Math.random() < 0.6 ? s : c;
     const runner = chaser === s ? c : s;
-    const chaserKey = chaser === s ? 'shadow' : 'cloud';
+    const chaserKey = chaser === s ? 'pip' : 'chai';
     runner.action = 'walking';
     runner.targetX = Math.random() < 0.5 ? 40 : ROOM_W - 60;
     runner.dir = runner.targetX > runner.x ? 1 : -1;
@@ -2555,33 +4216,33 @@ function updateMouseInteractions(dt) {
     speechBubbles = speechBubbles.filter(b => b.mouseKey !== chaserKey);
     speechBubbles.push({
       x: chaser.x + 14, y: MOUSE_FLOOR_Y - 10,
-      text: chaserKey === 'shadow' ? 'get back here! 💨' : 'wheee! 🏃',
+      text: chaserKey === 'pip' ? 'get back here! 💨' : 'wheee! 🏃',
       timer: 2000, maxTimer: 2000, mouseKey: chaserKey
     });
   } else {
     // Judging: one mouse stares at the other
     const judger = Math.random() < 0.6 ? s : c;
-    const judgerKey = judger === s ? 'shadow' : 'cloud';
+    const judgerKey = judger === s ? 'pip' : 'chai';
     judger.action = 'idle';
     judger.actionTimer = 4000;
     judger.dir = (judger === s ? c.x : s.x) > judger.x ? 1 : -1;
     speechBubbles = speechBubbles.filter(b => b.mouseKey !== judgerKey);
     speechBubbles.push({
       x: judger.x + 14, y: MOUSE_FLOOR_Y - 10,
-      text: judgerKey === 'shadow'
+      text: judgerKey === 'pip'
         ? ['sus 🤨', 'cringe', 'who asked?', 'bruh'][Math.floor(Math.random() * 4)]
         : ['rude', 'don\'t look at me', 'why tho', '😐'][Math.floor(Math.random() * 4)],
       timer: 3000, maxTimer: 3000, mouseKey: judgerKey
     });
   }
 }
-canvas.addEventListener('mousedown', e => handleCanvasInput(e.clientX, e.clientY));
+canvas.addEventListener('mousedown', e => handleCanvasInput(e.clientX, e.clientY, e));
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
-  handleCanvasInput(e.touches[0].clientX, e.touches[0].clientY);
+  handleCanvasInput(e.touches[0].clientX, e.touches[0].clientY, e);
 }, { passive: false });
 
-function handleCanvasInput(sx, sy) {
+function handleCanvasInput(sx, sy, originalEvent) {
   const pos = screenToGame(sx, sy);
 
   // Cheese Chase input
@@ -2594,27 +4255,64 @@ function handleCanvasInput(sx, sy) {
     return;
   }
 
-  // Handle placement mode
-  if (state.placementMode || state.removeMode) {
-    handlePlacementClick(pos.x, pos.y);
+  // Mouse Maze input
+  if (mouseMazeActive) {
+    handleMazeInput(sx, sy);
+    mazeSwipeBegin(pos.x, pos.y);
     return;
   }
+
+  // Check if clicking/touching a placed item to pick it up for repositioning
+  if (state.shopOpen || state.dragState.active) {
+    const placedIdx = findPlacedItemAt(pos.x, pos.y);
+    if (placedIdx >= 0) {
+      const placed = state.placedItems[placedIdx];
+      const item = FURNITURE.find(f => f.id === placed.itemId);
+      if (item && !item.exerciseRoom) {
+        startDrag(placed.itemId, sx, sy, true, placedIdx);
+        return;
+      }
+    }
+  }
+
   // Try petting a mouse
   if (tryPetMouse(pos.x, pos.y)) return;
 }
 
 canvas.addEventListener('mousemove', e => {
   if (cheeseChaseActive && !cc.gameOver) ccInputY = screenToGame(e.clientX, e.clientY).y;
+  if (state.dragState.active) updateDrag(e.clientX, e.clientY);
 });
 canvas.addEventListener('touchmove', e => {
   e.preventDefault();
   if (cheeseChaseActive && !cc.gameOver) ccInputY = screenToGame(e.touches[0].clientX, e.touches[0].clientY).y;
+  if (state.dragState.active) updateDrag(e.touches[0].clientX, e.touches[0].clientY);
 }, { passive: false });
+
+canvas.addEventListener('mouseup', e => {
+  if (mouseMazeActive && mazeSwipeStart) {
+    const pos = screenToGame(e.clientX, e.clientY);
+    mazeSwipeEnd(pos.x, pos.y);
+  }
+});
+canvas.addEventListener('touchend', e => {
+  if (mouseMazeActive && mazeSwipeStart) {
+    const t = e.changedTouches[0];
+    const pos = screenToGame(t.clientX, t.clientY);
+    mazeSwipeEnd(pos.x, pos.y);
+  }
+});
 
 document.addEventListener('keydown', e => {
   if (cheeseChaseActive && !cc.gameOver) {
     if (e.key === 'ArrowUp' || e.key === 'w') cc.mouseY -= 10;
     if (e.key === 'ArrowDown' || e.key === 's') cc.mouseY += 10;
+  }
+  if (mouseMazeActive && !mz.levelComplete && !mz.gameOver) {
+    if (e.key === 'ArrowUp' || e.key === 'w') { e.preventDefault(); mz.moveQueue.push('up'); }
+    if (e.key === 'ArrowDown' || e.key === 's') { e.preventDefault(); mz.moveQueue.push('down'); }
+    if (e.key === 'ArrowLeft' || e.key === 'a') { e.preventDefault(); mz.moveQueue.push('left'); }
+    if (e.key === 'ArrowRight' || e.key === 'd') { e.preventDefault(); mz.moveQueue.push('right'); }
   }
 });
 
@@ -2639,6 +4337,7 @@ function startGame() {
   updateGoalDisplay();
   buildRoomTabs();
   initParticles();
+  ensureExerciseRoomSetup();
   triggerBirthdayEvent();
   if (!audioMuted) startMusic();
 }
@@ -2658,29 +4357,45 @@ function gameLoop(now) {
       updateFloatingEffects(dt);
       ctx.clearRect(0, 0, GAME_W, GAME_H);
       drawCheeseChase();
+    } else if (mouseMazeActive) {
+      updateMouseMaze(dt);
+      updateFloatingEffects(dt);
+      ctx.clearRect(0, 0, GAME_W, GAME_H);
+      drawMouseMaze();
     } else {
       updateParticles(dt);
-      updateMouse(state.miceState.shadow, dt, CONFIG.mice.shadow.personality);
-      updateMouse(state.miceState.cloud, dt, CONFIG.mice.cloud.personality);
+      updateMouse(state.miceState.pip, dt, CONFIG.mice.pip.personality);
+      updateMouse(state.miceState.chai, dt, CONFIG.mice.chai.personality);
       updateSpeechBubbles(dt);
       updateFloatingEffects(dt);
       updateMouseInteractions(dt);
       updateHappiness(dt);
       updateGoals(dt);
+      updateExerciseWheel(dt);
 
       ctx.clearRect(0, 0, GAME_W, GAME_H);
       drawRoom(state.currentRoom);
 
-      // Draw mice in current room
-      const shadow = state.miceState.shadow;
-      const cloud = state.miceState.cloud;
-      if (shadow.room === state.currentRoom) {
-        drawMouse(shadow.x, MOUSE_FLOOR_Y, CONFIG.mice.shadow, shadow.dir, shadow.frame, shadow.action);
-        drawPartyHat(shadow.x, MOUSE_FLOOR_Y, shadow.action);
+      // Draw mice in current room (skip mice on the wheel or flung — drawn separately)
+      const pip = state.miceState.pip;
+      const chai = state.miceState.chai;
+      if (pip.room === state.currentRoom && pip.action !== 'wheeling') {
+        if (pip.action === 'flung') {
+          drawFlungMouse(pip, CONFIG.mice.pip);
+        } else {
+          drawMouse(pip.x, MOUSE_FLOOR_Y, CONFIG.mice.pip, pip.dir, pip.frame, pip.action);
+        }
+        drawPartyHat(pip.action === 'flung' ? pip.flingX : pip.x,
+                     pip.action === 'flung' ? pip.flingY : MOUSE_FLOOR_Y, pip.action);
       }
-      if (cloud.room === state.currentRoom) {
-        drawMouse(cloud.x, MOUSE_FLOOR_Y, CONFIG.mice.cloud, cloud.dir, cloud.frame, cloud.action);
-        drawPartyHat(cloud.x, MOUSE_FLOOR_Y, cloud.action);
+      if (chai.room === state.currentRoom && chai.action !== 'wheeling') {
+        if (chai.action === 'flung') {
+          drawFlungMouse(chai, CONFIG.mice.chai);
+        } else {
+          drawMouse(chai.x, MOUSE_FLOOR_Y, CONFIG.mice.chai, chai.dir, chai.frame, chai.action);
+        }
+        drawPartyHat(chai.action === 'flung' ? chai.flingX : chai.x,
+                     chai.action === 'flung' ? chai.flingY : MOUSE_FLOOR_Y, chai.action);
       }
 
       drawSpeechBubbles();
