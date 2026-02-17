@@ -3327,12 +3327,30 @@ function openLetter() {
 // ============================================================
 // PARTY HATS (drawn on mice during birthday)
 // ============================================================
-function drawPartyHat(x, y, action) {
+function drawPartyHat(x, y, action, dir, cfg) {
   if (!state.birthdayEventSeen) return;
+  const mouseScale = (cfg && cfg.scale) || 1.0;
   const cx = Math.floor(x);
   const cy = Math.floor(y);
   const t = Date.now() / 1000;
   const bob = action === 'sleeping' ? 0 : Math.sin(t * 3) * 0.6;
+
+  ctx.save();
+
+  // Apply same scale transform as drawMouse so hat aligns
+  if (mouseScale !== 1.0) {
+    const pivotX = cx + 14;
+    const pivotY = cy + 20;
+    ctx.translate(pivotX, pivotY);
+    ctx.scale(mouseScale, mouseScale);
+    ctx.translate(-pivotX, -pivotY);
+  }
+  // Apply same flip as drawMouse so hat stays on top of head
+  if (dir < 0) {
+    ctx.translate(cx + 14, 0);
+    ctx.scale(-1, 1);
+    ctx.translate(-(cx + 14), 0);
+  }
 
   let hatX, hatY;
   if (action === 'sleeping') {
@@ -3359,6 +3377,8 @@ function drawPartyHat(x, y, action) {
   ctx.beginPath();
   ctx.arc(hatX, hatY - 10, 2.5, 0, Math.PI * 2);
   ctx.fill();
+
+  ctx.restore();
 }
 
 // ============================================================
@@ -3998,39 +4018,37 @@ function pickNewAction(mouse, personality) {
 function drawMouseStatus() {
   const pip = state.miceState.pip;
   const chai = state.miceState.chai;
-  const y = GAME_H - 10;
+  const y = GAME_H - 8;
 
+  ctx.save();
   ctx.font = '10px monospace';
+  ctx.textBaseline = 'alphabetic';
 
-  // Pip status (left)
   const actionIcons = { sleeping: '💤', walking: '🐾', zoomies: '💨', eating: '😋',
     doomscrolling: '📱', watching: '📺', yoga: '🧘', playing: '🏃',
     wheeling: '🎡', flung: '😵‍💫' };
+
+  // Pip status (left)
   const sIcon = actionIcons[pip.action] || '✨';
+  let pipText = `${sIcon} ${CONFIG.mice.pip.name}: ${pip.action}`;
+  if (pip.room !== state.currentRoom) {
+    pipText += ` (${ROOMS[pip.room].icon})`;
+  }
   ctx.fillStyle = '#888';
   ctx.textAlign = 'left';
-  ctx.fillText(`${sIcon} ${CONFIG.mice.pip.name}: ${pip.action}`, 10, y);
-
-  // Room indicator if not in current room
-  if (pip.room !== state.currentRoom) {
-    ctx.fillStyle = '#666';
-    ctx.fillText(`  (in ${ROOMS[pip.room].icon})`, 10 + ctx.measureText(`${sIcon} ${CONFIG.mice.pip.name}: ${pip.action}`).width, y);
-  }
+  ctx.fillText(pipText, 8, y);
 
   // Chai status (right)
   const cIcon = actionIcons[chai.action] || '✨';
+  let chaiText = `${cIcon} ${CONFIG.mice.chai.name}: ${chai.action}`;
+  if (chai.room !== state.currentRoom) {
+    chaiText += ` (${ROOMS[chai.room].icon})`;
+  }
   ctx.fillStyle = '#888';
   ctx.textAlign = 'right';
-  ctx.fillText(`${cIcon} ${CONFIG.mice.chai.name}: ${chai.action}`, GAME_W - 10, y);
+  ctx.fillText(chaiText, GAME_W - 8, y);
 
-  if (chai.room !== state.currentRoom) {
-    const chaiText = `${cIcon} ${CONFIG.mice.chai.name}: ${chai.action}`;
-    ctx.fillStyle = '#666';
-    ctx.textAlign = 'right';
-    ctx.fillText(`(in ${ROOMS[chai.room].icon})  `, GAME_W - 10 - ctx.measureText(chaiText).width, y);
-  }
-
-  ctx.textAlign = 'left';
+  ctx.restore();
 }
 
 // ============================================================
@@ -4442,7 +4460,7 @@ function gameLoop(now) {
           drawMouse(pip.x, MOUSE_FLOOR_Y, CONFIG.mice.pip, pip.dir, pip.frame, pip.action);
         }
         drawPartyHat(pip.action === 'flung' ? pip.flingX : pip.x,
-                     pip.action === 'flung' ? pip.flingY : MOUSE_FLOOR_Y, pip.action);
+                     pip.action === 'flung' ? pip.flingY : MOUSE_FLOOR_Y, pip.action, pip.dir, CONFIG.mice.pip);
       }
       if (chai.room === state.currentRoom && chai.action !== 'wheeling') {
         if (chai.action === 'flung') {
@@ -4451,7 +4469,7 @@ function gameLoop(now) {
           drawMouse(chai.x, MOUSE_FLOOR_Y, CONFIG.mice.chai, chai.dir, chai.frame, chai.action);
         }
         drawPartyHat(chai.action === 'flung' ? chai.flingX : chai.x,
-                     chai.action === 'flung' ? chai.flingY : MOUSE_FLOOR_Y, chai.action);
+                     chai.action === 'flung' ? chai.flingY : MOUSE_FLOOR_Y, chai.action, chai.dir, CONFIG.mice.chai);
       }
 
       drawSpeechBubbles();
