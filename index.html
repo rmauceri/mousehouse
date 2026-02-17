@@ -4479,6 +4479,10 @@ function updateSpeechBubbles(dt) {
 
 function drawSpeechBubbles() {
   speechBubbles.forEach(b => {
+    // Only draw bubbles for mice in the currently viewed room
+    const mouse = state.miceState[b.mouseKey];
+    if (mouse && mouse.room !== state.currentRoom) return;
+
     const alpha = Math.min(1, b.timer / 500); // fade out last 500ms
     ctx.globalAlpha = alpha;
     ctx.font = '9px monospace';
