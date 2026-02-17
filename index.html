@@ -675,8 +675,8 @@ let state = {
   ownedItems: [],
   placedItems: [],
   miceState: {
-    pip: { x: 120, y: 0, room: 0, action: 'idle', actionTimer: 0, dir: 1, frame: 0, animTimer: 0, happiness: 80 },
-    chai:  { x: 250, y: 0, room: 1, action: 'idle', actionTimer: 0, dir: -1, frame: 0, animTimer: 0, happiness: 80 }
+    pip: { x: 120, y: 0, room: 0, action: 'idle', actionTimer: 0, dir: 1, frame: 0, animTimer: 0, happiness: 80, level: 'main-floor' },
+    chai:  { x: 250, y: 0, room: 1, action: 'idle', actionTimer: 0, dir: -1, frame: 0, animTimer: 0, happiness: 80, level: 'main-floor' }
   },
   birthdayEventSeen: false,
   letterRead: false,
@@ -878,25 +878,53 @@ const ROOMS = [
     name: 'Bedroom', icon: '🛏',
     wallTop: '#5c4a6e', wallBot: '#4a3a5c', floor: '#6b5a50', floorAlt: '#5e4e44',
     baseboard: '#7a6a5a', ceiling: '#6e5a80', accent: '#8a70a0',
-    windowNight: '#1a1a3e', windowGlow: '#2a2a5e', shelfColor: '#7a6a5a'
+    windowNight: '#1a1a3e', windowGlow: '#2a2a5e', shelfColor: '#7a6a5a',
+    platforms: [
+      { id: 'main-floor', y: 260, xMin: 10, xMax: 470 },
+      { id: 'loft', y: 175, xMin: 220, xMax: 460 }
+    ],
+    ramps: [
+      { from: 'main-floor', to: 'loft', x1: 200, x2: 235, style: 'ladder' }
+    ]
   },
   {
     name: 'Kitchen', icon: '🍳',
     wallTop: '#4a6e5a', wallBot: '#3a5c4a', floor: '#6b6050', floorAlt: '#5e5444',
     baseboard: '#7a6a5a', ceiling: '#5a8068', accent: '#70a08a',
-    windowNight: '#1a2e1a', windowGlow: '#2a4e2a', shelfColor: '#8a7a60'
+    windowNight: '#1a2e1a', windowGlow: '#2a4e2a', shelfColor: '#8a7a60',
+    platforms: [
+      { id: 'main-floor', y: 260, xMin: 10, xMax: 470 },
+      { id: 'counter', y: 190, xMin: 20, xMax: 230 }
+    ],
+    ramps: [
+      { from: 'main-floor', to: 'counter', x1: 230, x2: 265, style: 'ramp' }
+    ]
   },
   {
     name: 'Living Room', icon: '🛋',
     wallTop: '#6e5a4a', wallBot: '#5c4a3a', floor: '#6b5a48', floorAlt: '#5e4e3e',
     baseboard: '#7a6a5a', ceiling: '#806a50', accent: '#a08a60',
-    windowNight: '#2e1a1a', windowGlow: '#4e2a2a', shelfColor: '#7a6a50'
+    windowNight: '#2e1a1a', windowGlow: '#4e2a2a', shelfColor: '#7a6a50',
+    platforms: [
+      { id: 'main-floor', y: 260, xMin: 10, xMax: 470 },
+      { id: 'box-shelf', y: 195, xMin: 140, xMax: 350 }
+    ],
+    ramps: [
+      { from: 'main-floor', to: 'box-shelf', x1: 120, x2: 155, style: 'ramp' }
+    ]
   },
   {
     name: 'Exercise Room', icon: '🏃',
     wallTop: '#4a5a6e', wallBot: '#3a4a5c', floor: '#5a6050', floorAlt: '#4e5444',
     baseboard: '#6a7a8a', ceiling: '#5a6a80', accent: '#6080a0',
-    windowNight: '#1a1a2e', windowGlow: '#2a2a4e', shelfColor: '#6a7a8a'
+    windowNight: '#1a1a2e', windowGlow: '#2a2a4e', shelfColor: '#6a7a8a',
+    platforms: [
+      { id: 'main-floor', y: 260, xMin: 10, xMax: 470 },
+      { id: 'perch', y: 185, xMin: 340, xMax: 460 }
+    ],
+    ramps: [
+      { from: 'main-floor', to: 'perch', x1: 318, x2: 350, style: 'ladder' }
+    ]
   }
 ];
 
@@ -1089,6 +1117,161 @@ function drawRoom(roomIndex) {
 
   // -- Dust particles --
   drawParticles();
+
+  // -- Platforms & Ramps --
+  if (room.platforms) {
+    room.platforms.forEach(plat => {
+      if (plat.id === 'main-floor') return; // main floor already drawn
+      const pw = plat.xMax - plat.xMin;
+
+      // Platform shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.12)';
+      ctx.fillRect(plat.xMin + 2, plat.y + 6, pw, 4);
+
+      // Platform surface (wooden plank)
+      const platGrad = ctx.createLinearGradient(0, plat.y, 0, plat.y + 6);
+      platGrad.addColorStop(0, room.shelfColor);
+      platGrad.addColorStop(1, room.baseboard);
+      ctx.fillStyle = platGrad;
+      ctx.fillRect(plat.xMin, plat.y, pw, 6);
+
+      // Plank lines
+      ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+      ctx.lineWidth = 0.5;
+      for (let px = plat.xMin + 30; px < plat.xMax; px += 30) {
+        ctx.beginPath();
+        ctx.moveTo(px, plat.y);
+        ctx.lineTo(px, plat.y + 6);
+        ctx.stroke();
+      }
+
+      // Top highlight
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      ctx.fillRect(plat.xMin, plat.y, pw, 1);
+
+      // Bottom edge shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.08)';
+      ctx.fillRect(plat.xMin, plat.y + 5, pw, 1);
+
+      // Support brackets
+      const bracketW = 4;
+      const bracketH = 14;
+      const bracketColor = room.baseboard;
+      const bracketPositions = [plat.xMin + 10, plat.xMax - 14];
+      if (pw > 150) bracketPositions.push(plat.xMin + Math.floor(pw / 2));
+      bracketPositions.forEach(bx => {
+        // Vertical bracket
+        ctx.fillStyle = bracketColor;
+        ctx.fillRect(bx, plat.y + 6, bracketW, bracketH);
+        // Diagonal brace
+        ctx.strokeStyle = bracketColor;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(bx + bracketW, plat.y + 6);
+        ctx.lineTo(bx + bracketW + 8, plat.y + 6 + bracketH);
+        ctx.stroke();
+      });
+    });
+
+    // Draw ramps
+    if (room.ramps) {
+      room.ramps.forEach(ramp => {
+        const fromPlat = room.platforms.find(p => p.id === ramp.from);
+        const toPlat = room.platforms.find(p => p.id === ramp.to);
+        if (!fromPlat || !toPlat) return;
+
+        const y1 = fromPlat.y;
+        const y2 = toPlat.y;
+        const rampW = ramp.x2 - ramp.x1;
+
+        if (ramp.style === 'ladder') {
+          // Ladder: two rails with rungs
+          const railL = ramp.x1 + 2;
+          const railR = ramp.x1 + rampW - 2;
+          const railColor = '#8a7a60';
+
+          // Rails
+          ctx.strokeStyle = railColor;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(railL, y1); ctx.lineTo(railL, y2 + 6);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(railR, y1); ctx.lineTo(railR, y2 + 6);
+          ctx.stroke();
+
+          // Rungs
+          const numRungs = Math.floor(Math.abs(y1 - y2) / 14);
+          ctx.strokeStyle = '#9a8a70';
+          ctx.lineWidth = 2;
+          for (let i = 1; i <= numRungs; i++) {
+            const ry = y2 + 6 + (i / (numRungs + 1)) * (y1 - y2 - 6);
+            ctx.beginPath();
+            ctx.moveTo(railL + 1, ry);
+            ctx.lineTo(railR - 1, ry);
+            ctx.stroke();
+          }
+
+          // Rail highlight
+          ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(railL + 1, y1); ctx.lineTo(railL + 1, y2 + 6);
+          ctx.stroke();
+        } else {
+          // Ramp: angled plank
+          ctx.save();
+
+          // Ramp shadow
+          ctx.fillStyle = 'rgba(0,0,0,0.1)';
+          ctx.beginPath();
+          ctx.moveTo(ramp.x1 + 2, y1 + 2);
+          ctx.lineTo(ramp.x2 + 2, y2 + 8);
+          ctx.lineTo(ramp.x2 + 2, y2 + 14);
+          ctx.lineTo(ramp.x1 + 2, y1 + 8);
+          ctx.closePath();
+          ctx.fill();
+
+          // Ramp surface
+          const rampGrad = ctx.createLinearGradient(ramp.x1, y1, ramp.x2, y2);
+          rampGrad.addColorStop(0, room.shelfColor);
+          rampGrad.addColorStop(1, room.baseboard);
+          ctx.fillStyle = rampGrad;
+          ctx.beginPath();
+          ctx.moveTo(ramp.x1, y1);
+          ctx.lineTo(ramp.x2, y2 + 6);
+          ctx.lineTo(ramp.x2, y2 + 12);
+          ctx.lineTo(ramp.x1, y1 + 6);
+          ctx.closePath();
+          ctx.fill();
+
+          // Cross-grip lines on ramp
+          ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+          ctx.lineWidth = 1;
+          const steps = Math.floor(rampW / 8);
+          for (let i = 1; i < steps; i++) {
+            const frac = i / steps;
+            const rx = ramp.x1 + frac * rampW;
+            const ry = y1 + frac * (y2 + 6 - y1);
+            ctx.beginPath();
+            ctx.moveTo(rx, ry);
+            ctx.lineTo(rx, ry + 6);
+            ctx.stroke();
+          }
+
+          // Top edge highlight
+          ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(ramp.x1, y1);
+          ctx.lineTo(ramp.x2, y2 + 6);
+          ctx.stroke();
+
+          ctx.restore();
+        }
+      });
+    }
+  }
 
   // -- Draw placed furniture for this room --
   const roomItems = state.placedItems.filter(p => p.room === roomIndex);
@@ -1992,7 +2175,7 @@ function flingMouseOffWheel(flingKey, stayKey, wheelPlaced) {
       'should\'ve held on', 'couldn\'t be me', 'ratio + flung'
     ];
     speechBubbles.push({
-      x: state.miceState[stayKey].x + 14, y: MOUSE_FLOOR_Y - 10,
+      x: state.miceState[stayKey].x + 14, y: getMouseFloorY(state.miceState[stayKey]) - 10,
       text: stayQuotes[Math.floor(Math.random() * stayQuotes.length)],
       timer: 3000, maxTimer: 3000, mouseKey: stayKey
     });
@@ -2018,8 +2201,9 @@ function updateFlungMouse(mouse, dt) {
   mouse.flingX += mouse.flingVX * dt * 0.06;
   mouse.flingY += mouse.flingVY * dt * 0.06;
 
-  // Bounce off floor
-  if (mouse.flingY >= MOUSE_FLOOR_Y && !mouse.flingBounced) {
+  // Bounce off floor (flung mice land on main floor)
+  const floorY = getMouseFloorY({ room: mouse.room, level: 'main-floor' });
+  if (mouse.flingY >= floorY && !mouse.flingBounced) {
     mouse.flingBounced = true;
     mouse.flingVY = -Math.abs(mouse.flingVY) * 0.4;
     mouse.flingVX *= 0.5;
@@ -2028,10 +2212,11 @@ function updateFlungMouse(mouse, dt) {
   }
 
   // Settle on floor
-  if (mouse.flingBounced && mouse.flingY >= MOUSE_FLOOR_Y) {
-    mouse.flingY = MOUSE_FLOOR_Y;
+  if (mouse.flingBounced && mouse.flingY >= floorY) {
+    mouse.flingY = floorY;
     mouse.x = Math.max(15, Math.min(ROOM_W - 45, mouse.flingX));
     mouse.action = 'idle';
+    mouse.level = 'main-floor';
     mouse.actionTimer = 3000 + Math.random() * 2000;
     mouse.dir = Math.random() < 0.5 ? 1 : -1;
     return false;
@@ -2193,7 +2378,7 @@ function reactToNewFurniture(item) {
         const curiosity = ['ooh what\'s this? 👀', 'new thing! 🎉', '*sniff sniff*',
           'is this for me?', 'fancy ✨', 'immediately claims this'][Math.floor(Math.random() * 6)];
         speechBubbles.push({
-          x: mouse.x + 14, y: MOUSE_FLOOR_Y - 10,
+          x: mouse.x + 14, y: getMouseFloorY(mouse) - 10,
           text: curiosity, timer: 2500, maxTimer: 2500, mouseKey: key
         });
       }
@@ -3520,7 +3705,7 @@ function generateNewGoal() {
   // Mouse says the wish
   const mouse = state.miceState[mouseKey];
   speechBubbles.push({
-    x: mouse.x + 14, y: MOUSE_FLOOR_Y - 10,
+    x: mouse.x + 14, y: getMouseFloorY(mouse) - 10,
     text: text, timer: 4000, maxTimer: 4000, mouseKey
   });
 }
@@ -3544,6 +3729,41 @@ function updateGoalDisplay() {
 // MOUSE SPRITE DRAWING
 // ============================================================
 const MOUSE_FLOOR_Y = ROOM_Y + ROOM_H - FLOOR_H - 20;
+
+function getMouseFloorY(mouse) {
+  const room = ROOMS[mouse.room];
+  if (!room || !room.platforms) return MOUSE_FLOOR_Y;
+  // During climbing, interpolate Y along the ramp
+  if (mouse.action === 'climbing' && mouse.climbRamp) {
+    return getRampY(mouse.climbRamp, mouse.x, mouse.room);
+  }
+  const plat = room.platforms.find(p => p.id === mouse.level);
+  return plat ? plat.y : MOUSE_FLOOR_Y;
+}
+
+function getMousePlatform(mouse) {
+  const room = ROOMS[mouse.room];
+  if (!room || !room.platforms) return null;
+  return room.platforms.find(p => p.id === mouse.level) || room.platforms[0];
+}
+
+function getRampAtX(roomIndex, x, fromLevel, toLevel) {
+  const room = ROOMS[roomIndex];
+  if (!room || !room.ramps) return null;
+  return room.ramps.find(r =>
+    ((r.from === fromLevel && r.to === toLevel) || (r.from === toLevel && r.to === fromLevel)) &&
+    x >= r.x1 - 5 && x <= r.x2 + 5
+  ) || null;
+}
+
+function getRampY(ramp, x, roomIndex) {
+  const room = ROOMS[roomIndex];
+  const fromPlat = room.platforms.find(p => p.id === ramp.from);
+  const toPlat = room.platforms.find(p => p.id === ramp.to);
+  if (!fromPlat || !toPlat) return MOUSE_FLOOR_Y;
+  const t = Math.max(0, Math.min(1, (x - ramp.x1) / (ramp.x2 - ramp.x1)));
+  return fromPlat.y + (toPlat.y - fromPlat.y) * t;
+}
 
 function drawMouse(x, y, cfg, dir, frame, action) {
   const mouseScale = cfg.scale || 1.0;
@@ -3880,15 +4100,40 @@ function updateMouse(mouse, dt, personality) {
     mouse.actionTimer -= dt;
     if (mouse.actionTimer <= 0) {
       mouse.action = 'idle';
+      mouse.level = 'main-floor';
       mouse.actionTimer = 2000 + Math.random() * 2000;
       // Step off the wheel — reposition to nearby floor
       const wheelPlaced = state.placedItems.find(p => p.itemId === 'exercise-wheel' && p.room === mouse.room);
       if (wheelPlaced) {
         const center = getWheelCenter(wheelPlaced);
         mouse.x = center.x + (Math.random() < 0.5 ? -40 : 40);
-        mouse.x = Math.max(15, Math.min(ROOM_W - 45, mouse.x));
       }
     }
+    return;
+  }
+
+  // Climbing ramp animation
+  if (mouse.action === 'climbing' && mouse.climbRamp) {
+    const ramp = mouse.climbRamp;
+    const speed = 0.035 * dt;
+    const targetX = mouse.climbGoingUp ? ramp.x2 : ramp.x1;
+    const dist = targetX - mouse.x;
+    if (Math.abs(dist) > speed) {
+      mouse.dir = dist > 0 ? 1 : -1;
+      mouse.x += mouse.dir * speed;
+    } else {
+      mouse.x = targetX;
+      mouse.level = mouse.climbTargetLevel;
+      mouse.climbRamp = null;
+      mouse.climbTargetLevel = null;
+      mouse.climbGoingUp = null;
+      mouse.action = 'idle';
+      mouse.actionTimer = 1000 + Math.random() * 1500;
+    }
+    // Animate frame during climb
+    mouse.animTimer += dt;
+    if (mouse.animTimer > 180) { mouse.frame = (mouse.frame + 1) % 4; mouse.animTimer = 0; }
+    clampMouseToPlatform(mouse);
     return;
   }
 
@@ -3915,14 +4160,27 @@ function updateMouse(mouse, dt, personality) {
     } else {
       mouse.x = mouse.targetX;
       mouse.targetX = undefined;
+      // Check if we have a pending climb to start
+      if (mouse.pendingClimb) {
+        const pc = mouse.pendingClimb;
+        mouse.action = 'climbing';
+        mouse.climbRamp = pc.ramp;
+        mouse.climbTargetLevel = pc.targetLevel;
+        mouse.climbGoingUp = pc.goingUp;
+        mouse.pendingClimb = null;
+        return;
+      }
       mouse.action = 'idle';
       mouse.actionTimer = 1500 + Math.random() * 2000;
     }
   } else if (mouse.action === 'zoomies') {
+    const plat = getMousePlatform(mouse);
+    const xMin = plat ? plat.xMin + 10 : 20;
+    const xMax = plat ? plat.xMax - 40 : ROOM_W - 50;
     const speed = 0.15 * dt;
     mouse.x += mouse.dir * speed;
-    if (mouse.x > ROOM_W - 50) { mouse.dir = -1; }
-    if (mouse.x < 20) { mouse.dir = 1; }
+    if (mouse.x > xMax) { mouse.dir = -1; }
+    if (mouse.x < xMin) { mouse.dir = 1; }
   } else if (mouse.targetX !== undefined) {
     // Walk toward furniture target for any behavior
     const speed = 0.04 * dt;
@@ -3935,23 +4193,59 @@ function updateMouse(mouse, dt, personality) {
     }
   }
 
-  // Clamp to room bounds
-  mouse.x = Math.max(15, Math.min(ROOM_W - 45, mouse.x));
+  // Clamp to current platform bounds
+  clampMouseToPlatform(mouse);
+}
+
+function clampMouseToPlatform(mouse) {
+  const plat = getMousePlatform(mouse);
+  if (plat) {
+    mouse.x = Math.max(plat.xMin + 5, Math.min(plat.xMax - 35, mouse.x));
+  } else {
+    mouse.x = Math.max(15, Math.min(ROOM_W - 45, mouse.x));
+  }
 }
 
 function pickNewAction(mouse, personality) {
   const roll = Math.random();
+  const room = ROOMS[mouse.room];
 
   // Chance to switch rooms
   if (roll < 0.1) {
     const newRoom = Math.floor(Math.random() * ROOMS.length);
     if (newRoom !== mouse.room) {
       mouse.room = newRoom;
-      mouse.x = 30 + Math.random() * (ROOM_W - 90);
+      mouse.level = 'main-floor';
+      const plat = ROOMS[newRoom].platforms ? ROOMS[newRoom].platforms[0] : null;
+      const xMin = plat ? plat.xMin + 10 : 30;
+      const xMax = plat ? plat.xMax - 40 : ROOM_W - 60;
+      mouse.x = xMin + Math.random() * (xMax - xMin);
     }
     mouse.action = 'idle';
     mouse.actionTimer = 1000 + Math.random() * 1500;
     return;
+  }
+
+  // Chance to switch levels (climb ramp) — 15% if room has ramps
+  if (room.ramps && room.ramps.length > 0 && roll < 0.25) {
+    // Find a ramp accessible from current level
+    const availableRamps = room.ramps.filter(r => r.from === mouse.level || r.to === mouse.level);
+    if (availableRamps.length > 0) {
+      const ramp = availableRamps[Math.floor(Math.random() * availableRamps.length)];
+      const goingUp = ramp.from === mouse.level;
+      const targetLevel = goingUp ? ramp.to : ramp.from;
+
+      // First walk to the ramp entrance, then climb
+      const rampEntryX = goingUp ? ramp.x1 : ramp.x2;
+      mouse.action = 'walking';
+      mouse.targetX = rampEntryX;
+      mouse.dir = rampEntryX > mouse.x ? 1 : -1;
+      mouse.actionTimer = 6000;
+
+      // Set up climb state — will activate when mouse reaches ramp
+      mouse.pendingClimb = { ramp, targetLevel, goingUp };
+      return;
+    }
   }
 
   // Check what furniture behaviors are available in this room
@@ -3987,7 +4281,7 @@ function pickNewAction(mouse, personality) {
     mouse.actionTimer = 3000 + Math.random() * 4000;
     if (pick.behavior === 'sleeping') mouse.actionTimer = 5000 + Math.random() * 5000;
     if (pick.behavior === 'zoomies') mouse.actionTimer = 2000 + Math.random() * 2000;
-    if (pick.behavior === 'wheeling') mouse.actionTimer = 6000 + Math.random() * 8000; // mice love the wheel
+    if (pick.behavior === 'wheeling') mouse.actionTimer = 6000 + Math.random() * 8000;
     return;
   }
 
@@ -4020,7 +4314,10 @@ function pickNewAction(mouse, personality) {
   mouse.action = chosen;
 
   if (chosen === 'walking') {
-    mouse.targetX = 20 + Math.random() * (ROOM_W - 70);
+    const plat = getMousePlatform(mouse);
+    const xMin = plat ? plat.xMin + 10 : 20;
+    const xMax = plat ? plat.xMax - 40 : ROOM_W - 70;
+    mouse.targetX = xMin + Math.random() * (xMax - xMin);
     mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
     mouse.actionTimer = 8000;
   } else if (chosen === 'sleeping') {
@@ -4046,7 +4343,7 @@ function drawMouseStatus() {
 
   const actionIcons = { sleeping: '💤', walking: '🐾', zoomies: '💨', eating: '😋',
     doomscrolling: '📱', watching: '📺', yoga: '🧘', playing: '🏃',
-    wheeling: '🎡', flung: '😵‍💫' };
+    wheeling: '🎡', flung: '😵‍💫', climbing: '🪜' };
 
   // Pip status (left)
   const sIcon = actionIcons[pip.action] || '✨';
@@ -4118,7 +4415,7 @@ function triggerSpeech(mouseKey) {
   speechBubbles = speechBubbles.filter(b => b.mouseKey !== mouseKey);
   speechBubbles.push({
     x: mouse.x + 14,
-    y: MOUSE_FLOOR_Y - 10,
+    y: getMouseFloorY(mouse) - 10,
     text, timer: 3000, maxTimer: 3000, mouseKey
   });
   sfxSpeechBubble();
@@ -4148,7 +4445,7 @@ function updateSpeechBubbles(dt) {
       }
     } else {
       b.x = mouse.x + 14;
-      b.y = MOUSE_FLOOR_Y - 10;
+      b.y = getMouseFloorY(mouse) - 10;
     }
   });
   speechBubbles = speechBubbles.filter(b => b.timer > 0);
@@ -4230,7 +4527,7 @@ function tryPetMouse(gx, gy) {
   for (const m of mice) {
     if (m.state.room !== state.currentRoom) continue;
     const mx = m.state.x;
-    const my = MOUSE_FLOOR_Y;
+    const my = getMouseFloorY(m.state);
     if (gx > mx - 5 && gx < mx + 30 && gy > my - 10 && gy < my + 25) {
       // Pet this mouse!
       sfxPet();
@@ -4249,7 +4546,7 @@ function tryPetMouse(gx, gy) {
         ? ['okay that\'s nice', 'more pls 🥺', '*purrs in mouse*', 'acceptable', 'don\'t stop 👀', 'feed me tho']
         : ['🥰🥰🥰', 'best day ever', '*happy squeak*', 'i love you', 'this is everything'];
       speechBubbles.push({
-        x: mx + 14, y: MOUSE_FLOOR_Y - 10,
+        x: mx + 14, y: my - 10,
         text: petQuotes[Math.floor(Math.random() * petQuotes.length)],
         timer: 2500, maxTimer: 2500, mouseKey: m.key
       });
@@ -4287,7 +4584,7 @@ function updateMouseInteractions(dt) {
     s.actionTimer = 4000; c.actionTimer = 4000;
     setTimeout(() => {
       if (s.room === c.room && s.room === state.currentRoom) {
-        spawnFloatingEffect((s.x + c.x) / 2 + 14, MOUSE_FLOOR_Y - 10, '💕');
+        spawnFloatingEffect((s.x + c.x) / 2 + 14, getMouseFloorY(s) - 10, '💕');
         triggerSpeech(Math.random() < 0.5 ? 'pip' : 'chai');
       }
     }, 2000);
@@ -4309,7 +4606,7 @@ function updateMouseInteractions(dt) {
     }, 400);
     speechBubbles = speechBubbles.filter(b => b.mouseKey !== chaserKey);
     speechBubbles.push({
-      x: chaser.x + 14, y: MOUSE_FLOOR_Y - 10,
+      x: chaser.x + 14, y: getMouseFloorY(chaser) - 10,
       text: chaserKey === 'pip' ? 'get back here! 💨' : 'wheee! 🏃',
       timer: 2000, maxTimer: 2000, mouseKey: chaserKey
     });
@@ -4322,7 +4619,7 @@ function updateMouseInteractions(dt) {
     judger.dir = (judger === s ? c.x : s.x) > judger.x ? 1 : -1;
     speechBubbles = speechBubbles.filter(b => b.mouseKey !== judgerKey);
     speechBubbles.push({
-      x: judger.x + 14, y: MOUSE_FLOOR_Y - 10,
+      x: judger.x + 14, y: getMouseFloorY(judger) - 10,
       text: judgerKey === 'pip'
         ? ['sus 🤨', 'cringe', 'who asked?', 'bruh'][Math.floor(Math.random() * 4)]
         : ['rude', 'don\'t look at me', 'why tho', '😐'][Math.floor(Math.random() * 4)],
@@ -4473,23 +4770,25 @@ function gameLoop(now) {
       // Draw mice in current room (skip mice on the wheel or flung — drawn separately)
       const pip = state.miceState.pip;
       const chai = state.miceState.chai;
+      const pipFloorY = getMouseFloorY(pip);
+      const chaiFloorY = getMouseFloorY(chai);
       if (pip.room === state.currentRoom && pip.action !== 'wheeling') {
         if (pip.action === 'flung') {
           drawFlungMouse(pip, CONFIG.mice.pip);
         } else {
-          drawMouse(pip.x, MOUSE_FLOOR_Y, CONFIG.mice.pip, pip.dir, pip.frame, pip.action);
+          drawMouse(pip.x, pipFloorY, CONFIG.mice.pip, pip.dir, pip.frame, pip.action);
         }
         drawPartyHat(pip.action === 'flung' ? pip.flingX : pip.x,
-                     pip.action === 'flung' ? pip.flingY : MOUSE_FLOOR_Y, pip.action, pip.dir, CONFIG.mice.pip);
+                     pip.action === 'flung' ? pip.flingY : pipFloorY, pip.action, pip.dir, CONFIG.mice.pip);
       }
       if (chai.room === state.currentRoom && chai.action !== 'wheeling') {
         if (chai.action === 'flung') {
           drawFlungMouse(chai, CONFIG.mice.chai);
         } else {
-          drawMouse(chai.x, MOUSE_FLOOR_Y, CONFIG.mice.chai, chai.dir, chai.frame, chai.action);
+          drawMouse(chai.x, chaiFloorY, CONFIG.mice.chai, chai.dir, chai.frame, chai.action);
         }
         drawPartyHat(chai.action === 'flung' ? chai.flingX : chai.x,
-                     chai.action === 'flung' ? chai.flingY : MOUSE_FLOOR_Y, chai.action, chai.dir, CONFIG.mice.chai);
+                     chai.action === 'flung' ? chai.flingY : chaiFloorY, chai.action, chai.dir, CONFIG.mice.chai);
       }
 
       drawSpeechBubbles();
