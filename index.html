@@ -96,14 +96,14 @@ html, body {
 #placement-bar { display: none !important; }
 
 /* ---- Shop Flyout Panel ---- */
-#shop-flyout {
+#shop-flyout, #games-flyout {
   position: fixed; top: 0; right: 0; width: 280px; height: 100%;
   background: rgba(30,20,10,0.95); border-left: 2px solid #a07040;
   z-index: 30; transform: translateX(100%); transition: transform 0.3s ease;
   display: flex; flex-direction: column; font-family: 'Courier New', monospace;
   overflow: hidden;
 }
-#shop-flyout.open { transform: translateX(0); }
+#shop-flyout.open, #games-flyout.open { transform: translateX(0); }
 #shop-flyout .flyout-header {
   padding: 10px 14px; border-bottom: 2px solid #a07040;
   display: flex; justify-content: space-between; align-items: center;
@@ -148,6 +148,33 @@ html, body {
 }
 #shop-flyout .flyout-footer button:hover { background: #5a3d24; }
 #shop-flyout .flyout-footer .loot-info { color: #a89070; font-size: 9px; margin-top: 2px; }
+
+/* ---- Games Flyout ---- */
+#games-flyout .flyout-header {
+  padding: 10px 14px; border-bottom: 2px solid #a07040;
+  display: flex; justify-content: space-between; align-items: center;
+  flex-shrink: 0;
+}
+#games-flyout .flyout-header h2 { color: #f5d68a; font-size: 16px; margin: 0; }
+#games-flyout .flyout-close {
+  background: none; border: none; color: #f5d68a; font-size: 20px;
+  cursor: pointer; padding: 2px 6px; line-height: 1;
+}
+#games-flyout .flyout-subtitle {
+  text-align: center; color: #a89070; font-size: 11px; padding: 6px 14px;
+  border-bottom: 1px solid rgba(160,112,64,0.3); flex-shrink: 0;
+}
+#games-flyout .game-list {
+  flex: 1; overflow-y: auto; padding: 10px 14px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+#games-flyout .game-item {
+  background: #2b1d0e; border: 2px solid #6b5030; border-radius: 8px;
+  padding: 12px; cursor: pointer; transition: border-color 0.15s, background 0.15s;
+}
+#games-flyout .game-item:hover { border-color: #f5d68a; background: #3d2b1a; }
+#games-flyout .game-item .gi-title { color: #f5d68a; font-size: 14px; font-weight: bold; }
+#games-flyout .game-item .gi-desc { color: #a89070; font-size: 10px; margin-top: 4px; }
 
 /* ---- Item Tray (bottom palette) ---- */
 #item-tray {
@@ -263,6 +290,28 @@ html, body {
   <div class="flyout-footer">
     <button id="flyout-loot-btn">🎁 Loot Crumbs — Free Mystery Item!</button>
     <div class="loot-info" id="flyout-loot-info"></div>
+  </div>
+</div>
+
+<div id="games-flyout">
+  <div class="flyout-header">
+    <h2>🎮 Arcade</h2>
+    <button class="flyout-close" id="games-flyout-close">✖</button>
+  </div>
+  <div class="flyout-subtitle">Earn cheese coins to shop at Moustazon!</div>
+  <div class="game-list">
+    <div class="game-item" onclick="startCheeseChase()">
+      <div class="gi-title">🧀 Cheese Chase</div>
+      <div class="gi-desc">Dodge traps, collect cheese!</div>
+    </div>
+    <div class="game-item" onclick="startDoomscroll()">
+      <div class="gi-title">📱 Doomscroll</div>
+      <div class="gi-desc">Touch grass? Never heard of it.</div>
+    </div>
+    <div class="game-item" onclick="startMouseMaze()">
+      <div class="gi-title">🏁 Mouse Maze</div>
+      <div class="gi-desc">Navigate the maze, collect cheese!</div>
+    </div>
   </div>
 </div>
 
@@ -2143,6 +2192,8 @@ function toggleShopFlyout() {
   const flyout = document.getElementById('shop-flyout');
   const tray = document.getElementById('item-tray');
   if (state.shopOpen) {
+    // Close games flyout if open
+    if (gamesOpen) closeGamesFlyout();
     refreshShopFlyout();
     refreshItemTray();
     flyout.classList.add('open');
@@ -2333,6 +2384,7 @@ function findPlacedItemAt(gx, gy) {
 
 // Wire up flyout buttons
 document.getElementById('flyout-close-btn').addEventListener('click', closeShopFlyout);
+document.getElementById('games-flyout-close').addEventListener('click', closeGamesFlyout);
 document.getElementById('flyout-loot-btn').addEventListener('click', () => {
   lootCrumbs();
 });
@@ -2420,28 +2472,29 @@ document.getElementById('btn-games').addEventListener('click', openMinigames);
 document.getElementById('btn-letter').addEventListener('click', openLetter);
 
 // ============================================================
-// MINI-GAME MENU
+// MINI-GAME MENU (flyout)
 // ============================================================
+let gamesOpen = false;
+
+function toggleGamesFlyout() {
+  gamesOpen = !gamesOpen;
+  const flyout = document.getElementById('games-flyout');
+  if (gamesOpen) {
+    // Close shop flyout if open
+    if (state.shopOpen) toggleShopFlyout();
+    flyout.classList.add('open');
+  } else {
+    flyout.classList.remove('open');
+  }
+}
+
+function closeGamesFlyout() {
+  gamesOpen = false;
+  document.getElementById('games-flyout').classList.remove('open');
+}
+
 function openMinigames() {
-  const container = document.getElementById('modal-container');
-  container.innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()">
-    <div class="modal-content" style="min-width:300px;max-width:400px;">
-      <h2>🎮 Arcade</h2>
-      <p style="text-align:center;color:#a89070;font-size:12px;margin-bottom:12px;">
-        Earn cheese coins to shop at Moustazon!
-      </p>
-      <button class="minigame-btn" onclick="startCheeseChase()">
-        🧀 Cheese Chase<br><span style="font-size:11px;color:#a89070;">Dodge traps, collect cheese!</span>
-      </button>
-      <button class="minigame-btn" onclick="startDoomscroll()">
-        📱 Doomscroll<br><span style="font-size:11px;color:#a89070;">Touch grass? Never heard of it.</span>
-      </button>
-      <button class="minigame-btn" onclick="startMouseMaze()">
-        🏁 Mouse Maze<br><span style="font-size:11px;color:#a89070;">Navigate the maze, collect cheese!</span>
-      </button>
-      <button class="close-btn" onclick="closeModal()">Back</button>
-    </div>
-  </div>`;
+  toggleGamesFlyout();
 }
 
 // ============================================================
@@ -2453,6 +2506,7 @@ let ccInputY = null;
 
 function startCheeseChase() {
   closeModal();
+  closeGamesFlyout();
   cheeseChaseActive = true;
   ccInputY = null;
   cc = {
@@ -2737,6 +2791,7 @@ let ds = {};
 
 function startDoomscroll() {
   closeModal();
+  closeGamesFlyout();
   dsActive = true;
   const shuffled = [...DOOMSCROLL_POSTS].sort(() => Math.random() - 0.5);
   ds = {
@@ -2890,6 +2945,7 @@ function generateMaze(cols, rows) {
 
 function startMouseMaze() {
   closeModal();
+  closeGamesFlyout();
   mouseMazeActive = true;
   mz = {
     level: 1,
