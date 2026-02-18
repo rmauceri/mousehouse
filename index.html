@@ -5972,10 +5972,45 @@ function updateMouseInteractions(dt) {
     });
   }
 }
+// ============================================================
+// EDGE NAVIGATION — hover arrows + swipe
+// ============================================================
+const EDGE_ZONE = 40; // px in game coords
+let edgeHover = 0; // -1 = left edge, 0 = none, 1 = right edge
+let roomSwipeStart = null;
+
+function drawEdgeArrows() {
+  if (roomTransition.active || cheeseChaseActive || mouseMazeActive) return;
+  if (edgeHover === 0) return;
+  const arrowX = edgeHover > 0 ? GAME_W - 22 : 22;
+  const arrowY = ROOM_Y + ROOM_H / 2;
+  const arrowChar = edgeHover > 0 ? '▶' : '◀';
+  // Translucent pill background
+  ctx.save();
+  ctx.globalAlpha = 0.55;
+  ctx.fillStyle = 'rgba(30,20,10,0.7)';
+  ctx.beginPath();
+  ctx.roundRect(arrowX - 14, arrowY - 18, 28, 36, 8);
+  ctx.fill();
+  ctx.globalAlpha = 0.85;
+  ctx.fillStyle = '#f5d68a';
+  ctx.font = 'bold 20px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(arrowChar, arrowX, arrowY);
+  ctx.restore();
+}
+
 canvas.addEventListener('mousedown', e => handleCanvasInput(e.clientX, e.clientY, e));
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
-  handleCanvasInput(e.touches[0].clientX, e.touches[0].clientY, e);
+  const t = e.touches[0];
+  const pos = screenToGame(t.clientX, t.clientY);
+  // Start swipe tracking (only in main game, not mini-games)
+  if (!cheeseChaseActive && !mouseMazeActive) {
+    roomSwipeStart = { x: pos.x, y: pos.y, time: Date.now() };
+  }
+  handleCanvasInput(t.clientX, t.clientY, e);
 }, { passive: false });
 
 function handleCanvasInput(sx, sy, originalEvent) {
@@ -5996,6 +6031,12 @@ function handleCanvasInput(sx, sy, originalEvent) {
     handleMazeInput(sx, sy);
     mazeSwipeBegin(pos.x, pos.y);
     return;
+  }
+
+  // Edge arrow click — navigate to adjacent room
+  if (!roomTransition.active && pos.y >= ROOM_Y && pos.y <= ROOM_Y + ROOM_H) {
+    if (pos.x < EDGE_ZONE) { switchRoom(roomLeft(state.currentRoom)); return; }
+    if (pos.x > GAME_W - EDGE_ZONE) { switchRoom(roomRight(state.currentRoom)); return; }
   }
 
   // Check if clicking/touching a placed item to pick it up for repositioning
@@ -6062,7 +6103,19 @@ canvas.addEventListener('dblclick', e => {
 canvas.addEventListener('mousemove', e => {
   if (cheeseChaseActive && !cc.gameOver) ccInputY = screenToGame(e.clientX, e.clientY).y;
   if (state.dragState.active) updateDrag(e.clientX, e.clientY);
+  // Track edge hover for navigation arrows
+  if (!cheeseChaseActive && !mouseMazeActive && !roomTransition.active) {
+    const pos = screenToGame(e.clientX, e.clientY);
+    if (pos.y >= ROOM_Y && pos.y <= ROOM_Y + ROOM_H) {
+      if (pos.x < EDGE_ZONE) edgeHover = -1;
+      else if (pos.x > GAME_W - EDGE_ZONE) edgeHover = 1;
+      else edgeHover = 0;
+    } else {
+      edgeHover = 0;
+    }
+  }
 });
+canvas.addEventListener('mouseleave', () => { edgeHover = 0; });
 canvas.addEventListener('touchmove', e => {
   e.preventDefault();
   if (cheeseChaseActive && !cc.gameOver) ccInputY = screenToGame(e.touches[0].clientX, e.touches[0].clientY).y;
@@ -6081,6 +6134,19 @@ canvas.addEventListener('touchend', e => {
     const pos = screenToGame(t.clientX, t.clientY);
     mazeSwipeEnd(pos.x, pos.y);
   }
+  // Room swipe detection
+  if (roomSwipeStart && !cheeseChaseActive && !mouseMazeActive && !roomTransition.active) {
+    const t = e.changedTouches[0];
+    const pos = screenToGame(t.clientX, t.clientY);
+    const dx = pos.x - roomSwipeStart.x;
+    const elapsed = Date.now() - roomSwipeStart.time;
+    // Require minimum 50px swipe within 500ms
+    if (Math.abs(dx) > 50 && elapsed < 500) {
+      if (dx < 0) switchRoom(roomRight(state.currentRoom)); // swipe left → next room
+      else switchRoom(roomLeft(state.currentRoom));          // swipe right → prev room
+    }
+  }
+  roomSwipeStart = null;
 });
 
 document.addEventListener('keydown', e => {
@@ -6362,6 +6428,7 @@ function gameLoop(now) {
 
       drawSpeechBubbles();
       drawFloatingEffects();
+      drawEdgeArrows();
       drawMouseStatus();
     }
   }
