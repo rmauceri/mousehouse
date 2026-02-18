@@ -931,7 +931,7 @@ const FURNITURE = [
 // CANVAS SETUP — 480x360 game coords, scaled to fit
 // ============================================================
 const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
+let ctx = canvas.getContext('2d');
 const GAME_W = 480;
 const GAME_H = 360;
 const GRID_SIZE = 24;
@@ -5625,101 +5625,48 @@ document.addEventListener('keydown', e => {
 // TITLE SCREEN — draw mice and spawn floating particles
 // ============================================================
 (function initTitleScreen() {
-  // Draw a large mouse portrait — Pip standing alert, Chai sitting cozy
-  function drawTitleMouse(canvasId, cfg, dir, pose) {
-    const tc = document.getElementById(canvasId);
-    if (!tc) return;
-    const c = tc.getContext('2d');
-    const W = tc.width, H = tc.height;
-    c.clearRect(0, 0, W, H);
-    c.save();
-    c.translate(W / 2, H / 2 + 8);
-    const sc = 3.6;
-    c.scale(sc * dir, sc);
+  // Animate title mice using the same drawMouse() as the game
+  const pipCanvas = document.getElementById('title-pip');
+  const chaiCanvas = document.getElementById('title-chai');
+  if (!pipCanvas || !chaiCanvas) return;
+  const pipCtx = pipCanvas.getContext('2d');
+  const chaiCtx = chaiCanvas.getContext('2d');
+  const savedCtx = ctx;
+  let titleAnimId = null;
 
-    if (pose === 'standing') {
-      // Standing/alert pose — body more upright, one paw raised
-      // Body (slightly tilted up)
-      c.fillStyle = cfg.bodyColor;
-      c.beginPath(); c.ellipse(0, 6, 9, 7, -0.15, 0, Math.PI * 2); c.fill();
-      // Head (higher, looking forward)
-      c.beginPath(); c.ellipse(7, -4, 7, 6, 0.1, 0, Math.PI * 2); c.fill();
-      // Ears
-      c.fillStyle = cfg.earColor;
-      c.beginPath(); c.ellipse(10, -12, 5, 4.5, 0.2, 0, Math.PI * 2); c.fill();
-      c.beginPath(); c.ellipse(3, -11, 4.5, 4, -0.3, 0, Math.PI * 2); c.fill();
-      // Inner ears
-      c.fillStyle = '#ffb6c1';
-      c.beginPath(); c.ellipse(10, -12, 3, 2.8, 0.2, 0, Math.PI * 2); c.fill();
-      c.beginPath(); c.ellipse(3, -11, 2.8, 2.5, -0.3, 0, Math.PI * 2); c.fill();
-      // Eye (larger, expressive)
-      c.fillStyle = '#111';
-      c.beginPath(); c.arc(10, -4, 2.2, 0, Math.PI * 2); c.fill();
-      c.fillStyle = '#fff';
-      c.beginPath(); c.arc(10.7, -4.8, 0.9, 0, Math.PI * 2); c.fill();
-      // Nose
-      c.fillStyle = '#ffb6c1';
-      c.beginPath(); c.arc(14, -3, 1.6, 0, Math.PI * 2); c.fill();
-      // Whiskers
-      c.strokeStyle = '#999'; c.lineWidth = 0.4;
-      c.beginPath(); c.moveTo(13, -3); c.lineTo(20, -5); c.stroke();
-      c.beginPath(); c.moveTo(13, -2); c.lineTo(20, -1); c.stroke();
-      c.beginPath(); c.moveTo(13, -1); c.lineTo(19, 2); c.stroke();
-      // Front legs — one raised!
-      c.fillStyle = cfg.bodyColor;
-      c.fillRect(4, 11, 3, 5);
-      // Raised paw
-      c.beginPath(); c.ellipse(8, 8, 2.5, 2, 0.5, 0, Math.PI * 2); c.fill();
-      // Back leg
-      c.fillRect(-4, 11, 3, 5);
-      // Paws
-      c.fillStyle = cfg.earColor;
-      c.beginPath(); c.ellipse(5.5, 16, 2.5, 1.2, 0, 0, Math.PI * 2); c.fill();
-      c.beginPath(); c.ellipse(-2.5, 16, 2.5, 1.2, 0, 0, Math.PI * 2); c.fill();
-      // Tail (curled up high)
-      c.strokeStyle = cfg.earColor; c.lineWidth = 1.5; c.lineCap = 'round';
-      c.beginPath(); c.moveTo(-9, 5);
-      c.bezierCurveTo(-16, -2, -18, -8, -13, -10); c.stroke();
-    } else {
-      // Sitting/cozy pose — rounder, paws tucked, head tilted
-      // Body (rounder, sitting)
-      c.fillStyle = cfg.bodyColor;
-      c.beginPath(); c.ellipse(0, 5, 10, 9, 0, 0, Math.PI * 2); c.fill();
-      // Head (tilted slightly)
-      c.beginPath(); c.ellipse(8, -3, 7, 6, -0.15, 0, Math.PI * 2); c.fill();
-      // Ears
-      c.fillStyle = cfg.earColor;
-      c.beginPath(); c.ellipse(12, -10, 5, 4.5, 0.4, 0, Math.PI * 2); c.fill();
-      c.beginPath(); c.ellipse(4, -10, 4.5, 4, -0.1, 0, Math.PI * 2); c.fill();
-      // Inner ears
-      c.fillStyle = '#ffb6c1';
-      c.beginPath(); c.ellipse(12, -10, 3, 2.8, 0.4, 0, Math.PI * 2); c.fill();
-      c.beginPath(); c.ellipse(4, -10, 2.8, 2.5, -0.1, 0, Math.PI * 2); c.fill();
-      // Eye (half-closed, cozy)
-      c.fillStyle = '#111';
-      c.beginPath(); c.ellipse(11, -3, 2, 1.4, 0, 0, Math.PI * 2); c.fill();
-      c.fillStyle = '#fff';
-      c.beginPath(); c.arc(11.5, -3.6, 0.7, 0, Math.PI * 2); c.fill();
-      // Nose
-      c.fillStyle = '#ffb6c1';
-      c.beginPath(); c.arc(15, -2, 1.6, 0, Math.PI * 2); c.fill();
-      // Whiskers
-      c.strokeStyle = '#999'; c.lineWidth = 0.4;
-      c.beginPath(); c.moveTo(14, -2); c.lineTo(21, -4); c.stroke();
-      c.beginPath(); c.moveTo(14, -1); c.lineTo(21, 0); c.stroke();
-      // Front paws tucked under chin
-      c.fillStyle = cfg.earColor;
-      c.beginPath(); c.ellipse(6, 12, 3, 1.5, 0.2, 0, Math.PI * 2); c.fill();
-      c.beginPath(); c.ellipse(0, 13, 3, 1.5, -0.1, 0, Math.PI * 2); c.fill();
-      // Tail (wrapped around body)
-      c.strokeStyle = cfg.earColor; c.lineWidth = 1.5; c.lineCap = 'round';
-      c.beginPath(); c.moveTo(-10, 6);
-      c.bezierCurveTo(-15, 10, -12, 14, -6, 13); c.stroke();
+  function animateTitleMice() {
+    const t = Date.now() / 1000;
+    const frame = Math.floor(t * 3) % 4;
+
+    // Pip — walking, facing right
+    const pipAction = Math.sin(t * 0.4) > 0.3 ? 'zoomies' : (Math.sin(t * 0.7) > 0.6 ? 'grooming' : 'walking');
+    pipCtx.clearRect(0, 0, 120, 110);
+    pipCtx.save();
+    pipCtx.translate(60, 55);
+    pipCtx.scale(3.2, 3.2);
+    pipCtx.translate(-14, -10);
+    ctx = pipCtx;
+    drawMouse(0, 0, CONFIG.mice.pip, 1, frame, pipAction, false);
+    ctx = savedCtx;
+    pipCtx.restore();
+
+    // Chai — idle/grooming, facing left
+    const chaiAction = Math.sin(t * 0.3 + 1) > 0.4 ? 'idle' : (Math.sin(t * 0.5 + 2) > 0.5 ? 'grooming' : 'walking');
+    chaiCtx.clearRect(0, 0, 120, 110);
+    chaiCtx.save();
+    chaiCtx.translate(60, 55);
+    chaiCtx.scale(3.2, 3.2);
+    chaiCtx.translate(-14, -10);
+    ctx = chaiCtx;
+    drawMouse(0, 0, CONFIG.mice.chai, -1, frame, chaiAction, false);
+    ctx = savedCtx;
+    chaiCtx.restore();
+
+    if (!state.gameStarted) {
+      titleAnimId = requestAnimationFrame(animateTitleMice);
     }
-    c.restore();
   }
-  drawTitleMouse('title-pip', CONFIG.mice.pip, 1, 'standing');
-  drawTitleMouse('title-chai', CONFIG.mice.chai, -1, 'sitting');
+  animateTitleMice();
 
   // Spawn floating particles
   const titleEl = document.getElementById('title-screen');
