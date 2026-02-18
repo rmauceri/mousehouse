@@ -437,9 +437,11 @@ html, body {
     <h3>💡 Tips</h3>
     <ul>
       <li><b>Pet the mice!</b> Click/tap on them for coins and happiness</li>
+      <li><b>Feed them!</b> Buy cheese 🧀 or blueberries 🫐 — they get hungry over time</li>
       <li><b>Double-click status bar</b> (bottom) to jump to a mouse's room</li>
       <li><b>Goals</b> appear at the top — complete them for bonus coins</li>
       <li><b>Loot Crumbs</b> button in the shop gives free coins (once per day)</li>
+      <li>Food items are consumable — buy more when they run out! (🔄 in shop)</li>
       <li>Mice have personalities: Pip is chaotic & hungry, Chai is cozy & chill</li>
     </ul>
     <button class="close-about" onclick="closeTitleAbout()">Got it! 🐭</button>
@@ -859,7 +861,7 @@ const FURNITURE = [
     color: '#FFF8DC', mouseBehavior: null, wallMount: true },
   { id: 'sourdough', name: 'Sourdough Starter', icon: '🍞', price: 20,
     desc: "Started in 2020. Has a name. Don't ask.", w: 1, h: 1,
-    color: '#DEB887', mouseBehavior: 'eating' },
+    color: '#DEB887', mouseBehavior: 'eating', servings: 6 },
   { id: 'ring-light', name: 'Ring Light', icon: '💡', price: 18,
     desc: 'Content creation station. Very influencer.', w: 1, h: 1,
     color: '#FFE4B5', mouseBehavior: null },
@@ -889,7 +891,13 @@ const FURNITURE = [
     color: '#EF4444', mouseBehavior: 'sleeping' },
   { id: 'cheese-wheel', name: 'Cheese Wheel', icon: '🧀', price: 25,
     desc: 'The holy grail. The one cheese to rule them all.', w: 1, h: 1,
-    color: '#FFD700', mouseBehavior: 'eating' },
+    color: '#FFD700', mouseBehavior: 'eating', servings: 4 },
+  { id: 'cheese-wedge', name: 'Cheese Wedge', icon: '🧀', price: 5,
+    desc: 'A lil snack. Gone in three bites.', w: 1, h: 1,
+    color: '#f0c040', mouseBehavior: 'eating', servings: 3, isFood: true },
+  { id: 'blueberry-bowl', name: 'Blueberry Bowl', icon: '🫐', price: 3,
+    desc: 'Antioxidants! Five tiny berries of joy.', w: 1, h: 1,
+    color: '#4a5ab0', mouseBehavior: 'eating', servings: 5, isFood: true },
   { id: 'stamp-painting', name: 'Stamp Painting', icon: '🖼', price: 8,
     desc: 'Is it modern art? Is it a stamp? Yes.', w: 1, h: 1,
     color: '#DDA0DD', mouseBehavior: null, wallMount: true },
@@ -997,6 +1005,11 @@ function loadGame() {
       state.coins = d.coins ?? CONFIG.startingCoins;
       state.ownedItems = d.ownedItems ?? [];
       state.placedItems = d.placedItems ?? [];
+      // Initialize servings on food items loaded from old saves
+      state.placedItems.forEach(p => {
+        const item = FURNITURE.find(f => f.id === p.itemId);
+        if (item && item.servings && p.servings === undefined) p.servings = item.servings;
+      });
       state.currentRoom = d.currentRoom ?? 0;
       state.birthdayEventSeen = d.birthdayEventSeen ?? false;
       state.letterRead = d.letterRead ?? false;
@@ -1636,7 +1649,7 @@ function drawRoom(roomIndex) {
     if (item.id === 'exercise-wheel') {
       drawExerciseWheel(placed);
     } else {
-      drawFurnitureItem(item, placed.gridX, placed.gridY);
+      drawFurnitureItem(item, placed.gridX, placed.gridY, placed);
     }
 
     // Ambient glow for light-emitting furniture
@@ -1749,7 +1762,7 @@ function drawRoom(roomIndex) {
 // ============================================================
 // FURNITURE RENDERING
 // ============================================================
-function drawFurnitureItem(item, gx, gy) {
+function drawFurnitureItem(item, gx, gy, placedRef) {
   const pos = gridToGame(gx, gy);
   const w = item.w * GRID_SIZE;
   const h = item.h * GRID_SIZE;
@@ -2257,6 +2270,65 @@ function drawFurnitureItem(item, gx, gy) {
     break;
   }
 
+  case 'cheese-wedge': { // 1x1 24x24
+    // Servings visual — fade/shrink as eaten
+    const placed = placedRef;
+    const serv = placed && placed.servings !== undefined ? placed.servings : 3;
+    const servFrac = serv / 3;
+    const sw = Math.max(0.4, servFrac);
+    ctx.save();
+    ctx.translate(x + 12, y + 20);
+    ctx.scale(sw, sw);
+    ctx.translate(-(x + 12), -(y + 20));
+    // Wedge triangle
+    ctx.fillStyle = item.color;
+    ctx.beginPath();
+    ctx.moveTo(x+4, y+20); ctx.lineTo(x+12, y+6); ctx.lineTo(x+20, y+20);
+    ctx.closePath(); ctx.fill();
+    // Rind
+    ctx.fillStyle = '#daa520';
+    ctx.fillRect(x+4, y+19, 16, 2);
+    // Holes
+    ctx.fillStyle = '#c89020';
+    ctx.beginPath(); ctx.arc(x+10, y+15, 1.5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x+14, y+12, 1, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+    // Serving dots
+    if (serv < 3) {
+      for (let i = 0; i < serv; i++) {
+        ctx.fillStyle = '#f0c040';
+        ctx.beginPath(); ctx.arc(x + 8 + i * 4, y + 3, 1.5, 0, Math.PI*2); ctx.fill();
+      }
+    }
+    break;
+  }
+
+  case 'blueberry-bowl': { // 1x1 24x24
+    const placed = placedRef;
+    const serv = placed && placed.servings !== undefined ? placed.servings : 5;
+    // Bowl
+    ctx.fillStyle = '#8a7a6a';
+    ctx.beginPath();
+    ctx.moveTo(x+4, y+12); ctx.quadraticCurveTo(x+4, y+22, x+12, y+22);
+    ctx.quadraticCurveTo(x+20, y+22, x+20, y+12);
+    ctx.lineTo(x+4, y+12);
+    ctx.closePath(); ctx.fill();
+    // Bowl rim
+    ctx.fillStyle = '#9a8a7a';
+    ctx.fillRect(x+3, y+11, 18, 2);
+    // Berries (show remaining servings)
+    const berryPositions = [[8,15],[14,15],[11,13],[7,17],[15,17]];
+    for (let i = 0; i < Math.min(serv, 5); i++) {
+      const bp = berryPositions[i];
+      ctx.fillStyle = item.color;
+      ctx.beginPath(); ctx.arc(x+bp[0], y+bp[1], 2.5, 0, Math.PI*2); ctx.fill();
+      // Berry highlight
+      ctx.fillStyle = '#7a8ad0';
+      ctx.beginPath(); ctx.arc(x+bp[0]-0.5, y+bp[1]-0.5, 1, 0, Math.PI*2); ctx.fill();
+    }
+    break;
+  }
+
   case 'stamp-painting': { // 1x1 24x24
     // Frame
     ctx.fillStyle = '#8B7355';
@@ -2747,10 +2819,12 @@ function handlePlacementClick(gx, gy) {
     return;
   }
 
-  state.placedItems.push({
+  const placedEntry = {
     itemId: item.id, room: state.currentRoom,
     gridX: grid.col, gridY: grid.row
-  });
+  };
+  if (item.servings) placedEntry.servings = item.servings;
+  state.placedItems.push(placedEntry);
 
   sfxPlace();
   showToast(`Placed ${item.icon} ${item.name}!`);
@@ -2822,12 +2896,18 @@ function refreshShopFlyout() {
     if (item.birthday && !state.birthdayEventSeen) return;
     if (item.exerciseRoom) return;
     const isOwned = owned.has(item.id);
+    const isConsumable = !!item.servings;
     const canAfford = state.coins >= item.price;
-    const cls = isOwned ? 'owned' : (!canAfford ? 'cant-afford' : '');
+    const label = isConsumable
+      ? (canAfford ? '🧀 ' + item.price : '🧀 ' + item.price)
+      : (isOwned ? '✅ Owned' : (item.price === 0 ? '🎁 Free!' : '🧀 ' + item.price));
+    const cls = isConsumable
+      ? (!canAfford ? 'cant-afford' : '')
+      : (isOwned ? 'owned' : (!canAfford ? 'cant-afford' : ''));
     html += `<div class="flyout-item ${cls}" data-item-id="${item.id}">
       <div class="fi-icon">${item.icon}</div>
-      <div class="fi-name">${item.name}</div>
-      <div class="fi-price">${isOwned ? '✅ Owned' : (item.price === 0 ? '🎁 Free!' : '🧀 ' + item.price)}</div>
+      <div class="fi-name">${item.name}${isConsumable ? ' 🔄' : ''}</div>
+      <div class="fi-price">${label}</div>
     </div>`;
   });
   container.innerHTML = html;
@@ -2835,12 +2915,19 @@ function refreshShopFlyout() {
   container.querySelectorAll('.flyout-item').forEach(el => {
     el.addEventListener('click', () => {
       const id = el.dataset.itemId;
+      const item = FURNITURE.find(f => f.id === id);
       const isOwned = state.ownedItems.includes(id);
-      if (isOwned) {
+      const isConsumable = item && !!item.servings;
+      if (isConsumable) {
+        // Food items: always buy a fresh one (re-purchasable)
+        if (item && state.coins >= item.price) {
+          buyItem(id);
+          startPlacement(id);
+        }
+      } else if (isOwned) {
         startPlacement(id);
         showToast('Drag from the tray below to place! 👇');
       } else {
-        const item = FURNITURE.find(f => f.id === id);
         if (item && state.coins >= item.price) {
           buyItem(id);
         }
@@ -2949,10 +3036,12 @@ function endDrag(sx, sy) {
       showToast(`Moved ${item.icon} ${item.name}!`);
     } else {
       // New placement
-      state.placedItems.push({
+      const newEntry = {
         itemId: item.id, room: state.currentRoom,
         gridX: grid.col, gridY: grid.row
-      });
+      };
+      if (item.servings) newEntry.servings = item.servings;
+      state.placedItems.push(newEntry);
       sfxPlace();
       showToast(`Placed ${item.icon} ${item.name}!`);
       addHappiness(3);
@@ -4002,7 +4091,7 @@ function spawnCoinEffect(amount, x, y) {
 // ============================================================
 // HAPPINESS SYSTEM
 // ============================================================
-const HAPPINESS_DECAY_RATE = 0.0003; // very slow: ~1 point per ~55 minutes
+const HAPPINESS_DECAY_RATE = 0.002; // ~1 point per 8 minutes — food needed to sustain
 
 function getAverageHappiness() {
   return Math.round((state.miceState.pip.happiness + state.miceState.chai.happiness) / 2);
@@ -4691,6 +4780,48 @@ function updateMouse(mouse, dt, personality) {
     }
   }
 
+  // Food consumption: when eating near a food item with servings
+  if (mouse.action === 'eating' && mouse.targetX === undefined) {
+    if (!mouse._eatCooldown || mouse._eatCooldown <= 0) {
+      const nearbyFood = state.placedItems.find(p => {
+        if (p.room !== mouse.room) return false;
+        const item = FURNITURE.find(f => f.id === p.itemId);
+        if (!item || item.mouseBehavior !== 'eating' || !item.servings) return false;
+        const pos = gridToGame(p.gridX, p.gridY);
+        return Math.abs(mouse.x - pos.x) < 30;
+      });
+      if (nearbyFood) {
+        if (nearbyFood.servings === undefined) nearbyFood.servings = FURNITURE.find(f => f.id === nearbyFood.itemId).servings;
+        nearbyFood.servings--;
+        const mouseKey = mouse === state.miceState.pip ? 'pip' : 'chai';
+        // Happiness boost per bite
+        mouse.happiness = Math.min(100, (mouse.happiness || 80) + 8);
+        updateHappinessDisplay();
+        if (mouse.room === state.currentRoom) {
+          const eatQuotes = ['*nom nom*', 'yum! 😋', 'so good', 'more pls', '*crunch*', 'delish ✨'];
+          speechBubbles = speechBubbles.filter(b => b.mouseKey !== mouseKey);
+          speechBubbles.push({ x: mouse.x + 14, y: getMouseFloorY(mouse) - 10,
+            text: eatQuotes[Math.floor(Math.random() * eatQuotes.length)],
+            timer: 1500, maxTimer: 1500, mouseKey });
+        }
+        if (nearbyFood.servings <= 0) {
+          // Food consumed — remove from placed items
+          state.placedItems = state.placedItems.filter(p => p !== nearbyFood);
+          if (mouse.room === state.currentRoom) {
+            const pos = gridToGame(nearbyFood.gridX, nearbyFood.gridY);
+            spawnFloatingEffect(pos.x + 12, pos.y + 12, '✨');
+          }
+          mouse.action = 'idle';
+          mouse.actionTimer = 1000;
+        }
+        mouse._eatCooldown = 2000; // 2 seconds between bites
+        saveGame();
+      }
+    } else {
+      mouse._eatCooldown -= dt;
+    }
+  }
+
   // Clamp to current platform bounds
   clampMouseToPlatform(mouse);
 }
@@ -4750,6 +4881,61 @@ function pickNewAction(mouse, personality) {
       // Set up climb state — will activate when mouse reaches ramp
       mouse.pendingClimb = { ramp, targetLevel, goingUp };
       return;
+    }
+  }
+
+  // Hunger-driven food seeking: when happiness is low, urgently find food
+  const isHungry = (mouse.happiness || 80) < 35;
+  if (isHungry) {
+    // Look for food with servings in any room
+    const foodInRoom = state.placedItems.filter(p => {
+      if (p.room !== mouse.room) return false;
+      const item = FURNITURE.find(f => f.id === p.itemId);
+      return item && item.servings && (p.servings === undefined || p.servings > 0);
+    });
+    if (foodInRoom.length > 0) {
+      // Rush to nearest food
+      const target = foodInRoom[Math.floor(Math.random() * foodInRoom.length)];
+      const pos = gridToGame(target.gridX, target.gridY);
+      mouse.action = 'eating';
+      mouse.targetX = pos.x + Math.random() * 10;
+      mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
+      mouse.actionTimer = 4000;
+      const mouseKey = mouse === state.miceState.pip ? 'pip' : 'chai';
+      if (mouse.room === state.currentRoom) {
+        const hungryQuotes = ['I\'m starving 😩', 'feed me!', 'so hungry...', 'FOOD 🍽', 'need snacks 😭', 'hangry mode'];
+        speechBubbles = speechBubbles.filter(b => b.mouseKey !== mouseKey);
+        speechBubbles.push({ x: mouse.x + 14, y: getMouseFloorY(mouse) - 10,
+          text: hungryQuotes[Math.floor(Math.random() * hungryQuotes.length)],
+          timer: 2000, maxTimer: 2000, mouseKey });
+      }
+      return;
+    }
+    // No food in this room — check other rooms and switch
+    const foodElsewhere = state.placedItems.find(p => {
+      if (p.room === mouse.room) return false;
+      const item = FURNITURE.find(f => f.id === p.itemId);
+      return item && item.servings && (p.servings === undefined || p.servings > 0);
+    });
+    if (foodElsewhere && Math.random() < 0.5) {
+      mouse.room = foodElsewhere.room;
+      mouse.level = 'main-floor';
+      const pos = gridToGame(foodElsewhere.gridX, foodElsewhere.gridY);
+      mouse.x = pos.x + (Math.random() < 0.5 ? -30 : 30);
+      mouse.action = 'eating';
+      mouse.targetX = pos.x + Math.random() * 10;
+      mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
+      mouse.actionTimer = 4000;
+      return;
+    }
+    // No food anywhere — show hungry complaint
+    if (mouse.room === state.currentRoom && Math.random() < 0.3) {
+      const mouseKey = mouse === state.miceState.pip ? 'pip' : 'chai';
+      const noFoodQuotes = ['where\'s the food?! 😰', '*stomach growls*', 'buy us food! 😩', 'empty bowl era 😢'];
+      speechBubbles = speechBubbles.filter(b => b.mouseKey !== mouseKey);
+      speechBubbles.push({ x: mouse.x + 14, y: getMouseFloorY(mouse) - 10,
+        text: noFoodQuotes[Math.floor(Math.random() * noFoodQuotes.length)],
+        timer: 2500, maxTimer: 2500, mouseKey });
     }
   }
 
@@ -4890,20 +5076,22 @@ function drawMouseStatus() {
   // Pip status (left)
   const sIcon = actionIcons[pip.action] || '✨';
   let pipText = `${sIcon} ${CONFIG.mice.pip.name}: ${pip.action}`;
+  if ((pip.happiness || 80) < 35) pipText += ' 🍽';
   if (pip.room !== state.currentRoom) {
     pipText += ` (${ROOMS[pip.room].icon})`;
   }
-  ctx.fillStyle = '#888';
+  ctx.fillStyle = (pip.happiness || 80) < 35 ? '#e06050' : '#888';
   ctx.textAlign = 'left';
   ctx.fillText(pipText, 8, y);
 
   // Chai status (right)
   const cIcon = actionIcons[chai.action] || '✨';
   let chaiText = `${cIcon} ${CONFIG.mice.chai.name}: ${chai.action}`;
+  if ((chai.happiness || 80) < 35) chaiText += ' 🍽';
   if (chai.room !== state.currentRoom) {
     chaiText += ` (${ROOMS[chai.room].icon})`;
   }
-  ctx.fillStyle = '#888';
+  ctx.fillStyle = (chai.happiness || 80) < 35 ? '#e06050' : '#888';
   ctx.textAlign = 'right';
   ctx.fillText(chaiText, GAME_W - 8, y);
 
