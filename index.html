@@ -4145,6 +4145,15 @@ let goalCooldown = 20000 + Math.random() * 15000;
 function updateGoals(dt) {
   // Check if current goal is fulfilled
   if (state.activeGoal) {
+    // Auto-expire stale goals after 2 minutes
+    const age = Date.now() - (state.activeGoal.created || 0);
+    if (age > 120000) {
+      state.activeGoal = null;
+      updateGoalDisplay();
+      saveGame();
+      goalCooldown = 15000 + Math.random() * 10000;
+      return;
+    }
     const isPlaced = state.placedItems.some(p => p.itemId === state.activeGoal.itemId);
     if (isPlaced) {
       // Goal completed!
@@ -4186,7 +4195,7 @@ function generateNewGoal() {
   const mouseName = CONFIG.mice[mouseKey].name;
   const text = template.text.replace('{mouse}', mouseName);
 
-  state.activeGoal = { text, itemId: template.itemId, mouseKey };
+  state.activeGoal = { text, itemId: template.itemId, mouseKey, created: Date.now() };
   updateGoalDisplay();
   saveGame();
 
@@ -4202,6 +4211,25 @@ function updateGoalDisplay() {
   const el = document.getElementById('goal-display');
   const row2 = document.getElementById('hud-row2');
   if (!el || !row2) return;
+
+  // Hunger warnings take priority over goals
+  const pipHungry = (state.miceState.pip.happiness || 80) < 35;
+  const chaiHungry = (state.miceState.chai.happiness || 80) < 35;
+  const hasFood = state.placedItems.some(p => {
+    const item = FURNITURE.find(f => f.id === p.itemId);
+    return item && item.servings && (p.servings === undefined || p.servings > 0);
+  });
+
+  if (pipHungry || chaiHungry) {
+    const names = [pipHungry && 'Pip', chaiHungry && 'Chai'].filter(Boolean).join(' & ');
+    el.textContent = hasFood ? `🍽 ${names} ${pipHungry && chaiHungry ? 'are' : 'is'} hungry! Food is available.`
+                             : `⚠️ ${names} ${pipHungry && chaiHungry ? 'are' : 'is'} hungry! Buy food from the Store!`;
+    el.style.color = '#e06050';
+    row2.classList.add('visible');
+    return;
+  }
+
+  el.style.color = '';
   if (state.activeGoal) {
     el.textContent = `🎯 ${state.activeGoal.text}`;
     el.title = `Place ${FURNITURE.find(f => f.id === state.activeGoal.itemId)?.name || 'the item'} to complete!`;
