@@ -5211,9 +5211,9 @@ function updateMouse(mouse, dt, personality) {
     mouse.animTimer = 0;
   }
 
-  // Action timer countdown
+  // Action timer countdown — skip if walking to a pending transition
   mouse.actionTimer -= dt;
-  if (mouse.actionTimer <= 0) {
+  if (mouse.actionTimer <= 0 && !mouse.pendingRoomChange && !mouse.pendingClimb) {
     pickNewAction(mouse, personality);
   }
 
@@ -5325,6 +5325,8 @@ function updateMouse(mouse, dt, personality) {
 }
 
 function clampMouseToPlatform(mouse) {
+  // Don't clamp when walking to the room edge for a room transition
+  if (mouse.pendingRoomChange) return;
   const plat = getMousePlatform(mouse);
   if (plat) {
     mouse.x = Math.max(plat.xMin + 5, Math.min(plat.xMax - 35, mouse.x));
@@ -5353,16 +5355,14 @@ function pickNewAction(mouse, personality) {
     if (newRoom !== mouse.room) {
       // Determine exit direction: left neighbor = walk left, right neighbor = walk right
       const exitDir = newRoom === roomRight(mouse.room) ? 1 : -1;
-      const plat = getMousePlatform(mouse) || (ROOMS[mouse.room].platforms ? ROOMS[mouse.room].platforms[0] : null);
-      const exitX = exitDir > 0
-        ? (plat ? plat.xMax - 5 : ROOM_W - 10)
-        : (plat ? plat.xMin + 5 : 10);
+      // Target the actual room wall edge (beyond platform clamp)
+      const exitX = exitDir > 0 ? ROOM_W - 5 : 5;
       // Walk to the exit edge, then room switch happens on arrival
       mouse.level = 'main-floor';
       mouse.action = 'walking';
       mouse.targetX = exitX;
       mouse.dir = exitDir;
-      mouse.actionTimer = 8000;
+      mouse.actionTimer = 12000;
       mouse.pendingRoomChange = { newRoom, exitDir };
       return;
     }
@@ -5419,15 +5419,12 @@ function pickNewAction(mouse, personality) {
       const target = foodElsewhere[Math.floor(Math.random() * foodElsewhere.length)];
       const nextRoom = ringStepToward(mouse.room, target.room);
       const exitDir = nextRoom === roomRight(mouse.room) ? 1 : -1;
-      const plat = getMousePlatform(mouse) || (ROOMS[mouse.room].platforms ? ROOMS[mouse.room].platforms[0] : null);
-      const exitX = exitDir > 0
-        ? (plat ? plat.xMax - 5 : ROOM_W - 10)
-        : (plat ? plat.xMin + 5 : 10);
+      const exitX = exitDir > 0 ? ROOM_W - 5 : 5;
       mouse.level = 'main-floor';
       mouse.action = 'walking';
       mouse.targetX = exitX;
       mouse.dir = exitDir;
-      mouse.actionTimer = 8000;
+      mouse.actionTimer = 12000;
       mouse.pendingRoomChange = { newRoom: nextRoom, exitDir };
       return;
     }
