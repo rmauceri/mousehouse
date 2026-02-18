@@ -458,8 +458,8 @@ body { display: flex; flex-direction: column; }
       <div class="gi-desc">Touch grass? Never heard of it.</div>
     </div>
     <div class="game-item" onclick="startMouseMaze()">
-      <div class="gi-title">🏁 Mouse Maze</div>
-      <div class="gi-desc">Navigate the maze, collect cheese!</div>
+      <div class="gi-title">🕹️ Pac Mouse</div>
+      <div class="gi-desc">Eat berries, dodge the cat!</div>
     </div>
   </div>
 </div>
@@ -495,7 +495,7 @@ body { display: flex; flex-direction: column; }
     <ul>
       <li><b>4 rooms</b> — Bedroom, Kitchen, Living Room & Exercise Room, each with platforms and ramps</li>
       <li><b>20+ furniture items</b> — Buy from the aMouseZon shop and place anywhere</li>
-      <li><b>3 mini-games</b> — Cheese Chase, Doomscroll & Mouse Maze</li>
+      <li><b>3 mini-games</b> — Cheese Chase, Doomscroll & Pac Mouse</li>
       <li><b>Exercise Wheel</b> — Watch the mice spin (and get flung!)</li>
       <li><b>Mouse AI</b> — Pip & Chai explore, climb, nap, chase each other, and share thoughts</li>
     </ul>
@@ -1051,7 +1051,7 @@ function playLofiMusicNote() {
   gameMusicTimeout = setTimeout(playLofiMusicNote, tempo);
 }
 
-// --- Mouse Maze: exploration to triumph ---
+// --- Pac Mouse: exploration to triumph ---
 const MAZE_NOTES = [
   // Level 1: sparse, mysterious (E minor)
   [330, 0, 294, 0, 330, 370, 330, 0],
@@ -4211,7 +4211,7 @@ function drawCheeseChase() {
 
     ctx.fillStyle = '#a89070';
     ctx.font = '12px monospace';
-    ctx.fillText('tap / click to continue', GAME_W / 2, GAME_H / 2 + 55);
+    ctx.fillText('press any key or tap to continue', GAME_W / 2, GAME_H / 2 + 55);
     ctx.textAlign = 'left';
   }
 }
@@ -4379,7 +4379,7 @@ function doomscrollAction(liked) {
 }
 
 // ============================================================
-// MOUSE MAZE MINI-GAME
+// PAC MOUSE MINI-GAME
 // ============================================================
 let mouseMazeActive = false;
 let mz = {};
@@ -4766,7 +4766,7 @@ function drawMouseMaze() {
   ctx.fillText(livesStr || '💀', 8, 17);
   ctx.fillText(`🫐${mz.totalBerries}`, 60, 17);
   ctx.textAlign = 'center';
-  ctx.fillText(`Level ${mz.level}/3`, GAME_W / 2, 17);
+  ctx.fillText(`PAC MOUSE  Lv${mz.level}`, GAME_W / 2, 17);
   ctx.textAlign = 'right';
   ctx.fillText(`⭐${mz.totalScore}`, GAME_W - 50, 17);
   // Exit button
@@ -4980,7 +4980,7 @@ function drawMouseMaze() {
       ctx.fillText(`Earned: 🧀 ${mz.totalScore} coins!`, GAME_W / 2, GAME_H / 2 + 25);
       ctx.fillStyle = '#a89070';
       ctx.font = '11px monospace';
-      ctx.fillText('tap / click to finish', GAME_W / 2, GAME_H / 2 + 50);
+      ctx.fillText('press any key or tap to finish', GAME_W / 2, GAME_H / 2 + 50);
     } else {
       ctx.fillText(`✅ Level ${mz.level} Clear!`, GAME_W / 2, GAME_H / 2 - 25);
       ctx.font = '12px monospace';
@@ -4988,7 +4988,7 @@ function drawMouseMaze() {
       ctx.fillText(`🫐 ${mz.totalBerries}  |  ⭐ ${mz.totalScore}  |  🐭 ×${mz.lives}`, GAME_W / 2, GAME_H / 2 + 5);
       ctx.fillStyle = '#a89070';
       ctx.font = '11px monospace';
-      ctx.fillText('tap / click for next level', GAME_W / 2, GAME_H / 2 + 35);
+      ctx.fillText('press any key or tap for next level', GAME_W / 2, GAME_H / 2 + 35);
     }
     ctx.textAlign = 'left';
   }
@@ -5009,7 +5009,7 @@ function drawMouseMaze() {
     ctx.fillText(`Earned: 🧀 ${mz.totalScore} coins!`, GAME_W / 2, GAME_H / 2 + 30);
     ctx.fillStyle = '#a89070';
     ctx.font = '11px monospace';
-    ctx.fillText('tap / click to finish', GAME_W / 2, GAME_H / 2 + 55);
+    ctx.fillText('press any key or tap to finish', GAME_W / 2, GAME_H / 2 + 55);
     ctx.textAlign = 'left';
   }
 }
@@ -5026,7 +5026,7 @@ function endMouseMaze() {
   startMusic();
   sfxCoinCollect();
   spawnCoinEffect(earned, GAME_W / 2, GAME_H / 2 - 20);
-  showToast(`Mouse Maze: earned 🧀 ${earned} coins!`);
+  showToast(`Pac Mouse: earned 🧀 ${earned} coins!`);
 }
 
 function handleMazeInput(sx, sy) {
@@ -7144,7 +7144,7 @@ function handleCanvasInput(sx, sy, originalEvent) {
     return;
   }
 
-  // Mouse Maze input
+  // Pac Mouse input
   if (mouseMazeActive) {
     handleMazeInput(sx, sy);
     mazeSwipeBegin(pos.x, pos.y);
@@ -7277,6 +7277,7 @@ document.addEventListener('keydown', e => {
     if (e.key === 'ArrowUp' || e.key === 'w') cc.mouseY -= 10;
     if (e.key === 'ArrowDown' || e.key === 's') cc.mouseY += 10;
   }
+  if (cheeseChaseActive && cc.gameOver) { endCheeseChase(); return; }
   if (mouseMazeActive && !mz.levelComplete && !mz.gameOver && mz.deathPause <= 0) {
     const mazeDir = ({ ArrowUp:'up', w:'up', ArrowDown:'down', s:'down',
                        ArrowLeft:'left', a:'left', ArrowRight:'right', d:'right' })[e.key];
@@ -7297,6 +7298,14 @@ document.addEventListener('keydown', e => {
     }
   }
   if (mouseMazeActive && e.key === 'Escape') { e.preventDefault(); endMouseMaze(); }
+  // Pac Mouse: any key advances from end screens
+  if (mouseMazeActive && (mz.gameOver || mz.levelComplete)) {
+    e.preventDefault();
+    if (mz.gameOver) { endMouseMaze(); }
+    else if (mz.level >= 3) { endMouseMaze(); }
+    else { mz.level++; initMazeLevel(mz.level); }
+    return;
+  }
 });
 
 document.addEventListener('keyup', e => {
