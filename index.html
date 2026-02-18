@@ -2871,6 +2871,7 @@ function drawFurnitureItem(item, gx, gy, placedRef) {
   }
 
   case 'hammock': { // 3x1 72x24 — hangs under a shelf
+    const placed = placedRef;
     const t2 = Date.now() / 1000;
     const sway = Math.sin(t2 * 1.2) * 1.5;
     // Check if any mice are sleeping in this hammock
@@ -3005,6 +3006,7 @@ function drawFurnitureItem(item, gx, gy, placedRef) {
   }
 
   case 'climbing-rope': { // 1x3 24x72 — wall-mounted rope
+    const placed = placedRef;
     const t2 = Date.now() / 1000;
     // Check for mice on this rope
     const miceOnRope = [];
