@@ -4134,10 +4134,12 @@ function getMouseFloorY(mouse) {
   if (!room || !room.platforms) return MOUSE_FLOOR_Y;
   // During climbing, interpolate Y along the ramp
   if (mouse.action === 'climbing' && mouse.climbRamp) {
-    return getRampY(mouse.climbRamp, mouse.x, mouse.room);
+    return getRampY(mouse.climbRamp, mouse.x, mouse.room) - 20;
   }
   const plat = room.platforms.find(p => p.id === mouse.level);
-  return plat ? plat.y : MOUSE_FLOOR_Y;
+  if (!plat) return MOUSE_FLOOR_Y;
+  // main-floor y already has the -20 offset baked in; other platforms need it
+  return plat.id === 'main-floor' ? plat.y : plat.y - 20;
 }
 
 function getMousePlatform(mouse) {
@@ -4648,7 +4650,7 @@ function updateMouse(mouse, dt, personality) {
 
   // Movement
   if (mouse.action === 'walking' && mouse.targetX !== undefined) {
-    const speed = 0.05 * dt;
+    const speed = 0.065 * dt;
     const dist = mouse.targetX - mouse.x;
     if (Math.abs(dist) > speed) {
       mouse.dir = dist > 0 ? 1 : -1;
@@ -4667,7 +4669,7 @@ function updateMouse(mouse, dt, personality) {
         return;
       }
       mouse.action = 'idle';
-      mouse.actionTimer = 1500 + Math.random() * 2000;
+      mouse.actionTimer = 1000 + Math.random() * 1500;
     }
   } else if (mouse.action === 'zoomies') {
     const plat = getMousePlatform(mouse);
@@ -4679,7 +4681,7 @@ function updateMouse(mouse, dt, personality) {
     if (mouse.x < xMin) { mouse.dir = 1; }
   } else if (mouse.targetX !== undefined) {
     // Walk toward furniture target for any behavior
-    const speed = 0.04 * dt;
+    const speed = 0.055 * dt;
     const dist = mouse.targetX - mouse.x;
     if (Math.abs(dist) > speed) {
       mouse.dir = dist > 0 ? 1 : -1;
@@ -4706,9 +4708,16 @@ function pickNewAction(mouse, personality) {
   const roll = Math.random();
   const room = ROOMS[mouse.room];
 
-  // Chance to switch rooms
-  if (roll < 0.1) {
-    const newRoom = Math.floor(Math.random() * ROOMS.length);
+  // Chance to switch rooms — 18%, biased toward joining the other mouse
+  if (roll < 0.18) {
+    const otherMouse = mouse === state.miceState.pip ? state.miceState.chai : state.miceState.pip;
+    let newRoom;
+    if (otherMouse.room !== mouse.room && Math.random() < 0.7) {
+      // 70% chance to go to the other mouse's room
+      newRoom = otherMouse.room;
+    } else {
+      newRoom = Math.floor(Math.random() * ROOMS.length);
+    }
     if (newRoom !== mouse.room) {
       mouse.room = newRoom;
       mouse.level = 'main-floor';
@@ -4718,12 +4727,12 @@ function pickNewAction(mouse, personality) {
       mouse.x = xMin + Math.random() * (xMax - xMin);
     }
     mouse.action = 'idle';
-    mouse.actionTimer = 1000 + Math.random() * 1500;
+    mouse.actionTimer = 800 + Math.random() * 1200;
     return;
   }
 
-  // Chance to switch levels (climb ramp) — 15% if room has ramps
-  if (room.ramps && room.ramps.length > 0 && roll < 0.4) {
+  // Chance to switch levels (climb ramp) — 30% if room has ramps
+  if (room.ramps && room.ramps.length > 0 && roll < 0.48) {
     // Find a ramp accessible from current level
     const availableRamps = room.ramps.filter(r => r.from === mouse.level || r.to === mouse.level);
     if (availableRamps.length > 0) {
@@ -4775,31 +4784,33 @@ function pickNewAction(mouse, personality) {
     mouse.targetX = targetPos.x + Math.random() * 10;
     mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
     mouse.actionTimer = 3000 + Math.random() * 4000;
-    if (pick.behavior === 'sleeping') mouse.actionTimer = 5000 + Math.random() * 5000;
+    if (pick.behavior === 'sleeping') mouse.actionTimer = 3000 + Math.random() * 3000;
     if (pick.behavior === 'zoomies') mouse.actionTimer = 2000 + Math.random() * 2000;
-    if (pick.behavior === 'wheeling') mouse.actionTimer = 6000 + Math.random() * 8000;
+    if (pick.behavior === 'wheeling') mouse.actionTimer = 4000 + Math.random() * 5000;
     return;
   }
 
-  // Personality-weighted action selection
+  // Personality-weighted action selection — both mice are hyper
   let weights;
   if (personality === 'chaotic') {
+    // Pip: very active, lots of zoomies and mischief
     weights = [
-      { action: 'idle', w: 15 },
-      { action: 'walking', w: 30 },
-      { action: 'sleeping', w: 10 },
-      { action: 'zoomies', w: 18 },
+      { action: 'idle', w: 8 },
+      { action: 'walking', w: 32 },
+      { action: 'sleeping', w: 6 },
+      { action: 'zoomies', w: 22 },
       { action: 'grooming', w: 8 },
-      { action: 'mischief', w: 12 }
+      { action: 'mischief', w: 14 }
     ];
   } else {
+    // Chai: still hyper but slightly more balanced
     weights = [
-      { action: 'idle', w: 22 },
-      { action: 'walking', w: 22 },
-      { action: 'sleeping', w: 25 },
-      { action: 'zoomies', w: 5 },
-      { action: 'grooming', w: 14 },
-      { action: 'mischief', w: 6 }
+      { action: 'idle', w: 12 },
+      { action: 'walking', w: 28 },
+      { action: 'sleeping', w: 12 },
+      { action: 'zoomies', w: 14 },
+      { action: 'grooming', w: 12 },
+      { action: 'mischief', w: 10 }
     ];
   }
 
@@ -4819,10 +4830,10 @@ function pickNewAction(mouse, personality) {
     const xMax = plat ? plat.xMax - 40 : ROOM_W - 70;
     mouse.targetX = xMin + Math.random() * (xMax - xMin);
     mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
-    mouse.actionTimer = 8000;
+    mouse.actionTimer = 5000;
   } else if (chosen === 'sleeping') {
     // Transition through stretching if waking from a previous sleep
-    mouse.actionTimer = 5000 + Math.random() * 6000;
+    mouse.actionTimer = 3000 + Math.random() * 4000;
   } else if (chosen === 'zoomies') {
     mouse.actionTimer = 2500 + Math.random() * 2000;
     mouse.dir = Math.random() < 0.5 ? 1 : -1;
@@ -4858,7 +4869,7 @@ function pickNewAction(mouse, personality) {
         timer: 2500, maxTimer: 2500, mouseKey });
     }
   } else {
-    mouse.actionTimer = 2000 + Math.random() * 3000;
+    mouse.actionTimer = 1500 + Math.random() * 2000;
   }
 }
 
@@ -5098,12 +5109,12 @@ function tryPetMouse(gx, gy) {
 // ============================================================
 // MOUSE INTERACTIONS (when both in same room)
 // ============================================================
-let interactionCooldown = 12000 + Math.random() * 8000;
+let interactionCooldown = 6000 + Math.random() * 6000;
 
 function updateMouseInteractions(dt) {
   const s = state.miceState.pip;
   const c = state.miceState.chai;
-  if (s.room !== c.room) { interactionCooldown = 5000 + Math.random() * 5000; return; }
+  if (s.room !== c.room) { interactionCooldown = 3000 + Math.random() * 3000; return; }
 
   // Startled reaction: if one mouse zooms past the other
   if (s.action === 'zoomies' && c.action !== 'zoomies' && c.action !== 'sleeping' && c.action !== 'flung') {
@@ -5132,7 +5143,7 @@ function updateMouseInteractions(dt) {
 
   interactionCooldown -= dt;
   if (interactionCooldown > 0) return;
-  interactionCooldown = 15000 + Math.random() * 10000;
+  interactionCooldown = 8000 + Math.random() * 7000;
 
   const interaction = Math.random();
 
@@ -5185,8 +5196,8 @@ function updateMouseInteractions(dt) {
       c.action = 'walking'; c.targetX = napX + 10; c.dir = -1; c.actionTimer = 3000;
       setTimeout(() => {
         if (s.room === c.room) {
-          s.action = 'sleeping'; s.actionTimer = 6000 + Math.random() * 4000;
-          c.action = 'sleeping'; c.actionTimer = 6000 + Math.random() * 4000;
+          s.action = 'sleeping'; s.actionTimer = 4000 + Math.random() * 2000;
+          c.action = 'sleeping'; c.actionTimer = 4000 + Math.random() * 2000;
           if (s.room === state.currentRoom) {
             spawnFloatingEffect((s.x + c.x) / 2 + 14, getMouseFloorY(s) - 15, '😴');
           }
