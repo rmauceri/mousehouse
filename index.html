@@ -328,6 +328,55 @@ html, body {
 .doomscroll-post:hover { border-color: #f5d68a; }
 .doomscroll-post .post-user { color: #a89070; font-size: 11px; margin-bottom: 4px; }
 .doomscroll-post .post-text { color: #e8d5b5; font-size: 13px; }
+
+/* ---- Flyout backdrop (light dismiss) ---- */
+#flyout-backdrop {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.4); z-index: 29; display: none;
+}
+#flyout-backdrop.visible { display: block; }
+
+/* ---- Mobile layout (portrait phones) ---- */
+@media (max-width: 480px) {
+  /* Pin canvas to top */
+  #gameCanvas { margin-top: 0 !important; }
+
+  /* HUD: split into two rows, compact */
+  #hud-row1 {
+    padding: 4px 8px;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  /* Hide text labels on buttons, keep icons */
+  #btn-shop .btn-label,
+  #btn-games .btn-label { display: none; }
+  #hud button { padding: 4px 8px; font-size: 12px; margin-left: 3px; }
+  .room-tabs { order: 10; width: 100%; justify-content: center; gap: 2px; }
+  .room-tabs button { padding: 4px 8px; font-size: 12px; }
+  .hud-right { gap: 1px; }
+
+  /* Flyouts: full width on mobile */
+  #shop-flyout, #games-flyout { width: 100%; }
+
+  /* Item tray: bottom sheet grid instead of horizontal strip */
+  #item-tray {
+    height: auto !important; max-height: 50vh;
+    overflow-y: auto !important; overflow-x: hidden !important;
+    white-space: normal !important;
+    flex-wrap: wrap !important;
+    padding: 8px !important;
+  }
+  #item-tray.open {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+  .tray-item {
+    min-width: unset; width: 100%;
+    cursor: pointer;
+  }
+  #tray-toggle.open { bottom: auto; }
+}
 </style>
 </head>
 <body>
@@ -342,8 +391,8 @@ html, body {
     </div>
     <div class="hud-right">
       <div class="room-tabs" id="room-tabs"></div>
-      <button id="btn-shop">🛒 Moustazon</button>
-      <button id="btn-games">🎮 Games</button>
+      <button id="btn-shop">🛒<span class="btn-label"> Moustazon</span></button>
+      <button id="btn-games">🎮<span class="btn-label"> Games</span></button>
       <button id="btn-letter">💌</button>
       <button id="btn-sound" title="Sound">🔇</button>
     </div>
@@ -365,6 +414,8 @@ html, body {
   <button id="btn-cancel-place">✖ Cancel</button>
   <button id="btn-remove-mode">🗑 Remove</button>
 </div>
+
+<div id="flyout-backdrop"></div>
 
 <div id="shop-flyout">
   <div class="flyout-header">
@@ -3179,10 +3230,15 @@ function toggleTray() {
     tray.classList.add('open');
     btn.classList.add('open');
     btn.querySelector('span').style.transform = 'rotate(90deg)';
+    // On mobile, position toggle above the variable-height tray
+    requestAnimationFrame(() => {
+      btn.style.bottom = tray.offsetHeight + 'px';
+    });
   } else {
     if (!state.shopOpen) tray.classList.remove('open');
     btn.classList.remove('open');
     btn.querySelector('span').style.transform = 'rotate(-90deg)';
+    btn.style.bottom = '';
     cancelPlacement();
   }
 }
@@ -3197,6 +3253,14 @@ function syncTrayToggle() {
   else { btn.classList.remove('open'); btn.querySelector('span').style.transform = 'rotate(-90deg)'; }
 }
 
+function showBackdrop() { document.getElementById('flyout-backdrop').classList.add('visible'); }
+function hideBackdrop() { document.getElementById('flyout-backdrop').classList.remove('visible'); }
+// Light-dismiss: tapping backdrop closes any open flyout
+document.getElementById('flyout-backdrop').addEventListener('click', () => {
+  if (state.shopOpen) closeShopFlyout();
+  if (gamesOpen) closeGamesFlyout();
+});
+
 function toggleShopFlyout() {
   state.shopOpen = !state.shopOpen;
   const flyout = document.getElementById('shop-flyout');
@@ -3208,11 +3272,13 @@ function toggleShopFlyout() {
     flyout.classList.add('open');
     tray.classList.add('open');
     syncTrayToggle();
+    showBackdrop();
   } else {
     flyout.classList.remove('open');
     if (!trayOpen) tray.classList.remove('open');
     cancelPlacement();
     syncTrayToggle();
+    hideBackdrop();
   }
 }
 
@@ -3222,6 +3288,7 @@ function closeShopFlyout() {
   if (!trayOpen) document.getElementById('item-tray').classList.remove('open');
   cancelPlacement();
   syncTrayToggle();
+  if (!gamesOpen) hideBackdrop();
 }
 
 function refreshShopFlyout() {
@@ -3507,17 +3574,19 @@ function toggleGamesFlyout() {
   gamesOpen = !gamesOpen;
   const flyout = document.getElementById('games-flyout');
   if (gamesOpen) {
-    // Close shop flyout if open
-    if (state.shopOpen) toggleShopFlyout();
+    if (state.shopOpen) closeShopFlyout();
     flyout.classList.add('open');
+    showBackdrop();
   } else {
     flyout.classList.remove('open');
+    hideBackdrop();
   }
 }
 
 function closeGamesFlyout() {
   gamesOpen = false;
   document.getElementById('games-flyout').classList.remove('open');
+  if (!state.shopOpen) hideBackdrop();
 }
 
 function openMinigames() {
