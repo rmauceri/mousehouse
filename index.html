@@ -1256,9 +1256,9 @@ const FURNITURE = [
   { id: 'tiny-hoodie', name: 'Tiny Hoodie Rack', icon: '🧥', price: 12,
     desc: 'For when the vibes are chilly.', w: 1, h: 1,
     color: '#4169E1', mouseBehavior: null },
-  { id: 'hammock', name: 'Cozy Hammock', icon: '🏖️', price: 20,
-    desc: 'Two-mouse napping pod. Peak comfort achieved.', w: 3, h: 2,
-    color: '#c9956b', mouseBehavior: 'sleeping' },
+  { id: 'hammock', name: 'Cozy Hammock', icon: '🛏️', price: 20,
+    desc: 'Hangs under a shelf. The ultimate nap pod.', w: 3, h: 1,
+    color: '#c9956b', mouseBehavior: 'sleeping', wallMount: true },
   { id: 'tp-tunnel', name: 'TP Tube Tunnel', icon: '🧻', price: 8,
     desc: 'Hide and seek champion. Infinite entertainment.', w: 2, h: 1,
     color: '#e8dcc8', mouseBehavior: 'hiding' },
@@ -2865,41 +2865,40 @@ function drawFurnitureItem(item, gx, gy, placedRef) {
     break;
   }
 
-  case 'hammock': { // 3x2 72x48
+  case 'hammock': { // 3x1 72x24 — hangs under a shelf
     const t2 = Date.now() / 1000;
-    const sway = Math.sin(t2 * 1.2) * 2;
-    // Two posts
-    ctx.fillStyle = '#6b4226';
-    ctx.fillRect(x+4, y+2, 5, 44);
-    ctx.fillRect(x+63, y+2, 5, 44);
-    // Post caps
-    ctx.fillStyle = '#8b5a2e';
-    ctx.beginPath(); ctx.arc(x+6.5, y+4, 4, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(x+65.5, y+4, 4, 0, Math.PI*2); ctx.fill();
-    // Hammock fabric (catenary curve)
+    const sway = Math.sin(t2 * 1.2) * 1.5;
+    // Rope ties from top corners down to fabric
+    ctx.strokeStyle = '#a08040';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x+4, y); ctx.lineTo(x+10, y+8); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+68, y); ctx.lineTo(x+62, y+8); ctx.stroke();
+    // Hammock fabric (slung curve)
     ctx.fillStyle = item.color;
     ctx.beginPath();
-    ctx.moveTo(x+8, y+10);
-    ctx.quadraticCurveTo(x+36, y+30 + sway, x+64, y+10);
-    ctx.lineTo(x+64, y+16);
-    ctx.quadraticCurveTo(x+36, y+36 + sway, x+8, y+16);
+    ctx.moveTo(x+8, y+7);
+    ctx.quadraticCurveTo(x+36, y+18 + sway, x+64, y+7);
+    ctx.lineTo(x+64, y+11);
+    ctx.quadraticCurveTo(x+36, y+22 + sway, x+8, y+11);
     ctx.closePath();
     ctx.fill();
-    // Fabric pattern stripes
+    // Fabric stripes
     ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-    ctx.lineWidth = 1;
-    for (let si = 0; si < 4; si++) {
-      const sx = x + 18 + si * 12;
+    ctx.lineWidth = 0.8;
+    for (let si = 0; si < 3; si++) {
+      const sx = x + 22 + si * 12;
       ctx.beginPath();
-      ctx.moveTo(sx, y+12 + sway*0.3);
-      ctx.lineTo(sx, y+28 + sway*0.7);
+      ctx.moveTo(sx, y+9 + sway*0.3);
+      ctx.lineTo(sx, y+17 + sway*0.7);
       ctx.stroke();
     }
-    // Rope ties at ends
-    ctx.strokeStyle = '#a08040';
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(x+6.5, y+6); ctx.lineTo(x+10, y+11); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(x+65.5, y+6); ctx.lineTo(x+62, y+11); ctx.stroke();
+    // Edge detail
+    ctx.strokeStyle = darker;
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(x+8, y+9);
+    ctx.quadraticCurveTo(x+36, y+20 + sway, x+64, y+9);
+    ctx.stroke();
     break;
   }
 
@@ -3420,25 +3419,54 @@ function handlePlacementClick(gx, gy) {
 }
 
 function reactToNewFurniture(item) {
+  const placed = state.placedItems[state.placedItems.length - 1];
+  const targetPos = gridToGame(placed.gridX, placed.gridY);
+
   ['pip', 'chai'].forEach(key => {
     const mouse = state.miceState[key];
-    if (mouse.room !== state.currentRoom) return;
-    const placed = state.placedItems[state.placedItems.length - 1];
-    const targetPos = gridToGame(placed.gridX, placed.gridY);
-    mouse.action = 'walking';
-    mouse.targetX = targetPos.x + (key === 'pip' ? -10 : 20);
-    mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
-    mouse.actionTimer = 5000;
-    setTimeout(() => {
-      if (mouse.room === state.currentRoom) {
-        const curiosity = ['ooh what\'s this? 👀', 'new thing! 🎉', '*sniff sniff*',
-          'is this for me?', 'fancy ✨', 'immediately claims this'][Math.floor(Math.random() * 6)];
-        speechBubbles.push({
-          x: mouse.x + 14, y: getMouseFloorY(mouse) - 10,
-          text: curiosity, timer: 2500, maxTimer: 2500, mouseKey: key
-        });
-      }
-    }, 1500);
+    // Skip mice in non-interruptible states
+    if (mouse.action === 'wheeling' || mouse.action === 'flung' || mouse.action === 'climbing') return;
+
+    if (mouse.room === state.currentRoom) {
+      // Same room: walk over and try it out
+      mouse.pendingClimb = null;
+      mouse.pendingRoomChange = null;
+      mouse.level = 'main-floor';
+      mouse.action = 'walking';
+      mouse.targetX = targetPos.x + (key === 'pip' ? -10 : 20);
+      mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
+      mouse.actionTimer = 6000;
+      setTimeout(() => {
+        if (mouse.room === state.currentRoom) {
+          const curiosity = ['ooh what\'s this? 👀', 'new thing! 🎉', '*sniff sniff*',
+            'is this for me?!', 'fancy ✨', 'dibs!', 'must investigate 🔍',
+            'MINE', 'oooh shiny', '*inspects carefully*'][Math.floor(Math.random() * 10)];
+          speechBubbles = speechBubbles.filter(b => b.mouseKey !== key);
+          speechBubbles.push({
+            x: mouse.x + 14, y: getMouseFloorY(mouse) - 10,
+            text: curiosity, timer: 2500, maxTimer: 2500, mouseKey: key
+          });
+          // Try out the item's behavior if it has one
+          if (item.mouseBehavior && item.mouseBehavior !== 'eating') {
+            mouse.action = item.mouseBehavior;
+            mouse.actionTimer = 3000 + Math.random() * 2000;
+          }
+        }
+      }, 2000);
+    } else {
+      // Different room: head toward this room to check it out
+      const nextRoom = ringStepToward(mouse.room, state.currentRoom);
+      const exitDir = nextRoom === roomRight(mouse.room) ? 1 : -1;
+      const exitX = exitDir > 0 ? ROOM_W - 5 : 5;
+      mouse.pendingClimb = null;
+      mouse.pendingRoomChange = null;
+      mouse.level = 'main-floor';
+      mouse.action = 'walking';
+      mouse.targetX = exitX;
+      mouse.dir = exitDir;
+      mouse.actionTimer = 12000;
+      mouse.pendingRoomChange = { newRoom: nextRoom, exitDir };
+    }
   });
 }
 
@@ -5787,8 +5815,36 @@ function pickNewAction(mouse, personality) {
     mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
     mouse.actionTimer = 5000;
   } else if (chosen === 'sleeping') {
-    // Transition through stretching if waking from a previous sleep
-    mouse.actionTimer = 3000 + Math.random() * 4000;
+    // Seek hammock if available — strong preference for cozy sleeping
+    const hammocks = state.placedItems.filter(p => p.itemId === 'hammock');
+    const hammockInRoom = hammocks.find(p => p.room === mouse.room);
+    if (hammockInRoom) {
+      const pos = gridToGame(hammockInRoom.gridX, hammockInRoom.gridY);
+      mouse.targetX = pos.x + 20 + Math.random() * 20;
+      mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
+      mouse.actionTimer = 4000 + Math.random() * 3000;
+      if (mouse.room === state.currentRoom && Math.random() < 0.4) {
+        const mouseKey = mouse === state.miceState.pip ? 'pip' : 'chai';
+        speechBubbles = speechBubbles.filter(b => b.mouseKey !== mouseKey);
+        speechBubbles.push({ x: mouse.x + 14, y: getMouseFloorY(mouse) - 10,
+          text: ['hammock time 🛏️', 'nap pod activated', 'the coziest spot', '*climbs in*', 'hammock calls'][Math.floor(Math.random() * 5)],
+          timer: 2500, maxTimer: 2500, mouseKey });
+      }
+    } else if (hammocks.length > 0 && Math.random() < 0.4) {
+      // Hammock in another room — walk toward it
+      const target = hammocks[0];
+      const nextRoom = ringStepToward(mouse.room, target.room);
+      const exitDir = nextRoom === roomRight(mouse.room) ? 1 : -1;
+      mouse.action = 'walking';
+      mouse.level = 'main-floor';
+      mouse.targetX = exitDir > 0 ? ROOM_W - 5 : 5;
+      mouse.dir = exitDir;
+      mouse.actionTimer = 12000;
+      mouse.pendingRoomChange = { newRoom: nextRoom, exitDir };
+      return;
+    } else {
+      mouse.actionTimer = 3000 + Math.random() * 4000;
+    }
   } else if (chosen === 'zoomies') {
     mouse.actionTimer = 2500 + Math.random() * 2000;
     mouse.dir = Math.random() < 0.5 ? 1 : -1;
