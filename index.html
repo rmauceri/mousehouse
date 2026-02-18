@@ -4795,7 +4795,7 @@ function updateMouse(mouse, dt, personality) {
         nearbyFood.servings--;
         const mouseKey = mouse === state.miceState.pip ? 'pip' : 'chai';
         // Happiness boost per bite
-        mouse.happiness = Math.min(100, (mouse.happiness || 80) + 8);
+        mouse.happiness = Math.min(100, (mouse.happiness || 80) + 15);
         updateHappinessDisplay();
         if (mouse.room === state.currentRoom) {
           const eatQuotes = ['*nom nom*', 'yum! 😋', 'so good', 'more pls', '*crunch*', 'delish ✨'];
@@ -4814,7 +4814,7 @@ function updateMouse(mouse, dt, personality) {
           mouse.action = 'idle';
           mouse.actionTimer = 1000;
         }
-        mouse._eatCooldown = 2000; // 2 seconds between bites
+        mouse._eatCooldown = 800; // 0.8 seconds between bites
         saveGame();
       }
     } else {
@@ -4900,7 +4900,7 @@ function pickNewAction(mouse, personality) {
       mouse.action = 'eating';
       mouse.targetX = pos.x + Math.random() * 10;
       mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
-      mouse.actionTimer = 4000;
+      mouse.actionTimer = 8000;
       const mouseKey = mouse === state.miceState.pip ? 'pip' : 'chai';
       if (mouse.room === state.currentRoom) {
         const hungryQuotes = ['I\'m starving 😩', 'feed me!', 'so hungry...', 'FOOD 🍽', 'need snacks 😭', 'hangry mode'];
@@ -4925,7 +4925,7 @@ function pickNewAction(mouse, personality) {
       mouse.action = 'eating';
       mouse.targetX = pos.x + Math.random() * 10;
       mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
-      mouse.actionTimer = 4000;
+      mouse.actionTimer = 8000;
       return;
     }
     // No food anywhere — show hungry complaint
