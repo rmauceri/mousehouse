@@ -1100,9 +1100,39 @@ function buildRoomTabs() {
   ).join('');
 }
 function switchRoom(i) {
+  const prevRoom = state.currentRoom;
   state.currentRoom = i;
   buildRoomTabs();
   saveGame();
+
+  // "Caught in the act" — if a mouse is alone in this room doing mischief/grooming/eating
+  ['pip', 'chai'].forEach(key => {
+    const mouse = state.miceState[key];
+    if (mouse.room !== i) return;
+    const otherKey = key === 'pip' ? 'chai' : 'pip';
+    const other = state.miceState[otherKey];
+    const isAlone = other.room !== i;
+    const caughtActions = ['mischief', 'eating', 'grooming', 'doomscrolling'];
+    if (isAlone && caughtActions.includes(mouse.action) && Math.random() < 0.5) {
+      // Freeze and look guilty
+      const prevAction = mouse.action;
+      mouse.action = 'idle';
+      mouse.actionTimer = 2000;
+      mouse._startled = true;
+      mouse._startleTimer = 800;
+      speechBubbles = speechBubbles.filter(b => b.mouseKey !== key);
+      const caughtQuotes = prevAction === 'mischief'
+        ? ['...wasn\'t doing anything 😅', 'this isn\'t what it looks like', 'I was just... inspecting', 'you saw nothing 🙈']
+        : prevAction === 'doomscrolling'
+        ? ['I wasn\'t on my phone!', '*closes 47 tabs*', 'just checking the weather 😅']
+        : ['totally normal behavior', 'how long were you watching 👀', 'oh hi! 😳'];
+      speechBubbles.push({
+        x: mouse.x + 14, y: getMouseFloorY(mouse) - 10,
+        text: caughtQuotes[Math.floor(Math.random() * caughtQuotes.length)],
+        timer: 2500, maxTimer: 2500, mouseKey: key
+      });
+    }
+  });
 }
 
 // ============================================================
@@ -4311,7 +4341,7 @@ function drawMouse(x, y, cfg, dir, frame, action, startled) {
 
   } else {
     // Standing / walking / idle / furniture-interaction mouse
-    const isFurnitureAction = ['doomscrolling','watching','yoga','eating','playing'].includes(action);
+    const isFurnitureAction = ['doomscrolling','watching','yoga','eating','playing','grooming','stretching','mischief'].includes(action);
 
     // Breathing: visible body pulse
     const breathe = Math.sin(t * 3) * 0.8;
@@ -4454,7 +4484,7 @@ function drawMouse(x, y, cfg, dir, frame, action, startled) {
       ctx.beginPath();
       ctx.arc(cx + 22, cy + 3 + headBob, 2, 0.3, Math.PI - 0.3);
       ctx.stroke();
-    } else if (action === 'eating') {
+    } else if (action === 'eating' || action === 'grooming') {
       // Happy squinty eyes
       ctx.strokeStyle = '#111';
       ctx.lineWidth = 1.5;
@@ -4522,6 +4552,30 @@ function drawMouse(x, y, cfg, dir, frame, action, startled) {
     ctx.beginPath();
     ctx.arc(cx + 23, cy + 6 + headBob, 3, 0.2, 1.2);
     ctx.stroke();
+
+    // Grooming: paw raised to face, licking motion
+    if (action === 'grooming') {
+      const lickCycle = Math.sin(t * 6) * 2;
+      ctx.fillStyle = cfg.bellyColor;
+      ctx.beginPath();
+      ctx.ellipse(cx + 22, cy + 8 + headBob + lickCycle, 3, 2, 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      // Tiny tongue
+      ctx.fillStyle = '#ff9999';
+      ctx.beginPath();
+      ctx.ellipse(cx + 24, cy + 7 + headBob + lickCycle * 0.5, 1.5, 1, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Mischief: sly look — one eyebrow raised (draw after eyes)
+    if (action === 'mischief') {
+      ctx.strokeStyle = '#111';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cx + 20, cy - 1 + headBob);
+      ctx.lineTo(cx + 24, cy - 2 + headBob);
+      ctx.stroke();
+    }
   }
 
   ctx.restore();
@@ -4731,17 +4785,21 @@ function pickNewAction(mouse, personality) {
   let weights;
   if (personality === 'chaotic') {
     weights = [
-      { action: 'idle', w: 20 },
-      { action: 'walking', w: 35 },
-      { action: 'sleeping', w: 12 },
-      { action: 'zoomies', w: 18 }
+      { action: 'idle', w: 15 },
+      { action: 'walking', w: 30 },
+      { action: 'sleeping', w: 10 },
+      { action: 'zoomies', w: 18 },
+      { action: 'grooming', w: 8 },
+      { action: 'mischief', w: 12 }
     ];
   } else {
     weights = [
-      { action: 'idle', w: 30 },
-      { action: 'walking', w: 25 },
-      { action: 'sleeping', w: 30 },
-      { action: 'zoomies', w: 5 }
+      { action: 'idle', w: 22 },
+      { action: 'walking', w: 22 },
+      { action: 'sleeping', w: 25 },
+      { action: 'zoomies', w: 5 },
+      { action: 'grooming', w: 14 },
+      { action: 'mischief', w: 6 }
     ];
   }
 
@@ -4763,11 +4821,42 @@ function pickNewAction(mouse, personality) {
     mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
     mouse.actionTimer = 8000;
   } else if (chosen === 'sleeping') {
+    // Transition through stretching if waking from a previous sleep
     mouse.actionTimer = 5000 + Math.random() * 6000;
   } else if (chosen === 'zoomies') {
     mouse.actionTimer = 2500 + Math.random() * 2000;
     mouse.dir = Math.random() < 0.5 ? 1 : -1;
     if (mouse.room === state.currentRoom) sfxZoomies();
+  } else if (chosen === 'grooming') {
+    mouse.actionTimer = 2500 + Math.random() * 2500;
+    if (mouse.room === state.currentRoom) {
+      const mouseKey = mouse === state.miceState.pip ? 'pip' : 'chai';
+      const groomQuotes = ['*lick lick*', 'gotta stay clean', 'spa day 💅', 'self-care era', '*grooming intensifies*'];
+      speechBubbles = speechBubbles.filter(b => b.mouseKey !== mouseKey);
+      speechBubbles.push({ x: mouse.x + 14, y: getMouseFloorY(mouse) - 10,
+        text: groomQuotes[Math.floor(Math.random() * groomQuotes.length)],
+        timer: 2000, maxTimer: 2000, mouseKey });
+    }
+  } else if (chosen === 'mischief') {
+    mouse.actionTimer = 3000 + Math.random() * 3000;
+    const mouseKey = mouse === state.miceState.pip ? 'pip' : 'chai';
+    // Walk to a random furniture item or shelf
+    const roomItems = state.placedItems.filter(p => p.room === mouse.room);
+    if (roomItems.length > 0) {
+      const target = roomItems[Math.floor(Math.random() * roomItems.length)];
+      const tPos = gridToGame(target.gridX, target.gridY);
+      mouse.targetX = tPos.x + Math.random() * 10;
+      mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
+    }
+    if (mouse.room === state.currentRoom) {
+      const pipMischief = ['*knocks thing off shelf*', 'oops 😈', 'wasn\'t me', 'chaos is a ladder', '*pushes to edge*', 'no thoughts just crimes'];
+      const chaiMischief = ['*claims this spot*', 'this is mine now', '*hides*', 'you can\'t see me 👀', '*box acquired*', 'stealth mode'];
+      const quotes = personality === 'chaotic' ? pipMischief : chaiMischief;
+      speechBubbles = speechBubbles.filter(b => b.mouseKey !== mouseKey);
+      speechBubbles.push({ x: mouse.x + 14, y: getMouseFloorY(mouse) - 10,
+        text: quotes[Math.floor(Math.random() * quotes.length)],
+        timer: 2500, maxTimer: 2500, mouseKey });
+    }
   } else {
     mouse.actionTimer = 2000 + Math.random() * 3000;
   }
@@ -4785,7 +4874,7 @@ function drawMouseStatus() {
 
   const actionIcons = { sleeping: '💤', walking: '🐾', zoomies: '💨', eating: '😋',
     doomscrolling: '📱', watching: '📺', yoga: '🧘', playing: '🏃',
-    wheeling: '🎡', flung: '😵‍💫', climbing: '🪜' };
+    wheeling: '🎡', flung: '😵‍💫', climbing: '🪜', grooming: '💅', mischief: '😈', stretching: '🙆' };
 
   // Pip status (left)
   const sIcon = actionIcons[pip.action] || '✨';
@@ -5047,19 +5136,27 @@ function updateMouseInteractions(dt) {
 
   const interaction = Math.random();
 
-  if (interaction < 0.35) {
-    // Nuzzle: move toward each other
+  if (interaction < 0.25) {
+    // Nuzzle/nose-boop: move toward each other, then heart burst
     const midX = (s.x + c.x) / 2;
-    s.action = 'walking'; s.targetX = midX - 15; s.dir = 1;
-    c.action = 'walking'; c.targetX = midX + 15; c.dir = -1;
+    s.action = 'walking'; s.targetX = midX - 12; s.dir = 1;
+    c.action = 'walking'; c.targetX = midX + 12; c.dir = -1;
     s.actionTimer = 4000; c.actionTimer = 4000;
     setTimeout(() => {
       if (s.room === c.room && s.room === state.currentRoom) {
-        spawnFloatingEffect((s.x + c.x) / 2 + 14, getMouseFloorY(s) - 10, '💕');
+        // Nose boop heart burst
+        const boopX = (s.x + c.x) / 2 + 14;
+        const boopY = getMouseFloorY(s) - 5;
+        for (let i = 0; i < 4; i++) {
+          setTimeout(() => {
+            spawnFloatingEffect(boopX + (Math.random() - 0.5) * 20, boopY - Math.random() * 10,
+              ['💕', '💖', '✨', '🥰'][i % 4]);
+          }, i * 100);
+        }
         triggerSpeech(Math.random() < 0.5 ? 'pip' : 'chai');
       }
     }, 2000);
-  } else if (interaction < 0.65) {
+  } else if (interaction < 0.45) {
     // Play-chase: Pip chases Chai (or vice versa)
     const chaser = Math.random() < 0.6 ? s : c;
     const runner = chaser === s ? c : s;
@@ -5071,7 +5168,6 @@ function updateMouseInteractions(dt) {
     chaser.action = 'walking';
     chaser.dir = runner.dir;
     chaser.actionTimer = 4000;
-    // Chase after a small delay
     setTimeout(() => {
       chaser.targetX = runner.targetX + (Math.random() < 0.5 ? -20 : 20);
     }, 400);
@@ -5081,6 +5177,48 @@ function updateMouseInteractions(dt) {
       text: chaserKey === 'pip' ? 'get back here! 💨' : 'wheee! 🏃',
       timer: 2000, maxTimer: 2000, mouseKey: chaserKey
     });
+  } else if (interaction < 0.6) {
+    // Synchronized sleeping: both curl up nearby
+    if (s.action !== 'wheeling' && c.action !== 'wheeling') {
+      const napX = 100 + Math.random() * (ROOM_W - 200);
+      s.action = 'walking'; s.targetX = napX - 20; s.dir = 1; s.actionTimer = 3000;
+      c.action = 'walking'; c.targetX = napX + 10; c.dir = -1; c.actionTimer = 3000;
+      setTimeout(() => {
+        if (s.room === c.room) {
+          s.action = 'sleeping'; s.actionTimer = 6000 + Math.random() * 4000;
+          c.action = 'sleeping'; c.actionTimer = 6000 + Math.random() * 4000;
+          if (s.room === state.currentRoom) {
+            spawnFloatingEffect((s.x + c.x) / 2 + 14, getMouseFloorY(s) - 15, '😴');
+          }
+        }
+      }, 2500);
+    }
+  } else if (interaction < 0.75) {
+    // Play-grooming: one grooms the other
+    const groomer = Math.random() < 0.5 ? s : c;
+    const groomee = groomer === s ? c : s;
+    const groomerKey = groomer === s ? 'pip' : 'chai';
+    const groomeeKey = groomer === s ? 'chai' : 'pip';
+    // Walk close
+    groomer.action = 'walking';
+    groomer.targetX = groomee.x + (groomer.x > groomee.x ? 15 : -15);
+    groomer.dir = groomee.x > groomer.x ? 1 : -1;
+    groomer.actionTimer = 5000;
+    setTimeout(() => {
+      if (groomer.room === groomee.room) {
+        groomer.action = 'grooming';
+        groomer.actionTimer = 3000;
+        groomer.dir = groomee.x > groomer.x ? 1 : -1;
+        groomee.action = 'idle';
+        groomee.actionTimer = 3000;
+        if (groomer.room === state.currentRoom) {
+          speechBubbles = speechBubbles.filter(b => b.mouseKey !== groomeeKey);
+          speechBubbles.push({ x: groomee.x + 14, y: getMouseFloorY(groomee) - 10,
+            text: ['thx bestie 🥺', 'aww', 'don\'t stop', '🥰'][Math.floor(Math.random() * 4)],
+            timer: 2500, maxTimer: 2500, mouseKey: groomeeKey });
+        }
+      }
+    }, 1500);
   } else {
     // Judging: one mouse stares at the other
     const judger = Math.random() < 0.6 ? s : c;
