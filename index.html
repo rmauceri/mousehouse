@@ -1503,6 +1503,25 @@ function ringStepToward(from, to) {
   return dir > 0 ? roomRight(from) : roomLeft(from);
 }
 
+// Determine which platform a placed furniture item is on
+function getFurniturePlatform(roomIdx, placed) {
+  const room = ROOMS[roomIdx];
+  if (!room || !room.platforms || room.platforms.length <= 1) return 'main-floor';
+  const itemDef = FURNITURE.find(f => f.id === placed.itemId);
+  if (!itemDef) return 'main-floor';
+  // Wall-mounts attach at top; regular items sit on bottom
+  const refY = itemDef.wallMount
+    ? GRID_OFFSET_Y + placed.gridY * GRID_SIZE
+    : GRID_OFFSET_Y + placed.gridY * GRID_SIZE + itemDef.h * GRID_SIZE;
+  let best = room.platforms[0];
+  let bestDist = Math.abs(refY - best.y);
+  for (const plat of room.platforms) {
+    const d = Math.abs(refY - plat.y);
+    if (d < bestDist) { best = plat; bestDist = d; }
+  }
+  return best.id;
+}
+
 function buildRoomTabs() {
   const tabsHTML =
     ROOMS.map((r, i) =>
@@ -5542,8 +5561,20 @@ function updateMouse(mouse, dt, personality) {
       mouse.climbRamp = null;
       mouse.climbTargetLevel = null;
       mouse.climbGoingUp = null;
-      mouse.action = 'idle';
-      mouse.actionTimer = 1000 + Math.random() * 1500;
+      // If pending furniture interaction, continue walking to the item
+      if (mouse.pendingFurniture) {
+        const pf = mouse.pendingFurniture;
+        const itemDef = FURNITURE.find(f => f.id === pf.placed.itemId);
+        const fw = (itemDef ? itemDef.w : 1) * GRID_SIZE;
+        const targetPos = gridToGame(pf.placed.gridX, pf.placed.gridY);
+        mouse.action = 'walking';
+        mouse.targetX = targetPos.x + fw / 2;
+        mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
+        mouse.actionTimer = 6000;
+      } else {
+        mouse.action = 'idle';
+        mouse.actionTimer = 1000 + Math.random() * 1500;
+      }
     }
     // Animate frame during climb
     mouse.animTimer += dt;
@@ -5854,9 +5885,27 @@ function pickNewAction(mouse, personality) {
       const fw = (itemDef ? itemDef.w : 1) * GRID_SIZE;
       mouse.pendingFurniture = { behavior: pick.behavior, placed: pick.placed, timer: mouse.actionTimer };
       mouse.action = 'walking';
-      mouse.targetX = targetPos.x + fw / 2;
-      mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
-      mouse.actionTimer = 8000;
+      mouse.actionTimer = 10000;
+      // Check if mouse needs to climb to the furniture's platform
+      const furnPlatform = getFurniturePlatform(mouse.room, pick.placed);
+      if (mouse.level !== furnPlatform) {
+        const room = ROOMS[mouse.room];
+        const ramp = room.ramps && room.ramps.find(r =>
+          (r.from === mouse.level && r.to === furnPlatform) ||
+          (r.to === mouse.level && r.from === furnPlatform));
+        if (ramp) {
+          const goingUp = ramp.from === mouse.level;
+          mouse.targetX = goingUp ? ramp.x1 : ramp.x2;
+          mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
+          mouse.pendingClimb = { ramp, targetLevel: furnPlatform, goingUp };
+        } else {
+          mouse.targetX = targetPos.x + fw / 2;
+          mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
+        }
+      } else {
+        mouse.targetX = targetPos.x + fw / 2;
+        mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
+      }
     }
     // Speech for new behaviors
     if (mouse.room === state.currentRoom) {
@@ -5935,9 +5984,27 @@ function pickNewAction(mouse, personality) {
       const fw = 3 * GRID_SIZE;
       mouse.pendingFurniture = { behavior: 'sleeping', placed: hammockInRoom, timer: 5000 + Math.random() * 4000 };
       mouse.action = 'walking';
-      mouse.targetX = pos.x + fw / 2;
-      mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
-      mouse.actionTimer = 8000;
+      mouse.actionTimer = 10000;
+      // Climb to hammock's platform if needed
+      const furnPlatform = getFurniturePlatform(mouse.room, hammockInRoom);
+      if (mouse.level !== furnPlatform) {
+        const room = ROOMS[mouse.room];
+        const ramp = room.ramps && room.ramps.find(r =>
+          (r.from === mouse.level && r.to === furnPlatform) ||
+          (r.to === mouse.level && r.from === furnPlatform));
+        if (ramp) {
+          const goingUp = ramp.from === mouse.level;
+          mouse.targetX = goingUp ? ramp.x1 : ramp.x2;
+          mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
+          mouse.pendingClimb = { ramp, targetLevel: furnPlatform, goingUp };
+        } else {
+          mouse.targetX = pos.x + fw / 2;
+          mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
+        }
+      } else {
+        mouse.targetX = pos.x + fw / 2;
+        mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
+      }
       if (mouse.room === state.currentRoom && Math.random() < 0.4) {
         const mouseKey = mouse === state.miceState.pip ? 'pip' : 'chai';
         speechBubbles = speechBubbles.filter(b => b.mouseKey !== mouseKey);
