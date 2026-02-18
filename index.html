@@ -4091,7 +4091,7 @@ function spawnCoinEffect(amount, x, y) {
 // ============================================================
 // HAPPINESS SYSTEM
 // ============================================================
-const HAPPINESS_DECAY_RATE = 0.002; // ~1 point per 8 minutes — food needed to sustain
+const HAPPINESS_DECAY_RATE = 0.0008; // ~1 point per ~20 minutes
 
 function getAverageHappiness() {
   return Math.round((state.miceState.pip.happiness + state.miceState.chai.happiness) / 2);
@@ -4887,40 +4887,30 @@ function pickNewAction(mouse, personality) {
   // Hunger-driven food seeking: when happiness is low, urgently find food
   const isHungry = (mouse.happiness || 80) < 35;
   if (isHungry) {
-    // Look for food with servings in any room
-    const foodInRoom = state.placedItems.filter(p => {
-      if (p.room !== mouse.room) return false;
+    // Check all rooms for food with servings remaining
+    const allFood = state.placedItems.filter(p => {
       const item = FURNITURE.find(f => f.id === p.itemId);
       return item && item.servings && (p.servings === undefined || p.servings > 0);
     });
+    const foodInRoom = allFood.filter(p => p.room === mouse.room);
+
     if (foodInRoom.length > 0) {
-      // Rush to nearest food
+      // Rush to nearest food in this room — no complaining
       const target = foodInRoom[Math.floor(Math.random() * foodInRoom.length)];
       const pos = gridToGame(target.gridX, target.gridY);
       mouse.action = 'eating';
       mouse.targetX = pos.x + Math.random() * 10;
       mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
       mouse.actionTimer = 8000;
-      const mouseKey = mouse === state.miceState.pip ? 'pip' : 'chai';
-      if (mouse.room === state.currentRoom) {
-        const hungryQuotes = ['I\'m starving 😩', 'feed me!', 'so hungry...', 'FOOD 🍽', 'need snacks 😭', 'hangry mode'];
-        speechBubbles = speechBubbles.filter(b => b.mouseKey !== mouseKey);
-        speechBubbles.push({ x: mouse.x + 14, y: getMouseFloorY(mouse) - 10,
-          text: hungryQuotes[Math.floor(Math.random() * hungryQuotes.length)],
-          timer: 2000, maxTimer: 2000, mouseKey });
-      }
       return;
     }
-    // No food in this room — check other rooms and switch
-    const foodElsewhere = state.placedItems.find(p => {
-      if (p.room === mouse.room) return false;
-      const item = FURNITURE.find(f => f.id === p.itemId);
-      return item && item.servings && (p.servings === undefined || p.servings > 0);
-    });
-    if (foodElsewhere && Math.random() < 0.5) {
-      mouse.room = foodElsewhere.room;
+    // No food in this room — switch to a room that has food
+    const foodElsewhere = allFood.filter(p => p.room !== mouse.room);
+    if (foodElsewhere.length > 0) {
+      const target = foodElsewhere[Math.floor(Math.random() * foodElsewhere.length)];
+      mouse.room = target.room;
       mouse.level = 'main-floor';
-      const pos = gridToGame(foodElsewhere.gridX, foodElsewhere.gridY);
+      const pos = gridToGame(target.gridX, target.gridY);
       mouse.x = pos.x + (Math.random() < 0.5 ? -30 : 30);
       mouse.action = 'eating';
       mouse.targetX = pos.x + Math.random() * 10;
@@ -4928,7 +4918,7 @@ function pickNewAction(mouse, personality) {
       mouse.actionTimer = 8000;
       return;
     }
-    // No food anywhere — show hungry complaint
+    // Truly no food anywhere — complain
     if (mouse.room === state.currentRoom && Math.random() < 0.3) {
       const mouseKey = mouse === state.miceState.pip ? 'pip' : 'chai';
       const noFoodQuotes = ['where\'s the food?! 😰', '*stomach growls*', 'buy us food! 😩', 'empty bowl era 😢'];
