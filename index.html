@@ -341,19 +341,17 @@ html, body {
   /* Pin canvas to top */
   #gameCanvas { margin-top: 0 !important; }
 
-  /* HUD: split into two rows, compact */
+  /* HUD: consistent single row — room nav left, action buttons right */
   #hud-row1 {
-    padding: 4px 8px;
-    flex-wrap: wrap;
+    padding: 4px 6px;
     gap: 4px;
   }
   /* Hide text labels on buttons, keep icons */
   #btn-shop .btn-label,
   #btn-games .btn-label { display: none; }
-  #hud button { padding: 4px 8px; font-size: 12px; margin-left: 3px; }
-  .room-tabs { order: 10; width: 100%; justify-content: center; gap: 2px; }
-  .room-tabs button { padding: 4px 8px; font-size: 12px; }
-  .hud-right { gap: 1px; }
+  #hud button { padding: 4px 8px; font-size: 12px; margin-left: 2px; }
+  .room-tabs { gap: 1px; margin-left: 4px; border-left: 1px solid rgba(160,112,64,0.5); padding-left: 4px; }
+  .room-tabs button { padding: 3px 6px; font-size: 11px; }
 
   /* Flyouts: full width on mobile */
   #shop-flyout, #games-flyout { width: 100%; }
@@ -385,12 +383,12 @@ html, body {
 
 <div id="hud">
   <div id="hud-row1">
-    <div style="display:flex;align-items:center;gap:10px;">
+    <div style="display:flex;align-items:center;gap:6px;">
       <span>🧀 <span id="coin-display">0</span></span>
       <span id="happiness-display" title="Mouse Happiness">❤️ <span id="happiness-value">80</span>%</span>
+      <div class="room-tabs" id="room-tabs"></div>
     </div>
     <div class="hud-right">
-      <div class="room-tabs" id="room-tabs"></div>
       <button id="btn-shop">🛒<span class="btn-label"> Moustazon</span></button>
       <button id="btn-games">🎮<span class="btn-label"> Games</span></button>
       <button id="btn-letter">💌</button>
@@ -3249,8 +3247,15 @@ function syncTrayToggle() {
   const btn = document.getElementById('tray-toggle');
   const tray = document.getElementById('item-tray');
   const isOpen = tray.classList.contains('open');
-  if (isOpen) { btn.classList.add('open'); btn.querySelector('span').style.transform = 'rotate(90deg)'; }
-  else { btn.classList.remove('open'); btn.querySelector('span').style.transform = 'rotate(-90deg)'; }
+  if (isOpen) {
+    btn.classList.add('open');
+    btn.querySelector('span').style.transform = 'rotate(90deg)';
+    requestAnimationFrame(() => { btn.style.bottom = tray.offsetHeight + 'px'; });
+  } else {
+    btn.classList.remove('open');
+    btn.querySelector('span').style.transform = 'rotate(-90deg)';
+    btn.style.bottom = '';
+  }
 }
 
 function showBackdrop() { document.getElementById('flyout-backdrop').classList.add('visible'); }
@@ -3360,6 +3365,13 @@ function refreshItemTray() {
     </div>`;
   });
   tray.innerHTML = html;
+  // Re-sync chevron position after tray content changes height
+  if (tray.classList.contains('open')) {
+    requestAnimationFrame(() => {
+      const btn = document.getElementById('tray-toggle');
+      btn.style.bottom = tray.offsetHeight + 'px';
+    });
+  }
 }
 
 function highlightTrayItem(itemId) {
