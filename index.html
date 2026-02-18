@@ -1592,14 +1592,14 @@ function drawRoomScene(roomIndex, offsetX) {
     if (pip.action === 'flung') drawFlungMouse(pip, CONFIG.mice.pip);
     else drawMouse(pip.x, fy, CONFIG.mice.pip, pip.dir, pip.frame, pip.action, pip._startled);
     drawPartyHat(pip.action === 'flung' ? pip.flingX : pip.x,
-                 pip.action === 'flung' ? pip.flingY : fy, pip.action, pip.dir, CONFIG.mice.pip);
+                 pip.action === 'flung' ? pip.flingY : fy, pip.action, pip.dir, CONFIG.mice.pip, roomIndex);
   }
   if (chai.room === roomIndex && chai.action !== 'wheeling' && !chai.onFurniture) {
     const fy = getMouseFloorY(chai);
     if (chai.action === 'flung') drawFlungMouse(chai, CONFIG.mice.chai);
     else drawMouse(chai.x, fy, CONFIG.mice.chai, chai.dir, chai.frame, chai.action, chai._startled);
     drawPartyHat(chai.action === 'flung' ? chai.flingX : chai.x,
-                 chai.action === 'flung' ? chai.flingY : fy, chai.action, chai.dir, CONFIG.mice.chai);
+                 chai.action === 'flung' ? chai.flingY : fy, chai.action, chai.dir, CONFIG.mice.chai, roomIndex);
   }
   ctx.restore();
 }
@@ -4816,8 +4816,11 @@ function openLetter() {
 // ============================================================
 // PARTY HATS (drawn on mice during birthday)
 // ============================================================
-function drawPartyHat(x, y, action, dir, cfg) {
+function drawPartyHat(x, y, action, dir, cfg, roomIdx) {
   if (!state.birthdayEventSeen) return;
+  // Only wear hats when a birthday cake is in this room
+  const cakeInRoom = state.placedItems.some(p => p.itemId === 'birthday-cake' && p.room === roomIdx);
+  if (!cakeInRoom) return;
   const mouseScale = (cfg && cfg.scale) || 1.0;
   const cx = Math.floor(x);
   const cy = Math.floor(y);
@@ -7188,7 +7191,7 @@ function gameLoop(now) {
             drawMouse(pip.x, pipFloorY, CONFIG.mice.pip, pip.dir, pip.frame, pip.action, pip._startled);
           }
           drawPartyHat(pip.action === 'flung' ? pip.flingX : pip.x,
-                       pip.action === 'flung' ? pip.flingY : pipFloorY, pip.action, pip.dir, CONFIG.mice.pip);
+                       pip.action === 'flung' ? pip.flingY : pipFloorY, pip.action, pip.dir, CONFIG.mice.pip, state.currentRoom);
         }
         if (chai.room === state.currentRoom && chai.action !== 'wheeling' && !chai.onFurniture) {
           if (chai.action === 'flung') {
@@ -7197,7 +7200,7 @@ function gameLoop(now) {
             drawMouse(chai.x, chaiFloorY, CONFIG.mice.chai, chai.dir, chai.frame, chai.action, chai._startled);
           }
           drawPartyHat(chai.action === 'flung' ? chai.flingX : chai.x,
-                       chai.action === 'flung' ? chai.flingY : chaiFloorY, chai.action, chai.dir, CONFIG.mice.chai);
+                       chai.action === 'flung' ? chai.flingY : chaiFloorY, chai.action, chai.dir, CONFIG.mice.chai, state.currentRoom);
         }
       }
 
