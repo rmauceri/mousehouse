@@ -798,6 +798,281 @@ function playMusicNote() {
   musicTimeout = setTimeout(playMusicNote, dur);
 }
 
+// ============================================================
+// MINI-GAME SOUNDTRACKS
+// ============================================================
+let gameMusicPlaying = false;
+let gameMusicTimeout = null;
+let gameMusicIntensity = 0; // 0-1, drives tempo/layers
+
+function stopGameMusic() {
+  gameMusicPlaying = false;
+  if (gameMusicTimeout) clearTimeout(gameMusicTimeout);
+  gameMusicTimeout = null;
+}
+
+// --- Cheese Chase: frantic chase in minor key ---
+const CHASE_NOTES = [
+  // A minor pentatonic, frantic ascending/descending runs
+  [440, 392, 349, 330, 294, 330, 349, 392],  // phrase A
+  [440, 494, 523, 494, 440, 392, 349, 330],  // phrase B
+  [523, 494, 440, 392, 440, 494, 523, 587],  // phrase C — climbs higher
+  [587, 523, 494, 440, 523, 587, 659, 587],  // phrase D — intense
+];
+let chaseNoteIdx = 0, chasePhraseIdx = 0;
+
+function startChaseMusic() {
+  if (!audioCtx || audioMuted) return;
+  gameMusicPlaying = true;
+  gameMusicIntensity = 0;
+  chaseNoteIdx = 0;
+  chasePhraseIdx = 0;
+  playChaseMusicNote();
+}
+
+function playChaseMusicNote() {
+  if (!gameMusicPlaying || audioMuted) { gameMusicPlaying = false; return; }
+  const phrase = CHASE_NOTES[chasePhraseIdx % CHASE_NOTES.length];
+  const freq = phrase[chaseNoteIdx % phrase.length];
+  // Tempo increases with intensity: 180ms → 90ms
+  const tempo = Math.max(90, 180 - gameMusicIntensity * 90);
+  const dur = tempo * 0.8;
+
+  // Lead: square wave for retro chase feel
+  const osc = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  osc.type = 'square';
+  osc.frequency.value = freq;
+  const vol = 0.04 + gameMusicIntensity * 0.02;
+  g.gain.setValueAtTime(0, audioCtx.currentTime);
+  g.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.01);
+  g.gain.setTargetAtTime(0, audioCtx.currentTime + dur / 1000 * 0.5, dur / 1000 * 0.15);
+  osc.connect(g); g.connect(musicGain);
+  osc.start(audioCtx.currentTime);
+  osc.stop(audioCtx.currentTime + dur / 1000 + 0.05);
+
+  // Bass pulse on every 4th note
+  if (chaseNoteIdx % 4 === 0) {
+    const ob = audioCtx.createOscillator();
+    const gb = audioCtx.createGain();
+    ob.type = 'triangle';
+    ob.frequency.value = freq * 0.25;
+    gb.gain.value = 0.03 + gameMusicIntensity * 0.02;
+    gb.gain.setTargetAtTime(0, audioCtx.currentTime + 0.08, 0.04);
+    ob.connect(gb); gb.connect(musicGain);
+    ob.start(audioCtx.currentTime);
+    ob.stop(audioCtx.currentTime + 0.15);
+  }
+
+  // Harmony layer kicks in at intensity > 0.3
+  if (gameMusicIntensity > 0.3 && chaseNoteIdx % 2 === 0) {
+    const oh = audioCtx.createOscillator();
+    const gh = audioCtx.createGain();
+    oh.type = 'sawtooth';
+    oh.frequency.value = freq * 1.5; // fifth above
+    gh.gain.value = 0.015 + gameMusicIntensity * 0.01;
+    gh.gain.setTargetAtTime(0, audioCtx.currentTime + dur / 1000 * 0.4, dur / 1000 * 0.1);
+    oh.connect(gh); gh.connect(musicGain);
+    oh.start(audioCtx.currentTime);
+    oh.stop(audioCtx.currentTime + dur / 1000 + 0.05);
+  }
+
+  // High arpeggio at intensity > 0.6
+  if (gameMusicIntensity > 0.6 && chaseNoteIdx % 3 === 0) {
+    const oa = audioCtx.createOscillator();
+    const ga = audioCtx.createGain();
+    oa.type = 'sine';
+    oa.frequency.value = freq * 2;
+    ga.gain.value = 0.02;
+    ga.gain.setTargetAtTime(0, audioCtx.currentTime + 0.04, 0.02);
+    oa.connect(ga); ga.connect(musicGain);
+    oa.start(audioCtx.currentTime);
+    oa.stop(audioCtx.currentTime + 0.08);
+  }
+
+  chaseNoteIdx++;
+  if (chaseNoteIdx >= phrase.length) {
+    chaseNoteIdx = 0;
+    // Pick higher-intensity phrases as game progresses
+    chasePhraseIdx = Math.min(Math.floor(gameMusicIntensity * CHASE_NOTES.length), CHASE_NOTES.length - 1);
+  }
+  gameMusicTimeout = setTimeout(playChaseMusicNote, tempo);
+}
+
+// --- Doomscroll: chill lo-fi with tension on strikes ---
+const LOFI_NOTES = [
+  [262, 294, 330, 349, 330, 294, 262, 247], // C major chill
+  [330, 349, 392, 349, 330, 294, 330, 349], // gentle rise
+  [392, 349, 330, 294, 262, 294, 330, 262], // descend
+];
+let lofiNoteIdx = 0, lofiPhraseIdx = 0;
+
+function startLofiMusic() {
+  if (!audioCtx || audioMuted) return;
+  gameMusicPlaying = true;
+  gameMusicIntensity = 0;
+  lofiNoteIdx = 0;
+  lofiPhraseIdx = 0;
+  playLofiMusicNote();
+}
+
+function playLofiMusicNote() {
+  if (!gameMusicPlaying || audioMuted) { gameMusicPlaying = false; return; }
+  const phrase = LOFI_NOTES[lofiPhraseIdx % LOFI_NOTES.length];
+  const freq = phrase[lofiNoteIdx % phrase.length];
+  // Tempo: relaxed 280ms, speeds up slightly with strikes
+  const tempo = Math.max(180, 280 - gameMusicIntensity * 100);
+  const dur = tempo * 1.2;
+
+  // Warm sine pad
+  const osc = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = freq;
+  g.gain.setValueAtTime(0, audioCtx.currentTime);
+  g.gain.linearRampToValueAtTime(0.05, audioCtx.currentTime + 0.06);
+  g.gain.setTargetAtTime(0, audioCtx.currentTime + dur / 1000 * 0.6, dur / 1000 * 0.2);
+  osc.connect(g); g.connect(musicGain);
+  osc.start(audioCtx.currentTime);
+  osc.stop(audioCtx.currentTime + dur / 1000 + 0.1);
+
+  // Soft triangle harmony
+  if (lofiNoteIdx % 3 === 0) {
+    const oh = audioCtx.createOscillator();
+    const gh = audioCtx.createGain();
+    oh.type = 'triangle';
+    oh.frequency.value = freq * 0.75; // third below
+    gh.gain.value = 0.025;
+    gh.gain.setTargetAtTime(0, audioCtx.currentTime + dur / 1000 * 0.4, dur / 1000 * 0.15);
+    oh.connect(gh); gh.connect(musicGain);
+    oh.start(audioCtx.currentTime);
+    oh.stop(audioCtx.currentTime + dur / 1000 + 0.1);
+  }
+
+  // Dissonant tension notes as strikes increase
+  if (gameMusicIntensity > 0.3 && lofiNoteIdx % 4 === 0) {
+    const od = audioCtx.createOscillator();
+    const gd = audioCtx.createGain();
+    od.type = 'sawtooth';
+    // Slightly off-key for tension
+    od.frequency.value = freq * (1 + gameMusicIntensity * 0.08);
+    gd.gain.value = 0.01 + gameMusicIntensity * 0.02;
+    gd.gain.setTargetAtTime(0, audioCtx.currentTime + 0.1, 0.05);
+    od.connect(gd); gd.connect(musicGain);
+    od.start(audioCtx.currentTime);
+    od.stop(audioCtx.currentTime + 0.2);
+  }
+
+  // Heartbeat bass at high tension
+  if (gameMusicIntensity > 0.5 && lofiNoteIdx % 4 === 0) {
+    const ob = audioCtx.createOscillator();
+    const gb = audioCtx.createGain();
+    ob.type = 'sine';
+    ob.frequency.value = 80;
+    gb.gain.value = 0.04;
+    gb.gain.setTargetAtTime(0, audioCtx.currentTime + 0.06, 0.03);
+    ob.connect(gb); gb.connect(musicGain);
+    ob.start(audioCtx.currentTime);
+    ob.stop(audioCtx.currentTime + 0.12);
+  }
+
+  lofiNoteIdx++;
+  if (lofiNoteIdx >= phrase.length) {
+    lofiNoteIdx = 0;
+    lofiPhraseIdx++;
+  }
+  gameMusicTimeout = setTimeout(playLofiMusicNote, tempo);
+}
+
+// --- Mouse Maze: exploration to triumph ---
+const MAZE_NOTES = [
+  // Level 1: sparse, mysterious (E minor)
+  [330, 0, 294, 0, 330, 370, 330, 0],
+  // Level 2: more melodic (G major)
+  [392, 440, 494, 440, 392, 349, 392, 440],
+  // Level 3: triumphant (C major rising)
+  [523, 494, 523, 587, 659, 587, 523, 659],
+];
+let mazeNoteIdx = 0;
+
+function startMazeMusic() {
+  if (!audioCtx || audioMuted) return;
+  gameMusicPlaying = true;
+  gameMusicIntensity = 0;
+  mazeNoteIdx = 0;
+  playMazeMusicNote();
+}
+
+function playMazeMusicNote() {
+  if (!gameMusicPlaying || audioMuted) { gameMusicPlaying = false; return; }
+  // Pick phrase based on level (intensity 0=L1, 0.33=L2, 0.67=L3)
+  const phraseIdx = Math.min(Math.floor(gameMusicIntensity * 3), 2);
+  const phrase = MAZE_NOTES[phraseIdx];
+  const freq = phrase[mazeNoteIdx % phrase.length];
+  // Tempo: starts slow 350ms, speeds up per level
+  const tempo = Math.max(180, 350 - gameMusicIntensity * 170);
+  const dur = tempo * 1.0;
+
+  if (freq > 0) {
+    // Echoey triangle for exploration feel
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = freq;
+    const vol = 0.04 + gameMusicIntensity * 0.03;
+    g.gain.setValueAtTime(0, audioCtx.currentTime);
+    g.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.03);
+    g.gain.setTargetAtTime(0, audioCtx.currentTime + dur / 1000 * 0.7, dur / 1000 * 0.25);
+    osc.connect(g); g.connect(musicGain);
+    osc.start(audioCtx.currentTime);
+    osc.stop(audioCtx.currentTime + dur / 1000 + 0.2);
+
+    // Echo/delay effect — faint repeat
+    setTimeout(() => {
+      if (!gameMusicPlaying || audioMuted) return;
+      const osc2 = audioCtx.createOscillator();
+      const g2 = audioCtx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.value = freq * 1.005; // very slight detune for shimmer
+      g2.gain.value = 0.015;
+      g2.gain.setTargetAtTime(0, audioCtx.currentTime + 0.1, 0.08);
+      osc2.connect(g2); g2.connect(musicGain);
+      osc2.start(audioCtx.currentTime);
+      osc2.stop(audioCtx.currentTime + 0.2);
+    }, tempo * 0.4);
+
+    // Bass notes in later levels
+    if (gameMusicIntensity > 0.3 && mazeNoteIdx % 4 === 0) {
+      const ob = audioCtx.createOscillator();
+      const gb = audioCtx.createGain();
+      ob.type = 'sine';
+      ob.frequency.value = freq * 0.5;
+      gb.gain.value = 0.025;
+      gb.gain.setTargetAtTime(0, audioCtx.currentTime + 0.15, 0.08);
+      ob.connect(gb); gb.connect(musicGain);
+      ob.start(audioCtx.currentTime);
+      ob.stop(audioCtx.currentTime + 0.3);
+    }
+
+    // Chime harmony in level 3
+    if (gameMusicIntensity > 0.6 && mazeNoteIdx % 2 === 0) {
+      const oc = audioCtx.createOscillator();
+      const gc = audioCtx.createGain();
+      oc.type = 'sine';
+      oc.frequency.value = freq * 2;
+      gc.gain.value = 0.012;
+      gc.gain.setTargetAtTime(0, audioCtx.currentTime + 0.06, 0.04);
+      oc.connect(gc); gc.connect(musicGain);
+      oc.start(audioCtx.currentTime);
+      oc.stop(audioCtx.currentTime + 0.12);
+    }
+  }
+
+  mazeNoteIdx++;
+  if (mazeNoteIdx >= phrase.length) mazeNoteIdx = 0;
+  gameMusicTimeout = setTimeout(playMazeMusicNote, tempo);
+}
+
 // Wire up sound button and volume slider
 document.getElementById('btn-sound').addEventListener('click', (e) => {
   toggleMute();
@@ -3240,6 +3515,8 @@ function startCheeseChase() {
   closeGamesFlyout();
   cheeseChaseActive = true;
   ccInputY = null;
+  stopMusic();
+  startChaseMusic();
   cc = {
     mouseY: GAME_H / 2,
     score: 0,
@@ -3262,6 +3539,7 @@ function updateCheeseChase(dt) {
 
   cc.distance += cc.speed;
   cc.speed = 1.8 + cc.distance / 4000;
+  gameMusicIntensity = Math.min(1, cc.distance / 8000);
   cc.spawnTimer -= dt;
 
   // Spawn obstacles and cheese
@@ -3471,6 +3749,7 @@ function drawCheeseChase() {
 }
 
 function endCheeseChase() {
+  stopGameMusic();
   const earned = cc.score * 2;
   state.coins += earned;
   state.totalCoinsEarned += earned;
@@ -3478,6 +3757,7 @@ function endCheeseChase() {
   updateCoinDisplay();
   saveGame();
   cheeseChaseActive = false;
+  startMusic();
   sfxCoinCollect();
   spawnCoinEffect(earned, GAME_W / 2, GAME_H / 2 - 20);
   showToast(`Cheese Chase: earned 🧀 ${earned} coins!`);
@@ -3524,6 +3804,8 @@ function startDoomscroll() {
   closeModal();
   closeGamesFlyout();
   dsActive = true;
+  stopMusic();
+  startLofiMusic();
   const shuffled = [...DOOMSCROLL_POSTS].sort(() => Math.random() - 0.5);
   ds = {
     posts: shuffled.slice(0, 10),
@@ -3564,7 +3846,7 @@ function renderDoomscroll() {
             ds.strikes >= 3 ? 'Touch grass immediately. 🌱' :
             'Not bad, but maybe log off for a bit.'}
         </p>
-        <button class="close-btn" onclick="dsActive=false;closeModal()">Nice</button>
+        <button class="close-btn" onclick="dsActive=false;stopGameMusic();startMusic();closeModal()">Nice</button>
       </div>
     </div>`;
     return;
@@ -3619,8 +3901,11 @@ function doomscrollAction(liked) {
   }
 
   ds.current++;
+  gameMusicIntensity = Math.min(1, ds.strikes / ds.maxStrikes);
   if (ds.current >= ds.posts.length || ds.strikes >= ds.maxStrikes) {
     ds.finished = true;
+    stopGameMusic();
+    startMusic();
   }
   renderDoomscroll();
 }
@@ -3678,6 +3963,8 @@ function startMouseMaze() {
   closeModal();
   closeGamesFlyout();
   mouseMazeActive = true;
+  stopMusic();
+  startMazeMusic();
   mz = {
     level: 1,
     totalScore: 0,
@@ -3687,6 +3974,7 @@ function startMouseMaze() {
 }
 
 function initMazeLevel(level) {
+  gameMusicIntensity = (level - 1) / 2; // 0, 0.5, 1.0 for levels 1-3
   const cols = 6 + level * 2;  // 8, 10, 12
   const rows = 5 + level;      // 6, 7, 8
   const grid = generateMaze(cols, rows);
@@ -3928,6 +4216,7 @@ function drawMouseMaze() {
 }
 
 function endMouseMaze() {
+  stopGameMusic();
   const earned = mz.totalScore;
   state.coins += earned;
   state.totalCoinsEarned += earned;
@@ -3935,6 +4224,7 @@ function endMouseMaze() {
   updateCoinDisplay();
   saveGame();
   mouseMazeActive = false;
+  startMusic();
   sfxCoinCollect();
   spawnCoinEffect(earned, GAME_W / 2, GAME_H / 2 - 20);
   showToast(`Mouse Maze: earned 🧀 ${earned} coins!`);
