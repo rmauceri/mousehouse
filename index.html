@@ -190,6 +190,16 @@ html, body {
 #games-flyout .game-item .gi-desc { color: #a89070; font-size: 10px; margin-top: 4px; }
 
 /* ---- Item Tray (bottom palette) ---- */
+#tray-toggle {
+  position: fixed; bottom: 0; right: 8px; z-index: 31;
+  width: 32px; height: 24px; background: rgba(30,20,10,0.92);
+  border: 2px solid #a07040; border-bottom: none; border-radius: 6px 6px 0 0;
+  color: #f5d68a; font-size: 14px; cursor: pointer; display: none;
+  align-items: center; justify-content: center; font-family: 'Courier New', monospace;
+  transition: background 0.15s;
+}
+#tray-toggle:hover { background: #3d2b1a; }
+#tray-toggle.open { bottom: 72px; }
 #item-tray {
   position: fixed; bottom: 0; left: 0; width: 100%; height: 72px;
   background: rgba(30,20,10,0.92); border-top: 2px solid #a07040;
@@ -390,6 +400,7 @@ html, body {
   </div>
 </div>
 
+<div id="tray-toggle" title="Toggle item tray">▲</div>
 <div id="item-tray"></div>
 
 <div id="trash-zone">🗑</div>
@@ -2862,29 +2873,60 @@ function reactToNewFurniture(item) {
 // ============================================================
 // SHOP FLYOUT PANEL
 // ============================================================
+let trayOpen = false;
+
+function toggleTray() {
+  trayOpen = !trayOpen;
+  const tray = document.getElementById('item-tray');
+  const btn = document.getElementById('tray-toggle');
+  if (trayOpen) {
+    refreshItemTray();
+    tray.classList.add('open');
+    btn.classList.add('open');
+    btn.textContent = '▼';
+  } else {
+    if (!state.shopOpen) tray.classList.remove('open');
+    btn.classList.remove('open');
+    btn.textContent = '▲';
+    cancelPlacement();
+  }
+}
+
+document.getElementById('tray-toggle').addEventListener('click', toggleTray);
+
+function syncTrayToggle() {
+  const btn = document.getElementById('tray-toggle');
+  const tray = document.getElementById('item-tray');
+  const isOpen = tray.classList.contains('open');
+  if (isOpen) { btn.classList.add('open'); btn.textContent = '▼'; }
+  else { btn.classList.remove('open'); btn.textContent = '▲'; }
+}
+
 function toggleShopFlyout() {
   state.shopOpen = !state.shopOpen;
   const flyout = document.getElementById('shop-flyout');
   const tray = document.getElementById('item-tray');
   if (state.shopOpen) {
-    // Close games flyout if open
     if (gamesOpen) closeGamesFlyout();
     refreshShopFlyout();
     refreshItemTray();
     flyout.classList.add('open');
     tray.classList.add('open');
+    syncTrayToggle();
   } else {
     flyout.classList.remove('open');
-    tray.classList.remove('open');
+    if (!trayOpen) tray.classList.remove('open');
     cancelPlacement();
+    syncTrayToggle();
   }
 }
 
 function closeShopFlyout() {
   state.shopOpen = false;
   document.getElementById('shop-flyout').classList.remove('open');
-  document.getElementById('item-tray').classList.remove('open');
+  if (!trayOpen) document.getElementById('item-tray').classList.remove('open');
   cancelPlacement();
+  syncTrayToggle();
 }
 
 function refreshShopFlyout() {
@@ -5806,6 +5848,7 @@ function startGame() {
   document.getElementById('title-screen').style.display = 'none';
   document.getElementById('title-about-overlay').style.display = 'none';
   document.getElementById('hud').style.display = 'flex';
+  document.getElementById('tray-toggle').style.display = 'flex';
   loadGame();
   loadAudioPrefs();
   initAudio();
