@@ -1482,8 +1482,17 @@ function buildRoomTabs() {
   document.getElementById('room-tabs').innerHTML = tabsHTML;
   document.getElementById('room-tabs-mobile').innerHTML = tabsHTML;
 }
+// Room slide transition state
+let roomTransition = { active: false, from: 0, to: 0, dir: 0, progress: 0, duration: 300 };
+
 function switchRoom(i) {
+  if (i === state.currentRoom) return;
+  if (roomTransition.active) return; // ignore during animation
   const prevRoom = state.currentRoom;
+  // Determine slide direction on the ring
+  const dir = ringDirection(prevRoom, i);
+  // Start slide animation
+  roomTransition = { active: true, from: prevRoom, to: i, dir, progress: 0, duration: 300 };
   state.currentRoom = i;
   buildRoomTabs();
   saveGame();
@@ -1516,6 +1525,34 @@ function switchRoom(i) {
       });
     }
   });
+}
+
+// Draw a room and its mice at a given x-offset (used for slide transitions)
+function drawRoomScene(roomIndex, offsetX) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(Math.max(0, offsetX), 0, GAME_W, GAME_H);
+  ctx.clip();
+  ctx.translate(offsetX, 0);
+  drawRoom(roomIndex);
+  // Draw mice in this room
+  const pip = state.miceState.pip;
+  const chai = state.miceState.chai;
+  if (pip.room === roomIndex && pip.action !== 'wheeling') {
+    const fy = getMouseFloorY(pip);
+    if (pip.action === 'flung') drawFlungMouse(pip, CONFIG.mice.pip);
+    else drawMouse(pip.x, fy, CONFIG.mice.pip, pip.dir, pip.frame, pip.action, pip._startled);
+    drawPartyHat(pip.action === 'flung' ? pip.flingX : pip.x,
+                 pip.action === 'flung' ? pip.flingY : fy, pip.action, pip.dir, CONFIG.mice.pip);
+  }
+  if (chai.room === roomIndex && chai.action !== 'wheeling') {
+    const fy = getMouseFloorY(chai);
+    if (chai.action === 'flung') drawFlungMouse(chai, CONFIG.mice.chai);
+    else drawMouse(chai.x, fy, CONFIG.mice.chai, chai.dir, chai.frame, chai.action, chai._startled);
+    drawPartyHat(chai.action === 'flung' ? chai.flingX : chai.x,
+                 chai.action === 'flung' ? chai.flingY : fy, chai.action, chai.dir, CONFIG.mice.chai);
+  }
+  ctx.restore();
 }
 
 // ============================================================
@@ -6283,30 +6320,44 @@ function gameLoop(now) {
       updateExerciseWheel(dt);
 
       ctx.clearRect(0, 0, GAME_W, GAME_H);
-      drawRoom(state.currentRoom);
 
-      // Draw mice in current room (skip mice on the wheel or flung — drawn separately)
-      const pip = state.miceState.pip;
-      const chai = state.miceState.chai;
-      const pipFloorY = getMouseFloorY(pip);
-      const chaiFloorY = getMouseFloorY(chai);
-      if (pip.room === state.currentRoom && pip.action !== 'wheeling') {
-        if (pip.action === 'flung') {
-          drawFlungMouse(pip, CONFIG.mice.pip);
-        } else {
-          drawMouse(pip.x, pipFloorY, CONFIG.mice.pip, pip.dir, pip.frame, pip.action, pip._startled);
+      // Room slide transition
+      if (roomTransition.active) {
+        roomTransition.progress += dt;
+        const t = Math.min(1, roomTransition.progress / roomTransition.duration);
+        // Ease-out cubic for smooth deceleration
+        const ease = 1 - Math.pow(1 - t, 3);
+        // dir: +1 = moving right on ring → rooms slide LEFT
+        const slideOffset = ease * GAME_W * roomTransition.dir;
+        drawRoomScene(roomTransition.from, -slideOffset);
+        drawRoomScene(roomTransition.to, GAME_W * roomTransition.dir - slideOffset);
+        if (t >= 1) roomTransition.active = false;
+      } else {
+        drawRoom(state.currentRoom);
+
+        // Draw mice in current room (skip mice on the wheel or flung — drawn separately)
+        const pip = state.miceState.pip;
+        const chai = state.miceState.chai;
+        const pipFloorY = getMouseFloorY(pip);
+        const chaiFloorY = getMouseFloorY(chai);
+        if (pip.room === state.currentRoom && pip.action !== 'wheeling') {
+          if (pip.action === 'flung') {
+            drawFlungMouse(pip, CONFIG.mice.pip);
+          } else {
+            drawMouse(pip.x, pipFloorY, CONFIG.mice.pip, pip.dir, pip.frame, pip.action, pip._startled);
+          }
+          drawPartyHat(pip.action === 'flung' ? pip.flingX : pip.x,
+                       pip.action === 'flung' ? pip.flingY : pipFloorY, pip.action, pip.dir, CONFIG.mice.pip);
         }
-        drawPartyHat(pip.action === 'flung' ? pip.flingX : pip.x,
-                     pip.action === 'flung' ? pip.flingY : pipFloorY, pip.action, pip.dir, CONFIG.mice.pip);
-      }
-      if (chai.room === state.currentRoom && chai.action !== 'wheeling') {
-        if (chai.action === 'flung') {
-          drawFlungMouse(chai, CONFIG.mice.chai);
-        } else {
-          drawMouse(chai.x, chaiFloorY, CONFIG.mice.chai, chai.dir, chai.frame, chai.action, chai._startled);
+        if (chai.room === state.currentRoom && chai.action !== 'wheeling') {
+          if (chai.action === 'flung') {
+            drawFlungMouse(chai, CONFIG.mice.chai);
+          } else {
+            drawMouse(chai.x, chaiFloorY, CONFIG.mice.chai, chai.dir, chai.frame, chai.action, chai._startled);
+          }
+          drawPartyHat(chai.action === 'flung' ? chai.flingX : chai.x,
+                       chai.action === 'flung' ? chai.flingY : chaiFloorY, chai.action, chai.dir, CONFIG.mice.chai);
         }
-        drawPartyHat(chai.action === 'flung' ? chai.flingX : chai.x,
-                     chai.action === 'flung' ? chai.flingY : chaiFloorY, chai.action, chai.dir, CONFIG.mice.chai);
       }
 
       drawSpeechBubbles();
