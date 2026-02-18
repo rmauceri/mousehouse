@@ -4424,6 +4424,18 @@ function generateMaze(cols, rows) {
       cur = stack.pop();
     }
   }
+  // Open a few extra walls to create loops (more Pac-Man-like)
+  const extraOpenings = Math.floor(cols * rows * 0.15);
+  for (let i = 0; i < extraOpenings; i++) {
+    const r = Math.floor(Math.random() * rows);
+    const c = Math.floor(Math.random() * cols);
+    const d = dirs[Math.floor(Math.random() * dirs.length)];
+    const nr = r + d.dr, nc = c + d.dc;
+    if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+      grid[r][c][d.wall] = false;
+      grid[nr][nc][d.opp] = false;
+    }
+  }
   return grid;
 }
 
@@ -4436,15 +4448,16 @@ function startMouseMaze() {
   mz = {
     level: 1,
     totalScore: 0,
-    totalCheese: 0
+    totalBerries: 0,
+    lives: 3
   };
   initMazeLevel(mz.level);
 }
 
 function initMazeLevel(level) {
-  gameMusicIntensity = (level - 1) / 2; // 0, 0.5, 1.0 for levels 1-3
-  const cols = 6 + level * 2;  // 8, 10, 12
-  const rows = 5 + level;      // 6, 7, 8
+  gameMusicIntensity = (level - 1) / 2;
+  const cols = 8 + level * 2;   // 10, 12, 14
+  const rows = 6 + level;       // 7, 8, 9
   const grid = generateMaze(cols, rows);
   const cellW = Math.floor((GAME_W - 20) / cols);
   const cellH = Math.floor((GAME_H - 50) / rows);
@@ -4454,66 +4467,205 @@ function initMazeLevel(level) {
   const ox = Math.floor((GAME_W - mazeW) / 2);
   const oy = Math.floor((GAME_H - 30 - mazeH) / 2) + 28;
 
-  // Place cheese in random dead-end or interior cells
-  const cheeses = [];
-  const numCheese = 3 + level * 2;
-  const candidates = [];
+  // Place blueberries in every cell except start
+  const berries = [];
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       if (r === 0 && c === 0) continue;
-      if (r === rows - 1 && c === cols - 1) continue;
-      candidates.push({ r, c });
+      berries.push({ r, c, collected: false, isPower: false });
     }
   }
-  candidates.sort(() => Math.random() - 0.5);
-  for (let i = 0; i < Math.min(numCheese, candidates.length); i++) {
-    cheeses.push({ r: candidates[i].r, c: candidates[i].c, collected: false });
+
+  // Place 2-3 power cheese (replace some berries)
+  const numPower = 2 + (level > 2 ? 1 : 0);
+  const powerCandidates = berries.filter(b =>
+    !(b.r === 0 && b.c <= 1) && !(b.r <= 1 && b.c === 0));
+  powerCandidates.sort(() => Math.random() - 0.5);
+  for (let i = 0; i < Math.min(numPower, powerCandidates.length); i++) {
+    powerCandidates[i].isPower = true;
   }
+
+  // Cat starts at bottom-right corner
+  const catStartR = rows - 1, catStartC = cols - 1;
 
   Object.assign(mz, {
     grid, cols, rows, cellSize, ox, oy,
     playerR: 0, playerC: 0,
-    exitR: rows - 1, exitC: cols - 1,
-    cheeses,
+    playerDir: 'right', nextDir: null,
+    berries,
+    totalBerriesThisLevel: berries.length,
+    cat: { r: catStartR, c: catStartC, dir: 'left', moveTimer: 0,
+           scared: false, scareTimer: 0, eaten: false, respawnTimer: 0,
+           startR: catStartR, startC: catStartC },
+    catSpeed: 320 - level * 50,  // ms per move: 270, 220, 170
+    catGraceTimer: 3000,  // 3s before cat starts chasing
+    powerTimer: 0,
     moves: 0,
     startTime: Date.now(),
     elapsed: 0,
     levelComplete: false,
     gameOver: false,
-    animX: 0, animY: 0, // smooth animation offset
+    deathPause: 0,
+    animX: 0, animY: 0,
+    moveTimer: 0,
+    moveInterval: 120, // ms per continuous move
     moveQueue: [],
     inputCooldown: 0
   });
-  mz.animX = 0;
-  mz.animY = 0;
+}
+
+// BFS pathfinding for cat AI
+function mazeBFS(grid, fromR, fromC, toR, toC, rows, cols) {
+  if (fromR === toR && fromC === toC) return null;
+  const visited = Array.from({ length: rows }, () => Array(cols).fill(false));
+  const queue = [{ r: fromR, c: fromC, firstDir: null }];
+  visited[fromR][fromC] = true;
+  const dirMap = [
+    { dr: -1, dc: 0, wall: 'top', name: 'up' },
+    { dr: 1, dc: 0, wall: 'bottom', name: 'down' },
+    { dr: 0, dc: -1, wall: 'left', name: 'left' },
+    { dr: 0, dc: 1, wall: 'right', name: 'right' }
+  ];
+  while (queue.length > 0) {
+    const cur = queue.shift();
+    for (const d of dirMap) {
+      const nr = cur.r + d.dr, nc = cur.c + d.dc;
+      if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
+      if (visited[nr][nc]) continue;
+      if (grid[cur.r][cur.c][d.wall]) continue;
+      visited[nr][nc] = true;
+      const first = cur.firstDir || d.name;
+      if (nr === toR && nc === toC) return first;
+      queue.push({ r: nr, c: nc, firstDir: first });
+    }
+  }
+  return null;
 }
 
 function updateMouseMaze(dt) {
-  if (!mouseMazeActive || mz.gameOver || mz.levelComplete) return;
+  if (!mouseMazeActive) return;
+
+  // Death pause
+  if (mz.deathPause > 0) {
+    mz.deathPause -= dt;
+    if (mz.deathPause <= 0) {
+      if (mz.lives <= 0) {
+        mz.gameOver = true;
+      } else {
+        // Reset positions
+        mz.playerR = 0; mz.playerC = 0;
+        mz.playerDir = 'right'; mz.nextDir = null;
+        mz.animX = 0; mz.animY = 0;
+        mz.cat.r = mz.cat.startR; mz.cat.c = mz.cat.startC;
+        mz.cat.scared = false; mz.cat.scareTimer = 0;
+        mz.cat.eaten = false; mz.cat.respawnTimer = 0;
+        mz.catGraceTimer = 2000;
+      }
+    }
+    return;
+  }
+
+  if (mz.gameOver || mz.levelComplete) return;
   mz.elapsed = Date.now() - mz.startTime;
 
   // Smooth animation toward current cell
-  mz.animX += (0 - mz.animX) * 0.2;
-  mz.animY += (0 - mz.animY) * 0.2;
+  mz.animX += (0 - mz.animX) * 0.25;
+  mz.animY += (0 - mz.animY) * 0.25;
 
-  // Process move queue
-  if (mz.inputCooldown > 0) mz.inputCooldown -= dt;
-  if (mz.moveQueue.length > 0 && mz.inputCooldown <= 0) {
-    const dir = mz.moveQueue.shift();
-    tryMazeMove(dir);
-    mz.inputCooldown = 80;
+  // Continuous movement: process direction input then auto-move
+  if (mz.moveQueue.length > 0) {
+    mz.nextDir = mz.moveQueue.shift();
+  }
+
+  mz.moveTimer -= dt;
+  if (mz.moveTimer <= 0) {
+    mz.moveTimer = mz.moveInterval;
+    // Try nextDir first, then keep current dir
+    let moved = false;
+    if (mz.nextDir && canMazeMove(mz.nextDir)) {
+      mz.playerDir = mz.nextDir;
+      mz.nextDir = null;
+      doMazeMove(mz.playerDir);
+      moved = true;
+    } else if (canMazeMove(mz.playerDir)) {
+      doMazeMove(mz.playerDir);
+      moved = true;
+    }
+  }
+
+  // Power-up timer
+  if (mz.powerTimer > 0) {
+    mz.powerTimer -= dt;
+    if (mz.powerTimer <= 0) {
+      mz.cat.scared = false;
+    }
+  }
+
+  // Cat AI
+  if (mz.catGraceTimer > 0) {
+    mz.catGraceTimer -= dt;
+  } else if (mz.cat.eaten) {
+    mz.cat.respawnTimer -= dt;
+    if (mz.cat.respawnTimer <= 0) {
+      mz.cat.eaten = false;
+      mz.cat.r = mz.cat.startR;
+      mz.cat.c = mz.cat.startC;
+      mz.cat.scared = false;
+    }
+  } else {
+    mz.cat.moveTimer -= dt;
+    if (mz.cat.moveTimer <= 0) {
+      mz.cat.moveTimer = mz.cat.scared ? mz.catSpeed * 1.8 : mz.catSpeed;
+      moveCat();
+    }
+    // Check collision
+    if (mz.cat.r === mz.playerR && mz.cat.c === mz.playerC) {
+      if (mz.cat.scared) {
+        // Eat the cat!
+        mz.cat.eaten = true;
+        mz.cat.respawnTimer = 3000;
+        mz.totalScore += 10;
+        sfxGoalComplete();
+        const px = mz.ox + mz.cat.c * mz.cellSize + mz.cellSize / 2;
+        const py = mz.oy + mz.cat.r * mz.cellSize + mz.cellSize / 2;
+        spawnFloatingEffect(px, py, '+10 ⭐');
+      } else {
+        // Cat catches mouse
+        mz.lives--;
+        mz.deathPause = 1500;
+        const px = mz.ox + mz.playerC * mz.cellSize + mz.cellSize / 2;
+        const py = mz.oy + mz.playerR * mz.cellSize + mz.cellSize / 2;
+        spawnFloatingEffect(px, py, '💀');
+      }
+    }
+  }
+
+  // Check level complete (all berries collected)
+  const allCollected = mz.berries.every(b => b.collected);
+  if (allCollected) {
+    mz.levelComplete = true;
+    const timeBonus = Math.max(0, 30 - Math.floor(mz.elapsed / 1000));
+    const lifeBonus = mz.lives * 5;
+    mz.totalScore += timeBonus + lifeBonus;
+    sfxGoalComplete();
   }
 }
 
-function tryMazeMove(dir) {
-  if (mz.levelComplete || mz.gameOver) return;
+function canMazeMove(dir) {
   const cell = mz.grid[mz.playerR][mz.playerC];
+  if (dir === 'up') return !cell.top;
+  if (dir === 'down') return !cell.bottom;
+  if (dir === 'left') return !cell.left;
+  if (dir === 'right') return !cell.right;
+  return false;
+}
+
+function doMazeMove(dir) {
   let dr = 0, dc = 0;
-  if (dir === 'up' && !cell.top) dr = -1;
-  else if (dir === 'down' && !cell.bottom) dr = 1;
-  else if (dir === 'left' && !cell.left) dc = -1;
-  else if (dir === 'right' && !cell.right) dc = 1;
-  else return;
+  if (dir === 'up') dr = -1;
+  else if (dir === 'down') dr = 1;
+  else if (dir === 'left') dc = -1;
+  else if (dir === 'right') dc = 1;
 
   mz.animX = -dc * mz.cellSize;
   mz.animY = -dr * mz.cellSize;
@@ -4521,24 +4673,80 @@ function tryMazeMove(dir) {
   mz.playerC += dc;
   mz.moves++;
 
-  // Check cheese collection
-  mz.cheeses.forEach(ch => {
-    if (!ch.collected && ch.r === mz.playerR && ch.c === mz.playerC) {
-      ch.collected = true;
-      mz.totalCheese++;
-      sfxCheeseCollect();
-      const px = mz.ox + mz.playerC * mz.cellSize + mz.cellSize / 2;
-      const py = mz.oy + mz.playerR * mz.cellSize + mz.cellSize / 2;
-      spawnFloatingEffect(px, py, '✨');
+  // Collect berries
+  mz.berries.forEach(b => {
+    if (!b.collected && b.r === mz.playerR && b.c === mz.playerC) {
+      b.collected = true;
+      if (b.isPower) {
+        // Power cheese! Cat becomes scared
+        mz.totalScore += 5;
+        mz.totalBerries++;
+        mz.powerTimer = 6000;
+        mz.cat.scared = true;
+        sfxGoalComplete();
+        const px = mz.ox + mz.playerC * mz.cellSize + mz.cellSize / 2;
+        const py = mz.oy + mz.playerR * mz.cellSize + mz.cellSize / 2;
+        spawnFloatingEffect(px, py, '⚡');
+      } else {
+        mz.totalScore += 1;
+        mz.totalBerries++;
+        sfxCheeseCollect();
+      }
     }
   });
 
-  // Check exit
-  if (mz.playerR === mz.exitR && mz.playerC === mz.exitC) {
-    mz.levelComplete = true;
-    const timeBonus = Math.max(0, 30 - Math.floor(mz.elapsed / 1000));
-    mz.totalScore += mz.cheeses.filter(c => c.collected).length * 3 + timeBonus;
-    sfxGoalComplete();
+  // Check cat collision after moving
+  if (!mz.cat.eaten && mz.cat.r === mz.playerR && mz.cat.c === mz.playerC) {
+    if (mz.cat.scared) {
+      mz.cat.eaten = true;
+      mz.cat.respawnTimer = 3000;
+      mz.totalScore += 10;
+      sfxGoalComplete();
+      const px = mz.ox + mz.cat.c * mz.cellSize + mz.cellSize / 2;
+      const py = mz.oy + mz.cat.r * mz.cellSize + mz.cellSize / 2;
+      spawnFloatingEffect(px, py, '+10 ⭐');
+    } else {
+      mz.lives--;
+      mz.deathPause = 1500;
+      const px = mz.ox + mz.playerC * mz.cellSize + mz.cellSize / 2;
+      const py = mz.oy + mz.playerR * mz.cellSize + mz.cellSize / 2;
+      spawnFloatingEffect(px, py, '💀');
+    }
+  }
+}
+
+function moveCat() {
+  const cat = mz.cat;
+  if (cat.scared) {
+    // Flee: move AWAY from player — pick direction that increases distance
+    const cell = mz.grid[cat.r][cat.c];
+    const possibleDirs = [];
+    if (!cell.top) possibleDirs.push({ dr: -1, dc: 0 });
+    if (!cell.bottom) possibleDirs.push({ dr: 1, dc: 0 });
+    if (!cell.left) possibleDirs.push({ dr: 0, dc: -1 });
+    if (!cell.right) possibleDirs.push({ dr: 0, dc: 1 });
+    if (possibleDirs.length === 0) return;
+    const curDist = Math.abs(cat.r - mz.playerR) + Math.abs(cat.c - mz.playerC);
+    // Sort by distance from player (farthest first) with some randomness
+    possibleDirs.sort((a, b) => {
+      const da = Math.abs(cat.r + a.dr - mz.playerR) + Math.abs(cat.c + a.dc - mz.playerC);
+      const db = Math.abs(cat.r + b.dr - mz.playerR) + Math.abs(cat.c + b.dc - mz.playerC);
+      return db - da;
+    });
+    // 80% pick farthest, 20% random
+    const pick = Math.random() < 0.8 ? possibleDirs[0] : possibleDirs[Math.floor(Math.random() * possibleDirs.length)];
+    cat.r += pick.dr;
+    cat.c += pick.dc;
+  } else {
+    // Chase: BFS toward player
+    const dir = mazeBFS(mz.grid, cat.r, cat.c, mz.playerR, mz.playerC, mz.rows, mz.cols);
+    if (dir) {
+      if (dir === 'up') cat.r--;
+      else if (dir === 'down') cat.r++;
+      else if (dir === 'left') cat.c--;
+      else if (dir === 'right') cat.c++;
+      cat.dir = dir;
+    }
   }
 }
 
@@ -4547,27 +4755,38 @@ function drawMouseMaze() {
   const t = Date.now() / 1000;
 
   // Background
-  ctx.fillStyle = '#1a0f05';
+  ctx.fillStyle = '#0a0515';
   ctx.fillRect(0, 0, GAME_W, GAME_H);
 
   // HUD bar
-  ctx.fillStyle = 'rgba(26,15,5,0.85)';
+  ctx.fillStyle = 'rgba(10,5,20,0.9)';
   ctx.fillRect(0, 0, GAME_W, 26);
   ctx.fillStyle = '#f5d68a';
-  ctx.font = '12px monospace';
+  ctx.font = '11px monospace';
   ctx.textAlign = 'left';
-  ctx.fillText(`🧀 ${mz.totalCheese}`, 10, 17);
+  // Lives as mouse emoji
+  let livesStr = '';
+  for (let i = 0; i < mz.lives; i++) livesStr += '🐭';
+  ctx.fillText(livesStr || '💀', 8, 17);
+  ctx.fillText(`🫐${mz.totalBerries}`, 60, 17);
   ctx.textAlign = 'center';
   ctx.fillText(`Level ${mz.level}/3`, GAME_W / 2, 17);
   ctx.textAlign = 'right';
-  const secs = Math.floor((mz.elapsed || 0) / 1000);
-  ctx.fillText(`⏱ ${secs}s  |  ${mz.moves} moves`, GAME_W - 10, 17);
+  ctx.fillText(`⭐${mz.totalScore}`, GAME_W - 50, 17);
+  // Exit button
+  ctx.fillStyle = 'rgba(180,100,100,0.7)';
+  ctx.beginPath();
+  ctx.roundRect(GAME_W - 42, 4, 36, 18, 4);
+  ctx.fill();
+  ctx.fillStyle = '#fdd';
+  ctx.font = '10px monospace';
+  ctx.fillText('EXIT', GAME_W - 24, 16);
   ctx.textAlign = 'left';
 
   const { grid, cols, rows, cellSize, ox, oy } = mz;
 
   // Maze floor
-  ctx.fillStyle = '#2b1d0e';
+  ctx.fillStyle = '#120828';
   ctx.fillRect(ox - 2, oy - 2, cols * cellSize + 4, rows * cellSize + 4);
 
   // Draw cells
@@ -4577,12 +4796,12 @@ function drawMouseMaze() {
       const cy = oy + r * cellSize;
       const cell = grid[r][c];
 
-      // Cell floor
-      ctx.fillStyle = (r + c) % 2 === 0 ? '#3d2b1a' : '#362618';
+      // Cell floor (dark blue-purple checkerboard)
+      ctx.fillStyle = (r + c) % 2 === 0 ? '#1a0e30' : '#160b28';
       ctx.fillRect(cx, cy, cellSize, cellSize);
 
-      // Walls
-      ctx.strokeStyle = '#a07040';
+      // Walls (glowing blue)
+      ctx.strokeStyle = '#3040aa';
       ctx.lineWidth = 2;
       if (cell.top) {
         ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + cellSize, cy); ctx.stroke();
@@ -4600,85 +4819,201 @@ function drawMouseMaze() {
   }
 
   // Outer border
-  ctx.strokeStyle = '#c89050';
+  ctx.strokeStyle = '#5060dd';
   ctx.lineWidth = 3;
   ctx.strokeRect(ox, oy, cols * cellSize, rows * cellSize);
 
-  // Exit marker (glowing)
-  const exX = ox + mz.exitC * cellSize;
-  const exY = oy + mz.exitR * cellSize;
-  const glow = 0.4 + 0.3 * Math.sin(t * 3);
-  ctx.fillStyle = `rgba(100, 220, 100, ${glow})`;
-  ctx.fillRect(exX + 2, exY + 2, cellSize - 4, cellSize - 4);
-  ctx.font = `${Math.min(cellSize - 6, 16)}px serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('🚪', exX + cellSize / 2, exY + cellSize / 2);
-
-  // Cheese items
-  mz.cheeses.forEach(ch => {
-    if (ch.collected) return;
-    const chX = ox + ch.c * cellSize + cellSize / 2;
-    const chY = oy + ch.r * cellSize + cellSize / 2;
-    const bob = Math.sin(t * 2 + ch.r + ch.c) * 2;
-    ctx.font = `${Math.min(cellSize - 8, 14)}px serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('🧀', chX, chY + bob);
+  // Blueberries and power cheese
+  mz.berries.forEach(b => {
+    if (b.collected) return;
+    const bx = ox + b.c * cellSize + cellSize / 2;
+    const by = oy + b.r * cellSize + cellSize / 2;
+    if (b.isPower) {
+      // Power cheese — large, pulsing
+      const pulse = 0.7 + 0.3 * Math.sin(t * 4);
+      const sz = Math.min(cellSize * 0.4, 8) * pulse;
+      ctx.fillStyle = `rgba(255, 220, 60, ${pulse})`;
+      ctx.beginPath();
+      ctx.arc(bx, by, sz, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = `rgba(255, 255, 200, ${pulse * 0.5})`;
+      ctx.beginPath();
+      ctx.arc(bx, by, sz + 3, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // Blueberry dot
+      const sz = Math.min(cellSize * 0.15, 3);
+      ctx.fillStyle = '#6070ff';
+      ctx.beginPath();
+      ctx.arc(bx, by, sz, 0, Math.PI * 2);
+      ctx.fill();
+    }
   });
 
-  // Player mouse (Chai) with smooth animation
-  const pxBase = ox + mz.playerC * cellSize;
-  const pyBase = oy + mz.playerR * cellSize;
-  const px = pxBase + mz.animX;
-  const py = pyBase + mz.animY;
-  // Scale mouse to fit cell
-  const mouseDrawSize = Math.min(cellSize - 4, 28);
-  const mScale = mouseDrawSize / 28;
-  ctx.save();
-  const mcx = px + cellSize / 2;
-  const mcy = py + cellSize / 2;
-  ctx.translate(mcx, mcy);
-  ctx.scale(mScale, mScale);
-  ctx.translate(-mcx, -mcy);
-  drawMouse(px + (cellSize - 28) / 2, py + (cellSize - 20) / 2 - 2, CONFIG.mice.chai, 1, Math.floor(t * 4) % 4, 'walking');
-  ctx.restore();
+  // Cat ghost (if active and not eaten)
+  if (mz.catGraceTimer <= 0 && !mz.cat.eaten) {
+    const cat = mz.cat;
+    const catX = ox + cat.c * cellSize + cellSize / 2;
+    const catY = oy + cat.r * cellSize + cellSize / 2;
+    const catSz = Math.min(cellSize * 0.4, 12);
+
+    if (cat.scared) {
+      // Scared cat — blue, wobbling
+      const wobble = Math.sin(t * 8) * 2;
+      const flash = mz.powerTimer < 2000 ? Math.sin(t * 12) > 0 : true;
+      if (flash) {
+        ctx.fillStyle = 'rgba(60,60,200,0.8)';
+        ctx.beginPath();
+        ctx.arc(catX + wobble, catY, catSz, 0, Math.PI * 2);
+        ctx.fill();
+        // Scared face
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(catX + wobble - 4, catY - 3, 2, 2);
+        ctx.fillRect(catX + wobble + 2, catY - 3, 2, 2);
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(catX + wobble - 4, catY + 3);
+        for (let i = 0; i < 4; i++) {
+          ctx.lineTo(catX + wobble - 4 + i * 3, catY + 3 + (i % 2 ? -1 : 1));
+        }
+        ctx.stroke();
+      }
+    } else {
+      // Evil cat head — glowing, menacing
+      const glow = 0.6 + 0.3 * Math.sin(t * 2);
+      // Glow aura
+      const aura = ctx.createRadialGradient(catX, catY, catSz * 0.5, catX, catY, catSz * 2);
+      aura.addColorStop(0, `rgba(200, 50, 50, ${glow * 0.3})`);
+      aura.addColorStop(1, 'rgba(200, 50, 50, 0)');
+      ctx.fillStyle = aura;
+      ctx.fillRect(catX - catSz * 2, catY - catSz * 2, catSz * 4, catSz * 4);
+      // Head
+      ctx.fillStyle = `rgba(60, 20, 60, ${0.85 + glow * 0.15})`;
+      ctx.beginPath();
+      ctx.arc(catX, catY, catSz, 0, Math.PI * 2);
+      ctx.fill();
+      // Ears (triangles)
+      ctx.fillStyle = '#4a1a4a';
+      ctx.beginPath();
+      ctx.moveTo(catX - catSz * 0.7, catY - catSz * 0.5);
+      ctx.lineTo(catX - catSz * 0.3, catY - catSz * 1.2);
+      ctx.lineTo(catX - catSz * 0.05, catY - catSz * 0.5);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(catX + catSz * 0.7, catY - catSz * 0.5);
+      ctx.lineTo(catX + catSz * 0.3, catY - catSz * 1.2);
+      ctx.lineTo(catX + catSz * 0.05, catY - catSz * 0.5);
+      ctx.fill();
+      // Evil eyes (glowing red/green)
+      const eyeGlow = 0.8 + 0.2 * Math.sin(t * 3);
+      ctx.fillStyle = `rgba(255, ${Math.floor(40 + 30 * Math.sin(t * 2))}, 20, ${eyeGlow})`;
+      ctx.beginPath();
+      ctx.ellipse(catX - catSz * 0.3, catY - catSz * 0.1, catSz * 0.22, catSz * 0.15, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(catX + catSz * 0.3, catY - catSz * 0.1, catSz * 0.22, catSz * 0.15, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Pupils (slitted)
+      ctx.fillStyle = '#000';
+      ctx.fillRect(catX - catSz * 0.32, catY - catSz * 0.2, catSz * 0.06, catSz * 0.22);
+      ctx.fillRect(catX + catSz * 0.28, catY - catSz * 0.2, catSz * 0.06, catSz * 0.22);
+      // Mouth (smirk)
+      ctx.strokeStyle = `rgba(200,80,80,${glow})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(catX, catY + catSz * 0.35, catSz * 0.3, 0.2, Math.PI - 0.2);
+      ctx.stroke();
+    }
+  }
+
+  // Player mouse with smooth animation
+  if (mz.deathPause <= 0) {
+    const pxBase = ox + mz.playerC * cellSize;
+    const pyBase = oy + mz.playerR * cellSize;
+    const px = pxBase + mz.animX;
+    const py = pyBase + mz.animY;
+    const mouseDrawSize = Math.min(cellSize - 4, 28);
+    const mScale = mouseDrawSize / 28;
+    ctx.save();
+    const mcx = px + cellSize / 2;
+    const mcy = py + cellSize / 2;
+    ctx.translate(mcx, mcy);
+    ctx.scale(mScale, mScale);
+    ctx.translate(-mcx, -mcy);
+    const faceDir = (mz.playerDir === 'left') ? -1 : 1;
+    drawMouse(px + (cellSize - 28) / 2, py + (cellSize - 20) / 2 - 2, CONFIG.mice.pip, faceDir, Math.floor(t * 6) % 4, 'walking');
+    ctx.restore();
+
+    // Chomping effect (brief flash when collecting)
+    if (mz.moves > 0 && mz.animX !== 0 || mz.animY !== 0) {
+      const chompPhase = Math.sin(t * 15);
+      if (chompPhase > 0.5) {
+        ctx.fillStyle = 'rgba(255,255,200,0.15)';
+        ctx.beginPath();
+        ctx.arc(px + cellSize / 2 + mz.animX * 0.3, py + cellSize / 2, cellSize * 0.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
 
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
-
-  // Floating effects
   drawFloatingEffects();
+
+  // Death flash
+  if (mz.deathPause > 1000) {
+    ctx.fillStyle = `rgba(255,50,50,${(mz.deathPause - 1000) / 500 * 0.3})`;
+    ctx.fillRect(0, 0, GAME_W, GAME_H);
+  }
 
   // Level complete overlay
   if (mz.levelComplete) {
-    ctx.fillStyle = 'rgba(26,15,5,0.75)';
+    ctx.fillStyle = 'rgba(10,5,20,0.8)';
     ctx.fillRect(0, 0, GAME_W, GAME_H);
     ctx.fillStyle = '#f5d68a';
-    ctx.font = '24px monospace';
+    ctx.font = '22px monospace';
     ctx.textAlign = 'center';
     if (mz.level >= 3) {
-      ctx.fillText('🎉 Maze Complete!', GAME_W / 2, GAME_H / 2 - 40);
-      const timeBonus = Math.max(0, 30 - Math.floor(mz.elapsed / 1000));
-      ctx.font = '13px monospace';
+      ctx.fillText('🎉 All Levels Clear!', GAME_W / 2, GAME_H / 2 - 40);
+      ctx.font = '12px monospace';
       ctx.fillStyle = '#e8d5b5';
-      ctx.fillText(`Cheese: 🧀 ${mz.totalCheese}  |  Time bonus: +${timeBonus}`, GAME_W / 2, GAME_H / 2 - 5);
-      const earned = mz.totalScore;
+      ctx.fillText(`🫐 ${mz.totalBerries}  |  ⭐ ${mz.totalScore} pts  |  🐭 ×${mz.lives}`, GAME_W / 2, GAME_H / 2 - 5);
       ctx.fillStyle = '#f5d68a';
-      ctx.font = '16px monospace';
-      ctx.fillText(`Earned: 🧀 ${earned} coins!`, GAME_W / 2, GAME_H / 2 + 25);
+      ctx.font = '15px monospace';
+      ctx.fillText(`Earned: 🧀 ${mz.totalScore} coins!`, GAME_W / 2, GAME_H / 2 + 25);
       ctx.fillStyle = '#a89070';
-      ctx.font = '12px monospace';
-      ctx.fillText('tap / click to continue', GAME_W / 2, GAME_H / 2 + 55);
+      ctx.font = '11px monospace';
+      ctx.fillText('tap / click to finish', GAME_W / 2, GAME_H / 2 + 50);
     } else {
-      ctx.fillText(`✅ Level ${mz.level} Clear!`, GAME_W / 2, GAME_H / 2 - 20);
-      ctx.font = '13px monospace';
-      ctx.fillStyle = '#e8d5b5';
-      ctx.fillText(`Cheese collected: 🧀 ${mz.totalCheese}`, GAME_W / 2, GAME_H / 2 + 10);
-      ctx.fillStyle = '#a89070';
+      ctx.fillText(`✅ Level ${mz.level} Clear!`, GAME_W / 2, GAME_H / 2 - 25);
       ctx.font = '12px monospace';
-      ctx.fillText('tap / click for next level', GAME_W / 2, GAME_H / 2 + 40);
+      ctx.fillStyle = '#e8d5b5';
+      ctx.fillText(`🫐 ${mz.totalBerries}  |  ⭐ ${mz.totalScore}  |  🐭 ×${mz.lives}`, GAME_W / 2, GAME_H / 2 + 5);
+      ctx.fillStyle = '#a89070';
+      ctx.font = '11px monospace';
+      ctx.fillText('tap / click for next level', GAME_W / 2, GAME_H / 2 + 35);
     }
+    ctx.textAlign = 'left';
+  }
+
+  // Game over overlay
+  if (mz.gameOver) {
+    ctx.fillStyle = 'rgba(10,5,20,0.85)';
+    ctx.fillRect(0, 0, GAME_W, GAME_H);
+    ctx.fillStyle = '#e06050';
+    ctx.font = '24px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('😿 Game Over!', GAME_W / 2, GAME_H / 2 - 30);
+    ctx.fillStyle = '#e8d5b5';
+    ctx.font = '12px monospace';
+    ctx.fillText(`🫐 ${mz.totalBerries}  |  ⭐ ${mz.totalScore} pts`, GAME_W / 2, GAME_H / 2 + 5);
+    ctx.fillStyle = '#f5d68a';
+    ctx.font = '15px monospace';
+    ctx.fillText(`Earned: 🧀 ${mz.totalScore} coins!`, GAME_W / 2, GAME_H / 2 + 30);
+    ctx.fillStyle = '#a89070';
+    ctx.font = '11px monospace';
+    ctx.fillText('tap / click to finish', GAME_W / 2, GAME_H / 2 + 55);
     ctx.textAlign = 'left';
   }
 }
@@ -4699,6 +5034,16 @@ function endMouseMaze() {
 }
 
 function handleMazeInput(sx, sy) {
+  const pos = screenToGame(sx, sy);
+  // Exit button check (top-right corner of HUD)
+  if (pos.x >= GAME_W - 42 && pos.x <= GAME_W - 6 && pos.y >= 4 && pos.y <= 22) {
+    endMouseMaze();
+    return;
+  }
+  if (mz.gameOver) {
+    endMouseMaze();
+    return;
+  }
   if (mz.levelComplete) {
     if (mz.level >= 3) {
       endMouseMaze();
@@ -6938,6 +7283,7 @@ document.addEventListener('keydown', e => {
     if (e.key === 'ArrowLeft' || e.key === 'a') { e.preventDefault(); mz.moveQueue.push('left'); }
     if (e.key === 'ArrowRight' || e.key === 'd') { e.preventDefault(); mz.moveQueue.push('right'); }
   }
+  if (mouseMazeActive && e.key === 'Escape') { e.preventDefault(); endMouseMaze(); }
 });
 
 // ============================================================
