@@ -4590,10 +4590,17 @@ function addHappiness(amount) {
   updateHappinessDisplay();
 }
 
+let _lastHungerState = false;
 function updateHappiness(dt) {
   state.miceState.pip.happiness = Math.max(10, state.miceState.pip.happiness - HAPPINESS_DECAY_RATE * dt);
   state.miceState.chai.happiness = Math.max(10, state.miceState.chai.happiness - HAPPINESS_DECAY_RATE * dt);
   updateHappinessDisplay();
+  // Update goal display when hunger state changes
+  const anyHungry = state.miceState.pip.happiness < 35 || state.miceState.chai.happiness < 35;
+  if (anyHungry !== _lastHungerState) {
+    _lastHungerState = anyHungry;
+    updateGoalDisplay();
+  }
 }
 
 function updateHappinessDisplay() {
@@ -5611,22 +5618,24 @@ function drawMouseStatus() {
   // Pip status (left)
   const sIcon = actionIcons[pip.action] || '✨';
   let pipText = `${sIcon} ${CONFIG.mice.pip.name}: ${pip.action}`;
-  if ((pip.happiness || 80) < 35) pipText += ' 🍽';
+  const pipHappy = pip.happiness ?? 80;
+  if (pipHappy < 35) pipText += ' 🍽';
   if (pip.room !== state.currentRoom) {
     pipText += ` (${ROOMS[pip.room].icon})`;
   }
-  ctx.fillStyle = (pip.happiness || 80) < 35 ? '#e06050' : '#888';
+  ctx.fillStyle = pipHappy < 35 ? '#e06050' : '#888';
   ctx.textAlign = 'left';
   ctx.fillText(pipText, 8, y);
 
   // Chai status (right)
   const cIcon = actionIcons[chai.action] || '✨';
   let chaiText = `${cIcon} ${CONFIG.mice.chai.name}: ${chai.action}`;
-  if ((chai.happiness || 80) < 35) chaiText += ' 🍽';
+  const chaiHappy = chai.happiness ?? 80;
+  if (chaiHappy < 35) chaiText += ' 🍽';
   if (chai.room !== state.currentRoom) {
     chaiText += ` (${ROOMS[chai.room].icon})`;
   }
-  ctx.fillStyle = (chai.happiness || 80) < 35 ? '#e06050' : '#888';
+  ctx.fillStyle = chaiHappy < 35 ? '#e06050' : '#888';
   ctx.textAlign = 'right';
   ctx.fillText(chaiText, GAME_W - 8, y);
 
