@@ -348,12 +348,14 @@ body { display: flex; flex-direction: column; }
   /* HUD flows above canvas instead of overlaying */
   #hud { position: relative; order: -1; }
 
-  /* Row 1 on mobile: room switcher only, centered */
-  #hud-row1 { justify-content: center; padding: 4px 6px; }
-  #hud-stats, #hud-actions, #hud-utils { display: none; }
+  /* Row 1 on mobile: stats, store/games, letter/sound/exit */
+  #hud-row1 { justify-content: space-between; padding: 4px 6px; }
+  #hud-stats { display: flex; }
+  #hud-actions .btn-label { display: none; }
+  .hud-group-rooms { display: none; }
 
-  /* Row 2 on mobile: stats+store/games on left, letter/sound/exit on right */
-  #hud-nav-row { display: flex; padding: 4px 6px; }
+  /* Row 2 on mobile: room switcher centered */
+  #hud-nav-row { display: flex; justify-content: center; padding: 4px 6px; }
   #hud button { padding: 4px 8px; font-size: 12px; }
   .room-tabs button { padding: 3px 8px; font-size: 12px; }
 
@@ -405,17 +407,7 @@ body { display: flex; flex-direction: column; }
     </div>
   </div>
   <div id="hud-nav-row">
-    <div class="hud-group" id="hud-mobile-left">
-      <span>🧀 <span id="coin-display-mobile">0</span></span>
-      <span id="happiness-display-mobile" title="Mouse Happiness">❤️ <span id="happiness-value-mobile">80</span>%</span>
-      <button id="btn-shop-mobile">🛒</button>
-      <button id="btn-games-mobile">🎮</button>
-    </div>
-    <div class="hud-group" id="hud-mobile-right">
-      <button id="btn-letter-mobile">💌</button>
-      <button id="btn-sound-mobile" title="Sound">🔇</button>
-      <button id="btn-exit-mobile" title="Exit to title">🚪</button>
-    </div>
+    <div class="room-tabs" id="room-tabs-mobile"></div>
   </div>
   <div id="hud-row2">
     <div id="goal-display"></div>
@@ -595,10 +587,7 @@ function initAudio() {
 }
 
 function updateSoundButtons() {
-  const icon = audioMuted ? '🔇' : '🔊';
-  document.getElementById('btn-sound').textContent = icon;
-  const m = document.getElementById('btn-sound-mobile');
-  if (m) m.textContent = icon;
+  document.getElementById('btn-sound').textContent = audioMuted ? '🔇' : '🔊';
 }
 
 function toggleMute() {
@@ -1172,10 +1161,6 @@ document.getElementById('btn-sound').addEventListener('click', (e) => {
 document.getElementById('volume-slider').addEventListener('input', (e) => {
   setVolume(parseInt(e.target.value) / 100);
 });
-document.getElementById('btn-sound-mobile').addEventListener('click', (e) => {
-  toggleMute();
-  e.stopPropagation();
-});
 
 // ============================================================
 // GAME STATE
@@ -1400,8 +1385,6 @@ function closeModal() { document.getElementById('modal-container').innerHTML = '
 
 function updateCoinDisplay() {
   document.getElementById('coin-display').textContent = state.coins;
-  const m = document.getElementById('coin-display-mobile');
-  if (m) m.textContent = state.coins;
   const flyoutCoins = document.getElementById('flyout-coin-display');
   if (flyoutCoins) flyoutCoins.textContent = state.coins;
 }
@@ -1504,6 +1487,8 @@ function buildRoomTabs() {
       `<button class="${i === state.currentRoom ? 'active' : ''}" onclick="switchRoom(${i})">${r.icon}</button>`
     ).join('');
   document.getElementById('room-tabs').innerHTML = tabsHTML;
+  const mobile = document.getElementById('room-tabs-mobile');
+  if (mobile) mobile.innerHTML = tabsHTML;
 }
 // Room slide transition state
 let roomTransition = { active: false, from: 0, to: 0, dir: 0, progress: 0, duration: 300 };
@@ -3655,10 +3640,6 @@ function lootCrumbs() {
 document.getElementById('btn-shop').addEventListener('click', openShop);
 document.getElementById('btn-games').addEventListener('click', openMinigames);
 document.getElementById('btn-letter').addEventListener('click', openLetter);
-// Mobile duplicates
-document.getElementById('btn-shop-mobile').addEventListener('click', openShop);
-document.getElementById('btn-games-mobile').addEventListener('click', openMinigames);
-document.getElementById('btn-letter-mobile').addEventListener('click', openLetter);
 
 // Exit button — return to title screen
 function exitToTitle() {
@@ -3673,7 +3654,6 @@ function exitToTitle() {
   hideBackdrop();
 }
 document.getElementById('btn-exit').addEventListener('click', exitToTitle);
-document.getElementById('btn-exit-mobile').addEventListener('click', exitToTitle);
 
 // ============================================================
 // MINI-GAME MENU (flyout)
@@ -4651,14 +4631,9 @@ function updateHappinessDisplay() {
   const avg = getAverageHappiness();
   const el = document.getElementById('happiness-value');
   if (el) el.textContent = avg;
-  const elM = document.getElementById('happiness-value-mobile');
-  if (elM) elM.textContent = avg;
-  // Color the heart based on level
   const color = avg >= 70 ? '#f5d68a' : avg >= 40 ? '#e8a040' : '#e06050';
   const hd = document.getElementById('happiness-display');
   if (hd) hd.style.color = color;
-  const hdM = document.getElementById('happiness-display-mobile');
-  if (hdM) hdM.style.color = color;
 }
 
 // ============================================================
