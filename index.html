@@ -11,6 +11,7 @@ html, body {
   background: #2b1d0e;
   font-family: 'Courier New', monospace;
 }
+body { display: flex; flex-direction: column; }
 #gameCanvas {
   display: block; margin: 0 auto;
   image-rendering: pixelated; image-rendering: crisp-edges;
@@ -49,6 +50,12 @@ html, body {
 .room-tabs { display: flex; gap: 3px; }
 .room-tabs button { font-size: 12px; padding: 4px 10px; }
 .hud-right { display: flex; align-items: center; gap: 2px; }
+/* Nav row: hidden on desktop, shown on mobile */
+#hud-nav-row {
+  display: none; justify-content: center; padding: 3px 8px 4px;
+  border-top: 1px solid rgba(160,112,64,0.3);
+}
+.room-tabs-mobile { display: none; }
 
 /* ---- Modals ---- */
 .modal-overlay {
@@ -338,20 +345,19 @@ html, body {
 
 /* ---- Mobile layout (portrait phones) ---- */
 @media (max-width: 480px) {
-  /* Pin canvas to top */
-  #gameCanvas { margin-top: 0 !important; }
+  /* HUD flows above canvas instead of overlaying */
+  #hud { position: relative; order: -1; }
 
-  /* HUD: consistent single row — room nav left, action buttons right */
-  #hud-row1 {
-    padding: 4px 6px;
-    gap: 4px;
-  }
-  /* Hide text labels on buttons, keep icons */
+  /* Row 1: score, health, shop, games, message, vol */
+  #hud-row1 { padding: 4px 6px; }
   #btn-shop .btn-label,
   #btn-games .btn-label { display: none; }
   #hud button { padding: 4px 8px; font-size: 12px; margin-left: 2px; }
-  .room-tabs { gap: 1px; margin-left: 4px; border-left: 1px solid rgba(160,112,64,0.5); padding-left: 4px; }
-  .room-tabs button { padding: 3px 6px; font-size: 11px; }
+  /* Hide inline room-tabs on mobile, show nav row instead */
+  .hud-right > .room-tabs { display: none; }
+  #hud-nav-row { display: flex; }
+  .room-tabs-mobile { display: flex !important; gap: 2px; }
+  .room-tabs-mobile button { padding: 3px 8px; font-size: 12px; }
 
   /* Flyouts: full width on mobile */
   #shop-flyout, #games-flyout { width: 100%; }
@@ -386,14 +392,17 @@ html, body {
     <div style="display:flex;align-items:center;gap:6px;">
       <span>🧀 <span id="coin-display">0</span></span>
       <span id="happiness-display" title="Mouse Happiness">❤️ <span id="happiness-value">80</span>%</span>
-      <div class="room-tabs" id="room-tabs"></div>
     </div>
     <div class="hud-right">
+      <div class="room-tabs" id="room-tabs"></div>
       <button id="btn-shop">🛒<span class="btn-label"> Moustazon</span></button>
       <button id="btn-games">🎮<span class="btn-label"> Games</span></button>
       <button id="btn-letter">💌</button>
       <button id="btn-sound" title="Sound">🔇</button>
     </div>
+  </div>
+  <div id="hud-nav-row">
+    <div class="room-tabs room-tabs-mobile" id="room-tabs-mobile"></div>
   </div>
   <div id="hud-row2">
     <div id="goal-display"></div>
@@ -1275,7 +1284,12 @@ let scale = 1, offsetX = 0, offsetY = 0;
 function resizeCanvas() {
   const w = window.innerWidth;
   const h = window.innerHeight;
-  scale = Math.min(w / GAME_W, h / GAME_H);
+  const isMobile = w <= 480;
+  // On mobile, HUD is in flow above canvas — subtract its height
+  const hudEl = document.getElementById('hud');
+  const hudH = (isMobile && hudEl && hudEl.style.display !== 'none') ? hudEl.offsetHeight : 0;
+  const availH = h - hudH;
+  scale = Math.min(w / GAME_W, availH / GAME_H);
   canvas.style.width = (GAME_W * scale) + 'px';
   canvas.style.height = (GAME_H * scale) + 'px';
   const dpr = window.devicePixelRatio || 1;
@@ -1283,9 +1297,9 @@ function resizeCanvas() {
   canvas.height = GAME_H * dpr;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   offsetX = (w - GAME_W * scale) / 2;
-  offsetY = (h - GAME_H * scale) / 2;
+  offsetY = isMobile ? 0 : (h - GAME_H * scale) / 2;
   canvas.style.marginLeft = offsetX + 'px';
-  canvas.style.marginTop = offsetY + 'px';
+  canvas.style.marginTop = isMobile ? '0px' : offsetY + 'px';
 }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
@@ -1459,13 +1473,14 @@ function ringStepToward(from, to) {
 }
 
 function buildRoomTabs() {
-  const tabs = document.getElementById('room-tabs');
-  tabs.innerHTML =
+  const tabsHTML =
     `<button onclick="switchRoom(roomLeft(state.currentRoom))">◀</button>` +
     ROOMS.map((r, i) =>
       `<button class="${i === state.currentRoom ? 'active' : ''}" onclick="switchRoom(${i})">${r.icon}</button>`
     ).join('') +
     `<button onclick="switchRoom(roomRight(state.currentRoom))">▶</button>`;
+  document.getElementById('room-tabs').innerHTML = tabsHTML;
+  document.getElementById('room-tabs-mobile').innerHTML = tabsHTML;
 }
 function switchRoom(i) {
   const prevRoom = state.currentRoom;
@@ -6215,6 +6230,8 @@ function startGame() {
   updateHappinessDisplay();
   updateGoalDisplay();
   buildRoomTabs();
+  // Re-fit canvas now that HUD is visible (mobile needs HUD height)
+  resizeCanvas();
   initParticles();
   ensureExerciseRoomSetup();
   triggerBirthdayEvent();
