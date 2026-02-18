@@ -264,6 +264,7 @@ html, body {
 }
 #title-screen .mouse-art {
   display: flex; flex-direction: column; align-items: center; gap: 2px;
+  overflow: hidden;
 }
 #title-screen .mouse-art .name {
   color: #d0b888; font-size: 13px; font-weight: bold;
@@ -5638,8 +5639,9 @@ document.addEventListener('keydown', e => {
 
     // Pip — walking, facing right
     const pipAction = Math.sin(t * 0.4) > 0.3 ? 'zoomies' : (Math.sin(t * 0.7) > 0.6 ? 'grooming' : 'walking');
-    pipCtx.clearRect(0, 0, 200, 160);
     pipCtx.save();
+    pipCtx.setTransform(1, 0, 0, 1, 0, 0);
+    pipCtx.clearRect(0, 0, 200, 160);
     pipCtx.translate(100, 85);
     pipCtx.scale(3, 3);
     pipCtx.translate(-14, -12);
@@ -5650,8 +5652,9 @@ document.addEventListener('keydown', e => {
 
     // Chai — idle/grooming, facing left
     const chaiAction = Math.sin(t * 0.3 + 1) > 0.4 ? 'idle' : (Math.sin(t * 0.5 + 2) > 0.5 ? 'grooming' : 'walking');
-    chaiCtx.clearRect(0, 0, 200, 160);
     chaiCtx.save();
+    chaiCtx.setTransform(1, 0, 0, 1, 0, 0);
+    chaiCtx.clearRect(0, 0, 200, 160);
     chaiCtx.translate(100, 85);
     chaiCtx.scale(3, 3);
     chaiCtx.translate(-14, -12);
