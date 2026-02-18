@@ -5237,6 +5237,24 @@ function updateMouse(mouse, dt, personality) {
         mouse.pendingClimb = null;
         return;
       }
+      // Check if we have a pending room change (mouse reached the exit edge)
+      if (mouse.pendingRoomChange) {
+        const prc = mouse.pendingRoomChange;
+        mouse.pendingRoomChange = null;
+        mouse.room = prc.newRoom;
+        mouse.level = 'main-floor';
+        const plat = ROOMS[prc.newRoom].platforms ? ROOMS[prc.newRoom].platforms[0] : null;
+        const xMin = plat ? plat.xMin + 10 : 30;
+        const xMax = plat ? plat.xMax - 40 : ROOM_W - 60;
+        // Enter from the opposite edge (exit right → enter left, and vice versa)
+        mouse.x = prc.exitDir > 0 ? xMin : xMax;
+        mouse.dir = prc.exitDir;
+        // Walk inward from the entrance
+        mouse.action = 'walking';
+        mouse.targetX = xMin + Math.random() * (xMax - xMin);
+        mouse.actionTimer = 4000;
+        return;
+      }
       mouse.action = 'idle';
       mouse.actionTimer = 1000 + Math.random() * 1500;
     }
@@ -5316,31 +5334,37 @@ function clampMouseToPlatform(mouse) {
 }
 
 function pickNewAction(mouse, personality) {
+  // Clear any pending transitions from a previous action
+  mouse.pendingClimb = null;
+  mouse.pendingRoomChange = null;
   const roll = Math.random();
   const room = ROOMS[mouse.room];
 
   // Chance to switch rooms — 18%, moves to adjacent room on the ring
-  // Biased toward stepping in the direction of the other mouse
+  // Mouse walks to the exit edge, then transitions to the new room
   if (roll < 0.18) {
     const otherMouse = mouse === state.miceState.pip ? state.miceState.chai : state.miceState.pip;
     let newRoom;
     if (otherMouse.room !== mouse.room && Math.random() < 0.7) {
-      // Step one room toward the other mouse on the ring
       newRoom = ringStepToward(mouse.room, otherMouse.room);
     } else {
-      // Random step left or right
       newRoom = Math.random() < 0.5 ? roomLeft(mouse.room) : roomRight(mouse.room);
     }
     if (newRoom !== mouse.room) {
-      // Mouse enters from the side it came from
-      const cameFromLeft = newRoom === roomRight(mouse.room);
-      mouse.room = newRoom;
+      // Determine exit direction: left neighbor = walk left, right neighbor = walk right
+      const exitDir = newRoom === roomRight(mouse.room) ? 1 : -1;
+      const plat = getMousePlatform(mouse) || (ROOMS[mouse.room].platforms ? ROOMS[mouse.room].platforms[0] : null);
+      const exitX = exitDir > 0
+        ? (plat ? plat.xMax - 5 : ROOM_W - 10)
+        : (plat ? plat.xMin + 5 : 10);
+      // Walk to the exit edge, then room switch happens on arrival
       mouse.level = 'main-floor';
-      const plat = ROOMS[newRoom].platforms ? ROOMS[newRoom].platforms[0] : null;
-      const xMin = plat ? plat.xMin + 10 : 30;
-      const xMax = plat ? plat.xMax - 40 : ROOM_W - 60;
-      // Enter from the left or right edge depending on direction
-      mouse.x = cameFromLeft ? xMin : xMax;
+      mouse.action = 'walking';
+      mouse.targetX = exitX;
+      mouse.dir = exitDir;
+      mouse.actionTimer = 8000;
+      mouse.pendingRoomChange = { newRoom, exitDir };
+      return;
     }
     mouse.action = 'idle';
     mouse.actionTimer = 800 + Math.random() * 1200;
@@ -5389,32 +5413,22 @@ function pickNewAction(mouse, personality) {
       mouse.actionTimer = 8000;
       return;
     }
-    // No food in this room — step one room toward food on the ring
+    // No food in this room — walk to exit edge, then step one room toward food
     const foodElsewhere = allFood.filter(p => p.room !== mouse.room);
     if (foodElsewhere.length > 0) {
       const target = foodElsewhere[Math.floor(Math.random() * foodElsewhere.length)];
       const nextRoom = ringStepToward(mouse.room, target.room);
-      const cameFromLeft = nextRoom === roomRight(mouse.room);
-      mouse.room = nextRoom;
+      const exitDir = nextRoom === roomRight(mouse.room) ? 1 : -1;
+      const plat = getMousePlatform(mouse) || (ROOMS[mouse.room].platforms ? ROOMS[mouse.room].platforms[0] : null);
+      const exitX = exitDir > 0
+        ? (plat ? plat.xMax - 5 : ROOM_W - 10)
+        : (plat ? plat.xMin + 5 : 10);
       mouse.level = 'main-floor';
-      const plat = ROOMS[nextRoom].platforms ? ROOMS[nextRoom].platforms[0] : null;
-      const xMin = plat ? plat.xMin + 10 : 30;
-      const xMax = plat ? plat.xMax - 40 : ROOM_W - 60;
-      mouse.x = cameFromLeft ? xMin : xMax;
-      // If food is now in this room, head to it; otherwise just walk inward
-      const foodHere = allFood.filter(p => p.room === nextRoom);
-      if (foodHere.length > 0) {
-        const pos = gridToGame(foodHere[0].gridX, foodHere[0].gridY);
-        mouse.action = 'eating';
-        mouse.targetX = pos.x + Math.random() * 10;
-        mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
-        mouse.actionTimer = 8000;
-      } else {
-        mouse.action = 'walking';
-        mouse.targetX = (xMin + xMax) / 2;
-        mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
-        mouse.actionTimer = 3000;
-      }
+      mouse.action = 'walking';
+      mouse.targetX = exitX;
+      mouse.dir = exitDir;
+      mouse.actionTimer = 8000;
+      mouse.pendingRoomChange = { newRoom: nextRoom, exitDir };
       return;
     }
     // Truly no food anywhere — complain
