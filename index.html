@@ -1367,6 +1367,11 @@ function loadGame() {
         const item = FURNITURE.find(f => f.id === p.itemId);
         if (item && item.servings && p.servings === undefined) p.servings = item.servings;
       });
+      // Remove stale food items with 0 servings (from interrupted saves)
+      state.placedItems = state.placedItems.filter(p => {
+        const item = FURNITURE.find(f => f.id === p.itemId);
+        return !(item && item.servings && p.servings !== undefined && p.servings <= 0);
+      });
       state.currentRoom = d.currentRoom ?? 0;
       state.birthdayEventSeen = d.birthdayEventSeen ?? false;
       state.letterRead = d.letterRead ?? false;
@@ -5277,7 +5282,12 @@ function updateMouse(mouse, dt, personality) {
   // Safety valve: if timer is very negative (stuck > 5s), allow pickNewAction to unstick
   mouse.actionTimer -= dt;
   const walkingToFood = mouse.action === 'eating' && mouse.targetX !== undefined;
-  if (mouse.actionTimer <= 0 && !mouse.pendingRoomChange && !mouse.pendingClimb && (!walkingToFood || mouse.actionTimer < -5000)) {
+  // Critical hunger interrupt: bypass timer when starving
+  const criticallyHungry = (mouse.happiness ?? 80) <= 15;
+  const canInterrupt = mouse.action !== 'climbing' && mouse.action !== 'flung' && mouse.action !== 'wheeling' && !mouse.pendingRoomChange && !mouse.pendingClimb;
+  if (criticallyHungry && canInterrupt && mouse.action !== 'eating') {
+    pickNewAction(mouse, personality);
+  } else if (mouse.actionTimer <= 0 && !mouse.pendingRoomChange && !mouse.pendingClimb && (!walkingToFood || mouse.actionTimer < -5000)) {
     pickNewAction(mouse, personality);
   }
 
@@ -5378,6 +5388,10 @@ function updateMouse(mouse, dt, personality) {
         }
         mouse._eatCooldown = 800; // 0.8 seconds between bites
         saveGame();
+      } else {
+        // No food nearby — recover from stuck eating state
+        mouse.action = 'idle';
+        mouse.actionTimer = 500;
       }
     } else {
       mouse._eatCooldown -= dt;
@@ -5611,13 +5625,30 @@ function pickNewAction(mouse, personality) {
       mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
     }
     if (mouse.room === state.currentRoom) {
-      const pipMischief = ['*knocks thing off shelf*', 'oops 😈', 'wasn\'t me', 'chaos is a ladder', '*pushes to edge*', 'no thoughts just crimes'];
-      const chaiMischief = ['*claims this spot*', 'this is mine now', '*hides*', 'you can\'t see me 👀', '*box acquired*', 'stealth mode'];
+      const pipMischief = [
+        '*knocks thing off shelf*', 'oops 😈', 'wasn\'t me', 'chaos is a ladder',
+        '*pushes to edge*', 'no thoughts just crimes', '*yeets item*',
+        'watch this—', 'what does this button do', '*chews on wire*',
+        'gravity test! 📉', 'for science 🔬', 'the shelf had it coming'
+      ];
+      const chaiMischief = [
+        '*claims this spot*', 'this is mine now', '*hides*', 'you can\'t see me 👀',
+        '*box acquired*', 'stealth mode', '*reorganizes everything*',
+        'I live here now', '*tunnels into blanket*', 'invisible mouse activated',
+        'if I fits I sits', '*rearranges furniture*', 'feng shui 🎋'
+      ];
       const quotes = personality === 'chaotic' ? pipMischief : chaiMischief;
       speechBubbles = speechBubbles.filter(b => b.mouseKey !== mouseKey);
       speechBubbles.push({ x: mouse.x + 14, y: getMouseFloorY(mouse) - 10,
         text: quotes[Math.floor(Math.random() * quotes.length)],
         timer: 2500, maxTimer: 2500, mouseKey });
+      // Visual mischief effect
+      if (roomItems.length > 0 && Math.random() < 0.4) {
+        const effectItem = roomItems[Math.floor(Math.random() * roomItems.length)];
+        const ePos = gridToGame(effectItem.gridX, effectItem.gridY);
+        const effects = ['💥', '⭐', '❗', '💫', '🌀'];
+        spawnFloatingEffect(ePos.x + 12, ePos.y + 6, effects[Math.floor(Math.random() * effects.length)]);
+      }
     }
   } else {
     mouse.actionTimer = 1500 + Math.random() * 2000;
@@ -5675,7 +5706,14 @@ const PIP_QUOTES = [
   'this is fine 🔥', 'unhinged and unbothered', 'speed run any%', 'yeet',
   'bet', 'say less', 'lowkey feral rn', 'bestie wake up', 'ZOOM', 'not sorry 😈',
   'is there more cheese??', 'snack break? snack break.', 'I smell food 👃',
-  'built different (and hungry)', 'cheese is a personality trait'
+  'built different (and hungry)', 'cheese is a personality trait',
+  'what if I just... *pushes thing*', 'crime time 🐭', 'no rules just vibes',
+  '*stares at you*', 'u watching me? 👀', 'plot twist: I\'m the main character',
+  'brb causing problems', '*knocks over cup*', 'the intrusive thoughts won',
+  'alexa play despacito', 'I did NOT eat that', 'it was like that when I got here',
+  'actually this is MY shelf', 'smol but mighty', 'touch grass? I AM grass',
+  'certified hood classic', 'ratio', 'skill issue tbh', 'L + no cheese',
+  'just vibing (chaotically)', '*exists aggressively*'
 ];
 const CHAI_QUOTES = [
   'this is giving cozy', 'soft hours only 🌙', 'no thoughts, just vibes',
@@ -5683,7 +5721,14 @@ const CHAI_QUOTES = [
   'wholesome content only', 'living slow 🐌', 'comfort is key', 'gentle chaos',
   'self care is sleeping', 'cozy era', 'manifesting cheese ✨', 'just existing 💫',
   'zzz is a lifestyle', 'pls don\'t wake me', 'warm thoughts only', 'soft launch 🧀',
-  'cottagecore mouse', 'peace was always an option 🕊'
+  'cottagecore mouse', 'peace was always an option 🕊',
+  '*contemplates existence*', 'this room has good energy', 'what a time to be alive',
+  'dreaming of cheese rn', 'noted 📝', 'very demure, very mindful',
+  'literally just standing here', 'quiet luxury 🐭', 'idk I just live here',
+  '*stares into distance*', 'the floor is warm here', 'healing arc 🌿',
+  'today I choose peace', 'Pip is being chaotic again', '*judges silently*',
+  'this is my emotional support room', 'I\'m baby 🥺', 'nap first, think later',
+  'the vibe is immaculate', '*blinks slowly*', 'it me'
 ];
 
 const WHEEL_QUOTES = [
@@ -5697,7 +5742,7 @@ const WHEEL_QUOTES = [
 let speechBubbles = [];  // { x, y, text, timer, maxTimer, mouseKey }
 let floatingEffects = []; // { x, y, text, timer, vy }
 
-let speechCooldown = 8000 + Math.random() * 7000; // 8-15 sec
+let speechCooldown = 5000 + Math.random() * 5000; // 5-10 sec
 
 function triggerSpeech(mouseKey) {
   const mouse = state.miceState[mouseKey];
@@ -5706,7 +5751,28 @@ function triggerSpeech(mouseKey) {
   if (mouse.action === 'wheeling') {
     quotes = WHEEL_QUOTES;
   } else {
-    quotes = mouseKey === 'pip' ? PIP_QUOTES : CHAI_QUOTES;
+    // Mix personality quotes with context-sensitive ones
+    const base = mouseKey === 'pip' ? PIP_QUOTES : CHAI_QUOTES;
+    const contextual = [];
+    // Room-specific
+    const roomIdx = mouse.room;
+    if (roomIdx === 0) contextual.push('bedroom vibes 🛏', 'cozy in here', 'nap room best room');
+    if (roomIdx === 1) contextual.push('kitchen raid 🍳', 'anything to eat?', 'chef mode');
+    if (roomIdx === 2) contextual.push('living room energy', 'tv time?', 'prime hangout spot');
+    if (roomIdx === 3) contextual.push('leg day 💪', 'gym arc', 'do I look buff?');
+    // Action-specific
+    if (mouse.action === 'sleeping') contextual.push('five more minutes...', 'zzz...', 'don\'t wake me');
+    if (mouse.action === 'zoomies') contextual.push('CAN\'T STOP 💨', 'SPEEED', 'I\'m fast as heck boi');
+    if (mouse.action === 'grooming') contextual.push('glow up era ✨', 'self care sunday', 'mirror mirror');
+    // Happiness-dependent
+    if ((mouse.happiness ?? 80) > 80) contextual.push('life is good 😊', 'peak happiness', '10/10 no notes');
+    if ((mouse.happiness ?? 80) < 25) contextual.push('feed me pls 😩', 'fading...', 'hello? food?');
+    // 30% chance of contextual quote if available
+    if (contextual.length > 0 && Math.random() < 0.3) {
+      quotes = contextual;
+    } else {
+      quotes = base;
+    }
   }
   const text = quotes[Math.floor(Math.random() * quotes.length)];
   speechBubbles = speechBubbles.filter(b => b.mouseKey !== mouseKey);
@@ -5721,7 +5787,7 @@ function triggerSpeech(mouseKey) {
 function updateSpeechBubbles(dt) {
   speechCooldown -= dt;
   if (speechCooldown <= 0) {
-    speechCooldown = 8000 + Math.random() * 7000;
+    speechCooldown = 5000 + Math.random() * 5000;
     // Pick a random mouse to speak
     const mouseKey = Math.random() < 0.5 ? 'pip' : 'chai';
     triggerSpeech(mouseKey);
@@ -5864,12 +5930,12 @@ function tryPetMouse(gx, gy) {
 // ============================================================
 // MOUSE INTERACTIONS (when both in same room)
 // ============================================================
-let interactionCooldown = 6000 + Math.random() * 6000;
+let interactionCooldown = 4000 + Math.random() * 4000;
 
 function updateMouseInteractions(dt) {
   const s = state.miceState.pip;
   const c = state.miceState.chai;
-  if (s.room !== c.room) { interactionCooldown = 3000 + Math.random() * 3000; return; }
+  if (s.room !== c.room) { interactionCooldown = 2000 + Math.random() * 2000; return; }
 
   // Startled reaction: if one mouse zooms past the other
   if (s.action === 'zoomies' && c.action !== 'zoomies' && c.action !== 'sleeping' && c.action !== 'flung') {
@@ -5878,7 +5944,7 @@ function updateMouseInteractions(dt) {
       c._startleTimer = 600;
       speechBubbles = speechBubbles.filter(b => b.mouseKey !== 'chai');
       speechBubbles.push({ x: c.x + 14, y: getMouseFloorY(c) - 10,
-        text: ['❗', 'AH!', 'omg', '😱', 'WHAT'][Math.floor(Math.random() * 5)],
+        text: ['❗', 'AH!', 'omg', '😱', 'WHAT', 'excuse me?!', 'RUDE'][Math.floor(Math.random() * 7)],
         timer: 1200, maxTimer: 1200, mouseKey: 'chai' });
     }
   }
@@ -5888,7 +5954,7 @@ function updateMouseInteractions(dt) {
       s._startleTimer = 600;
       speechBubbles = speechBubbles.filter(b => b.mouseKey !== 'pip');
       speechBubbles.push({ x: s.x + 14, y: getMouseFloorY(s) - 10,
-        text: ['❗', 'AH!', 'bruh', '😱', 'HEY'][Math.floor(Math.random() * 5)],
+        text: ['❗', 'AH!', 'bruh', '😱', 'HEY', 'personal space!', 'watch it!'][Math.floor(Math.random() * 7)],
         timer: 1200, maxTimer: 1200, mouseKey: 'pip' });
     }
   }
@@ -5896,13 +5962,44 @@ function updateMouseInteractions(dt) {
   if (s._startled) { s._startleTimer -= dt; if (s._startleTimer <= 0) s._startled = false; }
   if (c._startled) { c._startleTimer -= dt; if (c._startleTimer <= 0) c._startled = false; }
 
+  // Copy-cat behavior: if one starts an action, other might copy
+  if (!s._copyCooldown) s._copyCooldown = 0;
+  if (!c._copyCooldown) c._copyCooldown = 0;
+  s._copyCooldown = Math.max(0, s._copyCooldown - dt);
+  c._copyCooldown = Math.max(0, c._copyCooldown - dt);
+  const copyActions = ['zoomies', 'grooming', 'sleeping'];
+  if (copyActions.includes(s.action) && c.action === 'idle' && c._copyCooldown <= 0 && Math.random() < 0.002) {
+    c.action = s.action;
+    c.actionTimer = s.actionTimer;
+    c.dir = s.dir;
+    c._copyCooldown = 10000;
+    if (c.room === state.currentRoom) {
+      speechBubbles = speechBubbles.filter(b => b.mouseKey !== 'chai');
+      speechBubbles.push({ x: c.x + 14, y: getMouseFloorY(c) - 10,
+        text: ['me too!', '*copies*', 'monkey see monkey do', 'same tbh', 'mood'][Math.floor(Math.random() * 5)],
+        timer: 2000, maxTimer: 2000, mouseKey: 'chai' });
+    }
+  }
+  if (copyActions.includes(c.action) && s.action === 'idle' && s._copyCooldown <= 0 && Math.random() < 0.002) {
+    s.action = c.action;
+    s.actionTimer = c.actionTimer;
+    s.dir = c.dir;
+    s._copyCooldown = 10000;
+    if (s.room === state.currentRoom) {
+      speechBubbles = speechBubbles.filter(b => b.mouseKey !== 'pip');
+      speechBubbles.push({ x: s.x + 14, y: getMouseFloorY(s) - 10,
+        text: ['wait me too', '*copies*', 'same energy', 'I also choose this', 'vibe check passed'][Math.floor(Math.random() * 5)],
+        timer: 2000, maxTimer: 2000, mouseKey: 'pip' });
+    }
+  }
+
   interactionCooldown -= dt;
   if (interactionCooldown > 0) return;
-  interactionCooldown = 8000 + Math.random() * 7000;
+  interactionCooldown = 5000 + Math.random() * 5000;
 
   const interaction = Math.random();
 
-  if (interaction < 0.25) {
+  if (interaction < 0.18) {
     // Nuzzle/nose-boop: move toward each other, then heart burst
     const midX = (s.x + c.x) / 2;
     s.action = 'walking'; s.targetX = midX - 12; s.dir = 1;
@@ -5910,7 +6007,6 @@ function updateMouseInteractions(dt) {
     s.actionTimer = 4000; c.actionTimer = 4000;
     setTimeout(() => {
       if (s.room === c.room && s.room === state.currentRoom) {
-        // Nose boop heart burst
         const boopX = (s.x + c.x) / 2 + 14;
         const boopY = getMouseFloorY(s) - 5;
         for (let i = 0; i < 4; i++) {
@@ -5922,11 +6018,12 @@ function updateMouseInteractions(dt) {
         triggerSpeech(Math.random() < 0.5 ? 'pip' : 'chai');
       }
     }, 2000);
-  } else if (interaction < 0.45) {
+  } else if (interaction < 0.32) {
     // Play-chase: Pip chases Chai (or vice versa)
     const chaser = Math.random() < 0.6 ? s : c;
     const runner = chaser === s ? c : s;
     const chaserKey = chaser === s ? 'pip' : 'chai';
+    const runnerKey = chaser === s ? 'chai' : 'pip';
     runner.action = 'walking';
     runner.targetX = Math.random() < 0.5 ? 40 : ROOM_W - 60;
     runner.dir = runner.targetX > runner.x ? 1 : -1;
@@ -5943,7 +6040,16 @@ function updateMouseInteractions(dt) {
       text: chaserKey === 'pip' ? 'get back here! 💨' : 'wheee! 🏃',
       timer: 2000, maxTimer: 2000, mouseKey: chaserKey
     });
-  } else if (interaction < 0.6) {
+    // Runner reacts
+    setTimeout(() => {
+      if (runner.room === state.currentRoom) {
+        speechBubbles = speechBubbles.filter(b => b.mouseKey !== runnerKey);
+        speechBubbles.push({ x: runner.x + 14, y: getMouseFloorY(runner) - 10,
+          text: ['you\'ll never catch me!', 'NOT AGAIN', '*screeee*', 'help! 😂', 'faster! 💨'][Math.floor(Math.random() * 5)],
+          timer: 2000, maxTimer: 2000, mouseKey: runnerKey });
+      }
+    }, 800);
+  } else if (interaction < 0.42) {
     // Synchronized sleeping: both curl up nearby
     if (s.action !== 'wheeling' && c.action !== 'wheeling') {
       const napX = 100 + Math.random() * (ROOM_W - 200);
@@ -5959,13 +6065,12 @@ function updateMouseInteractions(dt) {
         }
       }, 2500);
     }
-  } else if (interaction < 0.75) {
+  } else if (interaction < 0.52) {
     // Play-grooming: one grooms the other
     const groomer = Math.random() < 0.5 ? s : c;
     const groomee = groomer === s ? c : s;
     const groomerKey = groomer === s ? 'pip' : 'chai';
     const groomeeKey = groomer === s ? 'chai' : 'pip';
-    // Walk close
     groomer.action = 'walking';
     groomer.targetX = groomee.x + (groomer.x > groomee.x ? 15 : -15);
     groomer.dir = groomee.x > groomer.x ? 1 : -1;
@@ -5980,12 +6085,78 @@ function updateMouseInteractions(dt) {
         if (groomer.room === state.currentRoom) {
           speechBubbles = speechBubbles.filter(b => b.mouseKey !== groomeeKey);
           speechBubbles.push({ x: groomee.x + 14, y: getMouseFloorY(groomee) - 10,
-            text: ['thx bestie 🥺', 'aww', 'don\'t stop', '🥰'][Math.floor(Math.random() * 4)],
+            text: ['thx bestie 🥺', 'aww', 'don\'t stop', '🥰', 'this is nice'][Math.floor(Math.random() * 5)],
             timer: 2500, maxTimer: 2500, mouseKey: groomeeKey });
         }
       }
     }, 1500);
-  } else {
+  } else if (interaction < 0.62) {
+    // Synchronized zoomies — both go wild
+    if (s.action !== 'wheeling' && c.action !== 'wheeling') {
+      s.action = 'zoomies'; s.actionTimer = 2500 + Math.random() * 1500;
+      c.action = 'zoomies'; c.actionTimer = 2500 + Math.random() * 1500;
+      s.dir = 1; c.dir = -1;
+      if (s.room === state.currentRoom) {
+        sfxZoomies();
+        speechBubbles = speechBubbles.filter(b => b.mouseKey !== 'pip' && b.mouseKey !== 'chai');
+        speechBubbles.push({ x: s.x + 14, y: getMouseFloorY(s) - 10,
+          text: ['ZOOMIES!!! 💨', 'RACE!! 🏁', 'CAN\'T STOP'][Math.floor(Math.random() * 3)],
+          timer: 2000, maxTimer: 2000, mouseKey: 'pip' });
+        speechBubbles.push({ x: c.x + 14, y: getMouseFloorY(c) - 10,
+          text: ['WHEEE!', 'SO FAST!', 'NYOOOM 💨'][Math.floor(Math.random() * 3)],
+          timer: 2000, maxTimer: 2000, mouseKey: 'chai' });
+      }
+    }
+  } else if (interaction < 0.72) {
+    // Stolen food drama — one mouse walks to the other and they have a "moment"
+    const thief = Math.random() < 0.6 ? s : c;
+    const victim = thief === s ? c : s;
+    const thiefKey = thief === s ? 'pip' : 'chai';
+    const victimKey = thief === s ? 'chai' : 'pip';
+    thief.action = 'walking';
+    thief.targetX = victim.x + (thief.x > victim.x ? 15 : -15);
+    thief.dir = victim.x > thief.x ? 1 : -1;
+    thief.actionTimer = 4000;
+    setTimeout(() => {
+      if (thief.room === victim.room && thief.room === state.currentRoom) {
+        speechBubbles = speechBubbles.filter(b => b.mouseKey !== thiefKey);
+        speechBubbles.push({ x: thief.x + 14, y: getMouseFloorY(thief) - 10,
+          text: thiefKey === 'pip'
+            ? ['gimme your cheese 🧀', '*steals snack*', 'what\'s yours is mine', 'sharing is caring (for me)'][Math.floor(Math.random() * 4)]
+            : ['that\'s MY spot', '*claims territory*', 'excuse me this is taken', 'mine now 😤'][Math.floor(Math.random() * 4)],
+          timer: 2500, maxTimer: 2500, mouseKey: thiefKey });
+        setTimeout(() => {
+          if (victim.room === state.currentRoom) {
+            speechBubbles = speechBubbles.filter(b => b.mouseKey !== victimKey);
+            speechBubbles.push({ x: victim.x + 14, y: getMouseFloorY(victim) - 10,
+              text: ['hey! 😠', 'not cool', 'RUDE', 'I\'m telling', '...wow'][Math.floor(Math.random() * 5)],
+              timer: 2500, maxTimer: 2500, mouseKey: victimKey });
+          }
+        }, 1000);
+      }
+    }, 1500);
+  } else if (interaction < 0.82) {
+    // Staring contest — both face each other and just... stare
+    const midX = (s.x + c.x) / 2;
+    s.dir = c.x > s.x ? 1 : -1;
+    c.dir = s.x > c.x ? 1 : -1;
+    s.action = 'idle'; s.actionTimer = 4000;
+    c.action = 'idle'; c.actionTimer = 4000;
+    if (s.room === state.currentRoom) {
+      setTimeout(() => {
+        speechBubbles = speechBubbles.filter(b => b.mouseKey !== 'pip');
+        speechBubbles.push({ x: s.x + 14, y: getMouseFloorY(s) - 10,
+          text: ['👁👁', '...', 'don\'t blink', '*stares*', '🤨'][Math.floor(Math.random() * 5)],
+          timer: 3000, maxTimer: 3000, mouseKey: 'pip' });
+      }, 500);
+      setTimeout(() => {
+        speechBubbles = speechBubbles.filter(b => b.mouseKey !== 'chai');
+        speechBubbles.push({ x: c.x + 14, y: getMouseFloorY(c) - 10,
+          text: ['...what', 'stop it', '😐', '*blinks*', 'I win'][Math.floor(Math.random() * 5)],
+          timer: 3000, maxTimer: 3000, mouseKey: 'chai' });
+      }, 1500);
+    }
+  } else if (interaction < 0.92) {
     // Judging: one mouse stares at the other
     const judger = Math.random() < 0.6 ? s : c;
     const judgerKey = judger === s ? 'pip' : 'chai';
@@ -5996,10 +6167,26 @@ function updateMouseInteractions(dt) {
     speechBubbles.push({
       x: judger.x + 14, y: getMouseFloorY(judger) - 10,
       text: judgerKey === 'pip'
-        ? ['sus 🤨', 'cringe', 'who asked?', 'bruh'][Math.floor(Math.random() * 4)]
-        : ['rude', 'don\'t look at me', 'why tho', '😐'][Math.floor(Math.random() * 4)],
+        ? ['sus 🤨', 'cringe', 'who asked?', 'bruh', 'oof'][Math.floor(Math.random() * 5)]
+        : ['rude', 'don\'t look at me', 'why tho', '😐', 'I saw that'][Math.floor(Math.random() * 5)],
       timer: 3000, maxTimer: 3000, mouseKey: judgerKey
     });
+  } else {
+    // 4th wall break — mouse looks at the player
+    const breaker = Math.random() < 0.5 ? s : c;
+    const breakerKey = breaker === s ? 'pip' : 'chai';
+    breaker.action = 'idle';
+    breaker.actionTimer = 3000;
+    if (breaker.room === state.currentRoom) {
+      speechBubbles = speechBubbles.filter(b => b.mouseKey !== breakerKey);
+      speechBubbles.push({
+        x: breaker.x + 14, y: getMouseFloorY(breaker) - 10,
+        text: breakerKey === 'pip'
+          ? ['are you watching me? 👀', 'hi human!', '*waves*', 'buy me cheese pls', 'why are you just standing there'][Math.floor(Math.random() * 5)]
+          : ['oh hi 🥺', 'don\'t mind me', '*acknowledges your existence*', 'are we the game?', 'we see you'][Math.floor(Math.random() * 5)],
+        timer: 3000, maxTimer: 3000, mouseKey: breakerKey
+      });
+    }
   }
 }
 // ============================================================
