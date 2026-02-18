@@ -4960,6 +4960,8 @@ function updateGoals(dt) {
     if (isPlaced) {
       // Goal completed!
       const bonus = 15;
+      const goalMouseKey = state.activeGoal.mouseKey;
+      const goalItemId = state.activeGoal.itemId;
       state.coins += bonus;
       state.totalCoinsEarned += bonus;
       addHappiness(10);
@@ -4971,6 +4973,124 @@ function updateGoals(dt) {
       updateGoalDisplay();
       saveGame();
       goalCooldown = 25000 + Math.random() * 20000;
+
+      // Requesting mouse seeks out the item and interacts with it
+      const goalMouse = state.miceState[goalMouseKey];
+      const goalPlaced = state.placedItems.find(p => p.itemId === goalItemId);
+      const goalItem = FURNITURE.find(f => f.id === goalItemId);
+      if (goalPlaced && goalItem && goalMouse.action !== 'wheeling' && goalMouse.action !== 'flung' && goalMouse.action !== 'climbing' && !goalMouse.onFurniture) {
+        const itemPos = gridToGame(goalPlaced.gridX, goalPlaced.gridY);
+        const fw = goalItem.w * GRID_SIZE;
+        goalMouse.pendingClimb = null;
+        goalMouse.pendingRoomChange = null;
+        goalMouse.pendingFurniture = null;
+        goalMouse.onFurniture = null;
+
+        // Navigate to the item's room if needed
+        if (goalMouse.room !== goalPlaced.room) {
+          const nextRoom = ringStepToward(goalMouse.room, goalPlaced.room);
+          const exitDir = nextRoom === roomRight(goalMouse.room) ? 1 : -1;
+          goalMouse.level = 'main-floor';
+          goalMouse.action = 'walking';
+          goalMouse.targetX = exitDir > 0 ? ROOM_W - 5 : 5;
+          goalMouse.dir = exitDir;
+          goalMouse.actionTimer = 12000;
+          goalMouse.pendingRoomChange = { newRoom: nextRoom, exitDir };
+        } else {
+          // Same room — walk to item, then interact
+          goalMouse.level = 'main-floor';
+          goalMouse.action = 'walking';
+          goalMouse.targetX = itemPos.x + fw / 2;
+          goalMouse.dir = goalMouse.targetX > goalMouse.x ? 1 : -1;
+          goalMouse.actionTimer = 8000;
+          // For hammock/rope, use the pendingFurniture + climb system
+          if ((goalItem.mouseBehavior === 'sleeping' && goalItemId === 'hammock') ||
+              goalItem.mouseBehavior === 'swinging') {
+            goalMouse.pendingFurniture = { behavior: goalItem.mouseBehavior, placed: goalPlaced, timer: 5000 };
+            const furnPlatform = getFurniturePlatform(goalPlaced.room, goalPlaced);
+            if (goalMouse.level !== furnPlatform) {
+              const room = ROOMS[goalMouse.room];
+              const ramp = room.ramps && room.ramps.find(r =>
+                (r.from === goalMouse.level && r.to === furnPlatform) ||
+                (r.to === goalMouse.level && r.from === furnPlatform));
+              if (ramp) {
+                const goingUp = ramp.from === goalMouse.level;
+                goalMouse.targetX = goingUp ? ramp.x1 : ramp.x2;
+                goalMouse.dir = goalMouse.targetX > goalMouse.x ? 1 : -1;
+                goalMouse.pendingClimb = { ramp, targetLevel: furnPlatform, goingUp };
+              }
+            }
+          }
+        }
+
+        // Grateful speech from requesting mouse (after reaching item)
+        const gratefulPip = ['FINALLY 🥹', 'you actually listened!', 'best day ever ✨',
+          'I manifested this', 'crying rn 😭', 'YESSS', 'literally perfect', 'slay 💅'];
+        const gratefulChai = ['omg thank you 🥺', 'this is everything', 'so blessed ✨',
+          'I feel seen', 'actually crying', 'needed this so bad', 'perfect vibes', 'love this for me'];
+        const gratefulQuotes = goalMouseKey === 'pip' ? gratefulPip : gratefulChai;
+
+        // Celebration burst and speech after mouse reaches item
+        setTimeout(() => {
+          // Speech
+          speechBubbles = speechBubbles.filter(b => b.mouseKey !== goalMouseKey);
+          speechBubbles.push({
+            x: goalMouse.x + 14, y: getMouseFloorY(goalMouse) - 10,
+            text: gratefulQuotes[Math.floor(Math.random() * gratefulQuotes.length)],
+            timer: 3500, maxTimer: 3500, mouseKey: goalMouseKey
+          });
+          // Celebration emoji burst
+          if (goalMouse.room === state.currentRoom) {
+            const burstEmoji = ['🎉', '✨', '💕', '⭐', '🥳', '💖'];
+            for (let i = 0; i < 5; i++) {
+              setTimeout(() => {
+                spawnFloatingEffect(
+                  goalMouse.x + 14 + (Math.random() - 0.5) * 30,
+                  getMouseFloorY(goalMouse) - Math.random() * 15,
+                  burstEmoji[Math.floor(Math.random() * burstEmoji.length)]
+                );
+              }, i * 150);
+            }
+          }
+          // Start the item's behavior (if it has one)
+          if (goalItem.mouseBehavior && goalItem.mouseBehavior !== 'eating' && !goalMouse.onFurniture) {
+            goalMouse.action = goalItem.mouseBehavior;
+            goalMouse.actionTimer = 4000 + Math.random() * 3000;
+          } else if (goalItem.mouseBehavior === 'eating') {
+            goalMouse.action = 'eating';
+            goalMouse.actionTimer = 6000;
+          } else {
+            // Decorative items: happy idle admiring
+            goalMouse.action = 'idle';
+            goalMouse.actionTimer = 3000 + Math.random() * 2000;
+          }
+        }, 2500);
+
+        // Other mouse reacts with jealousy or support
+        const otherKey = goalMouseKey === 'pip' ? 'chai' : 'pip';
+        const otherMouse = state.miceState[otherKey];
+        setTimeout(() => {
+          const jealousPip = ['why not ME though', 'I wanted that too 😤', 'ok wow favoritism',
+            'hello?? I exist too', 'not jealous... (jealous)', 'plot twist: it\'s mine now'];
+          const jealousChai = ['that\'s nice I guess', 'happy for you (lying)', 'ok but when is MY turn',
+            '*stares longingly*', 'cool cool cool cool', 'sharing is caring right??'];
+          const supportPip = ['W gift tbh', 'valid choice', 'I approve 👏', 'good for her honestly'];
+          const supportChai = ['that\'s so sweet 🥰', 'taste!', 'aesthetic ✨', 'we love to see it'];
+          const isJealous = Math.random() < 0.6;
+          let otherQuotes;
+          if (isJealous) {
+            otherQuotes = otherKey === 'pip' ? jealousPip : jealousChai;
+          } else {
+            otherQuotes = otherKey === 'pip' ? supportPip : supportChai;
+          }
+          speechBubbles = speechBubbles.filter(b => b.mouseKey !== otherKey);
+          speechBubbles.push({
+            x: otherMouse.x + 14, y: getMouseFloorY(otherMouse) - 10,
+            text: otherQuotes[Math.floor(Math.random() * otherQuotes.length)],
+            timer: 3000, maxTimer: 3000, mouseKey: otherKey
+          });
+        }, 3500);
+      }
       return;
     }
   }
