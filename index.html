@@ -410,12 +410,10 @@ html, body {
   <div class="adventure-subtitle">✨ The Adventures of Pip & Chai ✨</div>
   <div class="mice-display">
     <div class="mouse-art">
-      <canvas id="title-pip" width="160" height="140"></canvas>
-      <span class="name">Pip</span>
+      <canvas id="title-pip" width="200" height="160"></canvas>
     </div>
     <div class="mouse-art">
-      <canvas id="title-chai" width="160" height="140"></canvas>
-      <span class="name">Chai</span>
+      <canvas id="title-chai" width="200" height="160"></canvas>
     </div>
   </div>
   <div class="start-text">~ tap or click to start ~</div>
@@ -5640,11 +5638,11 @@ document.addEventListener('keydown', e => {
 
     // Pip — walking, facing right
     const pipAction = Math.sin(t * 0.4) > 0.3 ? 'zoomies' : (Math.sin(t * 0.7) > 0.6 ? 'grooming' : 'walking');
-    pipCtx.clearRect(0, 0, 160, 140);
+    pipCtx.clearRect(0, 0, 200, 160);
     pipCtx.save();
-    pipCtx.translate(80, 70);
-    pipCtx.scale(4, 4);
-    pipCtx.translate(-14, -10);
+    pipCtx.translate(100, 85);
+    pipCtx.scale(3, 3);
+    pipCtx.translate(-14, -12);
     ctx = pipCtx;
     drawMouse(0, 0, CONFIG.mice.pip, 1, frame, pipAction, false);
     ctx = savedCtx;
@@ -5652,11 +5650,11 @@ document.addEventListener('keydown', e => {
 
     // Chai — idle/grooming, facing left
     const chaiAction = Math.sin(t * 0.3 + 1) > 0.4 ? 'idle' : (Math.sin(t * 0.5 + 2) > 0.5 ? 'grooming' : 'walking');
-    chaiCtx.clearRect(0, 0, 160, 140);
+    chaiCtx.clearRect(0, 0, 200, 160);
     chaiCtx.save();
-    chaiCtx.translate(80, 70);
-    chaiCtx.scale(4, 4);
-    chaiCtx.translate(-14, -10);
+    chaiCtx.translate(100, 85);
+    chaiCtx.scale(3, 3);
+    chaiCtx.translate(-14, -12);
     ctx = chaiCtx;
     drawMouse(0, 0, CONFIG.mice.chai, -1, frame, chaiAction, false);
     ctx = savedCtx;
