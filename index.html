@@ -6803,10 +6803,15 @@ function handleCanvasInput(sx, sy, originalEvent) {
     return;
   }
 
-  // Edge arrow click — navigate to adjacent room
-  if (!roomTransition.active && pos.y >= ROOM_Y && pos.y <= ROOM_Y + ROOM_H) {
-    if (pos.x < EDGE_ZONE) { switchRoom(roomLeft(state.currentRoom)); return; }
-    if (pos.x > GAME_W - EDGE_ZONE) { switchRoom(roomRight(state.currentRoom)); return; }
+  // Edge arrow click — only on the arrow pill itself (28×36 centered on arrow)
+  if (!roomTransition.active && edgeHover !== 0) {
+    const arrowX = edgeHover > 0 ? GAME_W - 22 : 22;
+    const arrowY = ROOM_Y + ROOM_H / 2;
+    if (pos.x >= arrowX - 14 && pos.x <= arrowX + 14 && pos.y >= arrowY - 18 && pos.y <= arrowY + 18) {
+      if (edgeHover < 0) switchRoom(roomLeft(state.currentRoom));
+      else switchRoom(roomRight(state.currentRoom));
+      return;
+    }
   }
 
   // Check if clicking/touching a placed item to pick it up for repositioning
