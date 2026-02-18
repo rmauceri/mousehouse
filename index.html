@@ -4573,19 +4573,21 @@ function updateMouseMaze(dt) {
 
   // Continuous movement: check held keys for direction
   const held = mz.heldKeys;
-  const lastPressed = held.up ? 'up' : held.down ? 'down' : held.left ? 'left' : held.right ? 'right' : null;
-  if (lastPressed) mz.nextDir = lastPressed;
+  const activeDir = held.up ? 'up' : held.down ? 'down' : held.left ? 'left' : held.right ? 'right' : null;
+  if (activeDir) mz.nextDir = activeDir;
 
   mz.moveTimer -= dt;
   if (mz.moveTimer <= 0) {
     mz.moveTimer = mz.moveInterval;
-    // Try nextDir first, then keep current dir
-    if (mz.nextDir && canMazeMove(mz.nextDir)) {
-      mz.playerDir = mz.nextDir;
-      mz.nextDir = null;
-      doMazeMove(mz.playerDir);
-    } else if (canMazeMove(mz.playerDir)) {
-      doMazeMove(mz.playerDir);
+    // Only auto-repeat if a key is held; single press moves once via keydown
+    if (activeDir) {
+      if (mz.nextDir && canMazeMove(mz.nextDir)) {
+        mz.playerDir = mz.nextDir;
+        mz.nextDir = null;
+        doMazeMove(mz.playerDir);
+      } else if (canMazeMove(mz.playerDir)) {
+        doMazeMove(mz.playerDir);
+      }
     }
   }
 
