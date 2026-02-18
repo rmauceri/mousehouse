@@ -1391,11 +1391,32 @@ const ROOMS = [
   }
 ];
 
+// Ring layout helpers: rooms connect in a circle 0↔1↔2↔3↔0
+function roomLeft(i)  { return (i - 1 + ROOMS.length) % ROOMS.length; }
+function roomRight(i) { return (i + 1) % ROOMS.length; }
+// Shortest ring direction from 'from' to 'to': -1 = left, +1 = right, 0 = same
+function ringDirection(from, to) {
+  if (from === to) return 0;
+  const n = ROOMS.length;
+  const rightDist = (to - from + n) % n;
+  const leftDist  = (from - to + n) % n;
+  return rightDist <= leftDist ? 1 : -1;
+}
+// Next room one step toward 'to' on the ring
+function ringStepToward(from, to) {
+  const dir = ringDirection(from, to);
+  if (dir === 0) return from;
+  return dir > 0 ? roomRight(from) : roomLeft(from);
+}
+
 function buildRoomTabs() {
   const tabs = document.getElementById('room-tabs');
-  tabs.innerHTML = ROOMS.map((r, i) =>
-    `<button class="${i === state.currentRoom ? 'active' : ''}" onclick="switchRoom(${i})">${r.icon}</button>`
-  ).join('');
+  tabs.innerHTML =
+    `<button onclick="switchRoom(roomLeft(state.currentRoom))">◀</button>` +
+    ROOMS.map((r, i) =>
+      `<button class="${i === state.currentRoom ? 'active' : ''}" onclick="switchRoom(${i})">${r.icon}</button>`
+    ).join('') +
+    `<button onclick="switchRoom(roomRight(state.currentRoom))">▶</button>`;
 }
 function switchRoom(i) {
   const prevRoom = state.currentRoom;
@@ -5198,23 +5219,28 @@ function pickNewAction(mouse, personality) {
   const roll = Math.random();
   const room = ROOMS[mouse.room];
 
-  // Chance to switch rooms — 18%, biased toward joining the other mouse
+  // Chance to switch rooms — 18%, moves to adjacent room on the ring
+  // Biased toward stepping in the direction of the other mouse
   if (roll < 0.18) {
     const otherMouse = mouse === state.miceState.pip ? state.miceState.chai : state.miceState.pip;
     let newRoom;
     if (otherMouse.room !== mouse.room && Math.random() < 0.7) {
-      // 70% chance to go to the other mouse's room
-      newRoom = otherMouse.room;
+      // Step one room toward the other mouse on the ring
+      newRoom = ringStepToward(mouse.room, otherMouse.room);
     } else {
-      newRoom = Math.floor(Math.random() * ROOMS.length);
+      // Random step left or right
+      newRoom = Math.random() < 0.5 ? roomLeft(mouse.room) : roomRight(mouse.room);
     }
     if (newRoom !== mouse.room) {
+      // Mouse enters from the side it came from
+      const cameFromLeft = newRoom === roomRight(mouse.room);
       mouse.room = newRoom;
       mouse.level = 'main-floor';
       const plat = ROOMS[newRoom].platforms ? ROOMS[newRoom].platforms[0] : null;
       const xMin = plat ? plat.xMin + 10 : 30;
       const xMax = plat ? plat.xMax - 40 : ROOM_W - 60;
-      mouse.x = xMin + Math.random() * (xMax - xMin);
+      // Enter from the left or right edge depending on direction
+      mouse.x = cameFromLeft ? xMin : xMax;
     }
     mouse.action = 'idle';
     mouse.actionTimer = 800 + Math.random() * 1200;
@@ -5263,18 +5289,32 @@ function pickNewAction(mouse, personality) {
       mouse.actionTimer = 8000;
       return;
     }
-    // No food in this room — switch to a room that has food
+    // No food in this room — step one room toward food on the ring
     const foodElsewhere = allFood.filter(p => p.room !== mouse.room);
     if (foodElsewhere.length > 0) {
       const target = foodElsewhere[Math.floor(Math.random() * foodElsewhere.length)];
-      mouse.room = target.room;
+      const nextRoom = ringStepToward(mouse.room, target.room);
+      const cameFromLeft = nextRoom === roomRight(mouse.room);
+      mouse.room = nextRoom;
       mouse.level = 'main-floor';
-      const pos = gridToGame(target.gridX, target.gridY);
-      mouse.x = pos.x + (Math.random() < 0.5 ? -30 : 30);
-      mouse.action = 'eating';
-      mouse.targetX = pos.x + Math.random() * 10;
-      mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
-      mouse.actionTimer = 8000;
+      const plat = ROOMS[nextRoom].platforms ? ROOMS[nextRoom].platforms[0] : null;
+      const xMin = plat ? plat.xMin + 10 : 30;
+      const xMax = plat ? plat.xMax - 40 : ROOM_W - 60;
+      mouse.x = cameFromLeft ? xMin : xMax;
+      // If food is now in this room, head to it; otherwise just walk inward
+      const foodHere = allFood.filter(p => p.room === nextRoom);
+      if (foodHere.length > 0) {
+        const pos = gridToGame(foodHere[0].gridX, foodHere[0].gridY);
+        mouse.action = 'eating';
+        mouse.targetX = pos.x + Math.random() * 10;
+        mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
+        mouse.actionTimer = 8000;
+      } else {
+        mouse.action = 'walking';
+        mouse.targetX = (xMin + xMax) / 2;
+        mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
+        mouse.actionTimer = 3000;
+      }
       return;
     }
     // Truly no food anywhere — complain
