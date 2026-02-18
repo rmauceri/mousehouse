@@ -1266,8 +1266,8 @@ const FURNITURE = [
     desc: 'Anxiety coping mechanism. Very therapeutic.', w: 1, h: 1,
     color: '#a0764a', mouseBehavior: 'chewing' },
   { id: 'climbing-rope', name: 'Climbing Rope', icon: '🪢', price: 15,
-    desc: 'Vertical zoomies. Spider-mouse era.', w: 1, h: 2,
-    color: '#c4a050', mouseBehavior: 'swinging' },
+    desc: 'Vertical zoomies. Spider-mouse era.', w: 1, h: 3,
+    color: '#c4a050', mouseBehavior: 'swinging', wallMount: true },
   // Birthday items (hidden until birthday event)
   { id: 'birthday-cake', name: 'Birthday Cake', icon: '🎂', price: 0,
     desc: 'Happy 20th Nico & Rose! 🎉', w: 1, h: 1,
@@ -1393,6 +1393,11 @@ function loadGame() {
       if (d.miceState) {
         Object.assign(state.miceState.pip, d.miceState.pip || d.miceState.shadow || {});
         Object.assign(state.miceState.chai, d.miceState.chai || d.miceState.cloud || {});
+        // Clear transient furniture state (not persisted across sessions)
+        ['pip', 'chai'].forEach(k => {
+          state.miceState[k].onFurniture = null;
+          state.miceState[k].pendingFurniture = null;
+        });
       }
     }
   } catch (e) {}
@@ -1563,14 +1568,14 @@ function drawRoomScene(roomIndex, offsetX) {
   // Draw mice in this room
   const pip = state.miceState.pip;
   const chai = state.miceState.chai;
-  if (pip.room === roomIndex && pip.action !== 'wheeling') {
+  if (pip.room === roomIndex && pip.action !== 'wheeling' && !pip.onFurniture) {
     const fy = getMouseFloorY(pip);
     if (pip.action === 'flung') drawFlungMouse(pip, CONFIG.mice.pip);
     else drawMouse(pip.x, fy, CONFIG.mice.pip, pip.dir, pip.frame, pip.action, pip._startled);
     drawPartyHat(pip.action === 'flung' ? pip.flingX : pip.x,
                  pip.action === 'flung' ? pip.flingY : fy, pip.action, pip.dir, CONFIG.mice.pip);
   }
-  if (chai.room === roomIndex && chai.action !== 'wheeling') {
+  if (chai.room === roomIndex && chai.action !== 'wheeling' && !chai.onFurniture) {
     const fy = getMouseFloorY(chai);
     if (chai.action === 'flung') drawFlungMouse(chai, CONFIG.mice.chai);
     else drawMouse(chai.x, fy, CONFIG.mice.chai, chai.dir, chai.frame, chai.action, chai._startled);
@@ -2868,18 +2873,25 @@ function drawFurnitureItem(item, gx, gy, placedRef) {
   case 'hammock': { // 3x1 72x24 — hangs under a shelf
     const t2 = Date.now() / 1000;
     const sway = Math.sin(t2 * 1.2) * 1.5;
+    // Check if any mice are sleeping in this hammock
+    const miceInHammock = [];
+    ['pip', 'chai'].forEach(key => {
+      const m = state.miceState[key];
+      if (m.onFurniture === placed && m.action === 'sleeping') miceInHammock.push(key);
+    });
+    const heavierSway = miceInHammock.length > 0 ? sway * 1.8 + Math.sin(t2 * 0.6) * 1 : sway;
     // Rope ties from top corners down to fabric
     ctx.strokeStyle = '#a08040';
     ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(x+4, y); ctx.lineTo(x+10, y+8); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(x+68, y); ctx.lineTo(x+62, y+8); ctx.stroke();
-    // Hammock fabric (slung curve)
+    // Hammock fabric back (behind mice)
     ctx.fillStyle = item.color;
     ctx.beginPath();
     ctx.moveTo(x+8, y+7);
-    ctx.quadraticCurveTo(x+36, y+18 + sway, x+64, y+7);
+    ctx.quadraticCurveTo(x+36, y+18 + heavierSway, x+64, y+7);
     ctx.lineTo(x+64, y+11);
-    ctx.quadraticCurveTo(x+36, y+22 + sway, x+8, y+11);
+    ctx.quadraticCurveTo(x+36, y+22 + heavierSway, x+8, y+11);
     ctx.closePath();
     ctx.fill();
     // Fabric stripes
@@ -2888,17 +2900,38 @@ function drawFurnitureItem(item, gx, gy, placedRef) {
     for (let si = 0; si < 3; si++) {
       const sx = x + 22 + si * 12;
       ctx.beginPath();
-      ctx.moveTo(sx, y+9 + sway*0.3);
-      ctx.lineTo(sx, y+17 + sway*0.7);
+      ctx.moveTo(sx, y+9 + heavierSway*0.3);
+      ctx.lineTo(sx, y+17 + heavierSway*0.7);
       ctx.stroke();
     }
-    // Edge detail
+    // Draw mice nestled in the hammock
+    if (miceInHammock.length > 0) {
+      const sagY = y + 12 + heavierSway;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x+6, y-2, 60, 28 + Math.abs(heavierSway));
+      ctx.clip();
+      miceInHammock.forEach((key, idx) => {
+        const cfg = CONFIG.mice[key];
+        const offsetX = miceInHammock.length === 2 ? (idx === 0 ? -10 : 10) : 0;
+        const mx = x + 26 + offsetX;
+        const my = sagY - 6;
+        drawMouse(mx, my, cfg, idx === 0 ? 1 : -1, 0, 'sleeping');
+      });
+      ctx.restore();
+    }
+    // Front edge of hammock (drawn over mice)
     ctx.strokeStyle = darker;
-    ctx.lineWidth = 0.5;
+    ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(x+8, y+9);
-    ctx.quadraticCurveTo(x+36, y+20 + sway, x+64, y+9);
+    ctx.quadraticCurveTo(x+36, y+20 + heavierSway, x+64, y+9);
     ctx.stroke();
+    // Second rope layer for depth
+    ctx.strokeStyle = 'rgba(160,128,64,0.4)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x+6, y+1); ctx.lineTo(x+11, y+9); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+66, y+1); ctx.lineTo(x+61, y+9); ctx.stroke();
     break;
   }
 
@@ -2971,47 +3004,85 @@ function drawFurnitureItem(item, gx, gy, placedRef) {
     break;
   }
 
-  case 'climbing-rope': { // 1x2 24x48
+  case 'climbing-rope': { // 1x3 24x72 — wall-mounted rope
     const t2 = Date.now() / 1000;
-    const ropeSwing = Math.sin(t2 * 0.8) * 1.5;
-    // Anchor point (hook at top)
+    // Check for mice on this rope
+    const miceOnRope = [];
+    ['pip', 'chai'].forEach(key => {
+      const m = state.miceState[key];
+      if (m.onFurniture === placed && m.action === 'swinging') miceOnRope.push(key);
+    });
+    const weightSway = miceOnRope.length > 0 ? Math.sin(t2 * 1.5) * 3 : Math.sin(t2 * 0.8) * 1.5;
+    // Anchor point (hook/bracket at top)
     ctx.fillStyle = '#888';
     ctx.beginPath();
-    ctx.arc(x+12, y+3, 3, 0, Math.PI*2);
+    ctx.arc(x+12, y+3, 4, 0, Math.PI*2);
     ctx.fill();
     ctx.fillStyle = '#666';
-    ctx.fillRect(x+11, y+0, 2, 4);
-    // Rope (braided look)
+    ctx.fillRect(x+10, y+0, 4, 5);
+    // Rope body (braided, extends full 72px height)
+    const ropeLen = 64;
     ctx.strokeStyle = item.color;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 3.5;
     ctx.beginPath();
-    ctx.moveTo(x+12, y+5);
-    for (let ri = 0; ri < 8; ri++) {
-      const ry = y+5 + ri*5;
-      const rx = x+12 + Math.sin(ri*0.8)*1.5 + ropeSwing*(ri/8);
+    ctx.moveTo(x+12, y+6);
+    for (let ri = 0; ri <= 12; ri++) {
+      const ry = y+6 + ri * (ropeLen/12);
+      const rx = x+12 + Math.sin(ri*0.7)*1.5 + weightSway*(ri/12);
       ctx.lineTo(rx, ry);
     }
     ctx.stroke();
-    // Rope detail (twist pattern)
+    // Rope detail (twist/cross-hatch pattern)
     ctx.strokeStyle = 'rgba(0,0,0,0.2)';
     ctx.lineWidth = 1;
-    for (let ki = 0; ki < 6; ki++) {
-      const ky = y+8 + ki*6;
+    for (let ki = 0; ki < 10; ki++) {
+      const ky = y+10 + ki*6;
+      const kOffset = weightSway*(ki/10);
       ctx.beginPath();
-      ctx.moveTo(x+10 + ropeSwing*(ki/6), ky);
-      ctx.lineTo(x+14 + ropeSwing*(ki/6), ky+3);
+      ctx.moveTo(x+10 + kOffset, ky);
+      ctx.lineTo(x+14 + kOffset, ky+3);
       ctx.stroke();
     }
+    // Draw mice clinging to the rope
+    miceOnRope.forEach((key, idx) => {
+      const cfg = CONFIG.mice[key];
+      // Animate climbing position along the rope
+      const climbCycle = Math.sin(t2 * 0.8 + idx * Math.PI) * 0.3 + 0.5;
+      const climbY = y + 10 + climbCycle * (ropeLen - 30);
+      const climbSwayX = weightSway * (climbCycle * 0.8 + 0.2);
+      const mx = x + 12 + climbSwayX - 14;
+      const my = climbY - 10;
+      ctx.save();
+      ctx.translate(x + 12 + climbSwayX, climbY);
+      ctx.rotate(weightSway * 0.02);
+      ctx.translate(-(x + 12 + climbSwayX), -climbY);
+      const climbFrame = Math.floor(t2 * 3) % 4;
+      drawMouse(mx, my, cfg, 1, climbFrame, 'walking');
+      ctx.restore();
+      // Paw grip marks on rope
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      ctx.fillRect(x+10 + climbSwayX, climbY - 2, 4, 2);
+      ctx.fillRect(x+10 + climbSwayX, climbY + 8, 4, 2);
+    });
     // Knot at bottom
     ctx.fillStyle = item.color;
-    const knotY = y + 42 + ropeSwing;
+    const knotY = y + ropeLen + 4 + weightSway;
     ctx.beginPath();
-    ctx.arc(x+12 + ropeSwing, knotY, 4, 0, Math.PI*2);
+    ctx.arc(x+12 + weightSway, knotY, 5, 0, Math.PI*2);
     ctx.fill();
     ctx.fillStyle = darker;
     ctx.beginPath();
-    ctx.arc(x+12 + ropeSwing, knotY, 2, 0, Math.PI*2);
+    ctx.arc(x+12 + weightSway, knotY, 2.5, 0, Math.PI*2);
     ctx.fill();
+    // Frayed end
+    ctx.strokeStyle = item.color;
+    ctx.lineWidth = 0.8;
+    for (let fi = 0; fi < 3; fi++) {
+      ctx.beginPath();
+      ctx.moveTo(x+12 + weightSway + (fi-1)*2, knotY + 4);
+      ctx.lineTo(x+12 + weightSway + (fi-1)*3, knotY + 8 + Math.sin(t2*2+fi)*1);
+      ctx.stroke();
+    }
     break;
   }
 
@@ -3425,7 +3496,7 @@ function reactToNewFurniture(item) {
   ['pip', 'chai'].forEach(key => {
     const mouse = state.miceState[key];
     // Skip mice in non-interruptible states
-    if (mouse.action === 'wheeling' || mouse.action === 'flung' || mouse.action === 'climbing') return;
+    if (mouse.action === 'wheeling' || mouse.action === 'flung' || mouse.action === 'climbing' || mouse.onFurniture) return;
 
     if (mouse.room === state.currentRoom) {
       // Same room: walk over and try it out
@@ -5437,6 +5508,23 @@ function updateMouse(mouse, dt, personality) {
     return;
   }
 
+  // On-furniture mice (hammock, rope) — frozen in place, drawn by furniture renderer
+  if (mouse.onFurniture) {
+    mouse.actionTimer -= dt;
+    const critHungry = (mouse.happiness ?? 80) <= 15;
+    if (mouse.actionTimer <= 0 || !state.placedItems.includes(mouse.onFurniture) || critHungry) {
+      const pos = mouse.onFurniture ? gridToGame(mouse.onFurniture.gridX, mouse.onFurniture.gridY) : null;
+      mouse.onFurniture = null;
+      mouse.pendingFurniture = null;
+      mouse.action = 'idle';
+      mouse.level = 'main-floor';
+      mouse.actionTimer = 1500 + Math.random() * 2000;
+      if (pos) mouse.x = pos.x + Math.random() * 30;
+      if (critHungry) pickNewAction(mouse, personality);
+    }
+    return;
+  }
+
   // Climbing ramp animation
   if (mouse.action === 'climbing' && mouse.climbRamp) {
     const ramp = mouse.climbRamp;
@@ -5478,7 +5566,7 @@ function updateMouse(mouse, dt, personality) {
   const canInterrupt = mouse.action !== 'climbing' && mouse.action !== 'flung' && mouse.action !== 'wheeling' && !mouse.pendingRoomChange && !mouse.pendingClimb;
   if (criticallyHungry && canInterrupt && mouse.action !== 'eating') {
     pickNewAction(mouse, personality);
-  } else if (mouse.actionTimer <= 0 && !mouse.pendingRoomChange && !mouse.pendingClimb && (!walkingToFood || mouse.actionTimer < -5000)) {
+  } else if (mouse.actionTimer <= 0 && !mouse.pendingRoomChange && !mouse.pendingClimb && !mouse.pendingFurniture && (!walkingToFood || mouse.actionTimer < -5000)) {
     pickNewAction(mouse, personality);
   }
 
@@ -5492,6 +5580,15 @@ function updateMouse(mouse, dt, personality) {
     } else {
       mouse.x = mouse.targetX;
       mouse.targetX = undefined;
+      // Check if we have a pending furniture interaction
+      if (mouse.pendingFurniture) {
+        const pf = mouse.pendingFurniture;
+        mouse.action = pf.behavior;
+        mouse.onFurniture = pf.placed;
+        mouse.actionTimer = pf.timer;
+        mouse.pendingFurniture = null;
+        return;
+      }
       // Check if we have a pending climb to start
       if (mouse.pendingClimb) {
         const pc = mouse.pendingClimb;
@@ -5608,6 +5705,8 @@ function pickNewAction(mouse, personality) {
   // Clear any pending transitions from a previous action
   mouse.pendingClimb = null;
   mouse.pendingRoomChange = null;
+  mouse.pendingFurniture = null;
+  mouse.onFurniture = null;
   const roll = Math.random();
   const room = ROOMS[mouse.room];
 
@@ -5740,12 +5839,23 @@ function pickNewAction(mouse, personality) {
     mouse.targetX = targetPos.x + Math.random() * 10;
     mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
     mouse.actionTimer = 3000 + Math.random() * 4000;
-    if (pick.behavior === 'sleeping') mouse.actionTimer = 3000 + Math.random() * 3000;
+    if (pick.behavior === 'sleeping') mouse.actionTimer = 4000 + Math.random() * 4000;
     if (pick.behavior === 'zoomies') mouse.actionTimer = 2000 + Math.random() * 2000;
     if (pick.behavior === 'wheeling') mouse.actionTimer = 4000 + Math.random() * 5000;
     if (pick.behavior === 'hiding') mouse.actionTimer = 3000 + Math.random() * 3000;
     if (pick.behavior === 'chewing') mouse.actionTimer = 2000 + Math.random() * 2000;
-    if (pick.behavior === 'swinging') mouse.actionTimer = 3000 + Math.random() * 3000;
+    if (pick.behavior === 'swinging') mouse.actionTimer = 4000 + Math.random() * 4000;
+    // Hammock and climbing rope: walk to the item first, then mount it
+    if ((pick.behavior === 'sleeping' && pick.placed.itemId === 'hammock') ||
+        pick.behavior === 'swinging') {
+      const itemDef = FURNITURE.find(f => f.id === pick.placed.itemId);
+      const fw = (itemDef ? itemDef.w : 1) * GRID_SIZE;
+      mouse.pendingFurniture = { behavior: pick.behavior, placed: pick.placed, timer: mouse.actionTimer };
+      mouse.action = 'walking';
+      mouse.targetX = targetPos.x + fw / 2;
+      mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
+      mouse.actionTimer = 8000;
+    }
     // Speech for new behaviors
     if (mouse.room === state.currentRoom) {
       const mouseKey = mouse === state.miceState.pip ? 'pip' : 'chai';
@@ -5820,9 +5930,12 @@ function pickNewAction(mouse, personality) {
     const hammockInRoom = hammocks.find(p => p.room === mouse.room);
     if (hammockInRoom) {
       const pos = gridToGame(hammockInRoom.gridX, hammockInRoom.gridY);
-      mouse.targetX = pos.x + 20 + Math.random() * 20;
+      const fw = 3 * GRID_SIZE;
+      mouse.pendingFurniture = { behavior: 'sleeping', placed: hammockInRoom, timer: 5000 + Math.random() * 4000 };
+      mouse.action = 'walking';
+      mouse.targetX = pos.x + fw / 2;
       mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
-      mouse.actionTimer = 4000 + Math.random() * 3000;
+      mouse.actionTimer = 8000;
       if (mouse.room === state.currentRoom && Math.random() < 0.4) {
         const mouseKey = mouse === state.miceState.pip ? 'pip' : 'chai';
         speechBubbles = speechBubbles.filter(b => b.mouseKey !== mouseKey);
@@ -6183,6 +6296,9 @@ function updateMouseInteractions(dt) {
   const s = state.miceState.pip;
   const c = state.miceState.chai;
   if (s.room !== c.room) { interactionCooldown = 2000 + Math.random() * 2000; return; }
+  // Don't interrupt mice that are on furniture
+  const sOnFurn = s.onFurniture || s.action === 'wheeling';
+  const cOnFurn = c.onFurniture || c.action === 'wheeling';
 
   // Startled reaction: if one mouse zooms past the other
   if (s.action === 'zoomies' && c.action !== 'zoomies' && c.action !== 'sleeping' && c.action !== 'flung') {
@@ -6215,7 +6331,7 @@ function updateMouseInteractions(dt) {
   s._copyCooldown = Math.max(0, s._copyCooldown - dt);
   c._copyCooldown = Math.max(0, c._copyCooldown - dt);
   const copyActions = ['zoomies', 'grooming', 'sleeping'];
-  if (copyActions.includes(s.action) && c.action === 'idle' && c._copyCooldown <= 0 && Math.random() < 0.002) {
+  if (copyActions.includes(s.action) && c.action === 'idle' && !cOnFurn && c._copyCooldown <= 0 && Math.random() < 0.002) {
     c.action = s.action;
     c.actionTimer = s.actionTimer;
     c.dir = s.dir;
@@ -6227,7 +6343,7 @@ function updateMouseInteractions(dt) {
         timer: 2000, maxTimer: 2000, mouseKey: 'chai' });
     }
   }
-  if (copyActions.includes(c.action) && s.action === 'idle' && s._copyCooldown <= 0 && Math.random() < 0.002) {
+  if (copyActions.includes(c.action) && s.action === 'idle' && !sOnFurn && s._copyCooldown <= 0 && Math.random() < 0.002) {
     s.action = c.action;
     s.actionTimer = c.actionTimer;
     s.dir = c.dir;
@@ -6242,6 +6358,7 @@ function updateMouseInteractions(dt) {
 
   interactionCooldown -= dt;
   if (interactionCooldown > 0) return;
+  if (sOnFurn || cOnFurn) return;
   interactionCooldown = 5000 + Math.random() * 5000;
 
   const interaction = Math.random();
@@ -6870,7 +6987,7 @@ function gameLoop(now) {
         const chai = state.miceState.chai;
         const pipFloorY = getMouseFloorY(pip);
         const chaiFloorY = getMouseFloorY(chai);
-        if (pip.room === state.currentRoom && pip.action !== 'wheeling') {
+        if (pip.room === state.currentRoom && pip.action !== 'wheeling' && !pip.onFurniture) {
           if (pip.action === 'flung') {
             drawFlungMouse(pip, CONFIG.mice.pip);
           } else {
@@ -6879,7 +6996,7 @@ function gameLoop(now) {
           drawPartyHat(pip.action === 'flung' ? pip.flingX : pip.x,
                        pip.action === 'flung' ? pip.flingY : pipFloorY, pip.action, pip.dir, CONFIG.mice.pip);
         }
-        if (chai.room === state.currentRoom && chai.action !== 'wheeling') {
+        if (chai.room === state.currentRoom && chai.action !== 'wheeling' && !chai.onFurniture) {
           if (chai.action === 'flung') {
             drawFlungMouse(chai, CONFIG.mice.chai);
           } else {
