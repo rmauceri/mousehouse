@@ -1110,20 +1110,23 @@ function switchRoom(i) {
 // ============================================================
 let particles = [];
 function initParticles() {
-  for (let i = 0; i < 15; i++) {
+  for (let i = 0; i < 25; i++) {
     particles.push({
       x: Math.random() * GAME_W,
       y: ROOM_Y + Math.random() * ROOM_H,
-      size: 1 + Math.random() * 1.5,
-      speedX: (Math.random() - 0.5) * 0.15,
-      speedY: -0.05 - Math.random() * 0.1,
-      alpha: 0.15 + Math.random() * 0.2
+      size: 0.8 + Math.random() * 1.5,
+      speedX: (Math.random() - 0.5) * 0.12,
+      speedY: -0.04 - Math.random() * 0.08,
+      alpha: 0.12 + Math.random() * 0.18,
+      phase: Math.random() * Math.PI * 2, // for sine drift
+      sizePhase: Math.random() * Math.PI * 2 // for size pulsing
     });
   }
 }
 function updateParticles(dt) {
+  const t = Date.now() / 1000;
   particles.forEach(p => {
-    p.x += p.speedX * dt * 0.06;
+    p.x += (p.speedX + Math.sin(t * 0.7 + p.phase) * 0.04) * dt * 0.06;
     p.y += p.speedY * dt * 0.06;
     if (p.y < ROOM_Y) { p.y = ROOM_Y + ROOM_H; p.x = Math.random() * GAME_W; }
     if (p.x < 0) p.x = GAME_W;
@@ -1131,10 +1134,22 @@ function updateParticles(dt) {
   });
 }
 function drawParticles() {
+  const t = Date.now() / 1000;
   particles.forEach(p => {
-    ctx.fillStyle = `rgba(255, 240, 210, ${p.alpha})`;
+    const pulsedSize = p.size + Math.sin(t * 1.5 + p.sizePhase) * 0.3;
+    // Glow brighter near window light (check if in light cone area)
+    const room = ROOMS[state.currentRoom];
+    const win = room.window || { x: GAME_W / 2 - 34, y: ROOM_Y + 16, w: 68, h: 56 };
+    const distToLight = Math.abs(p.x - (win.x + win.w / 2)) / GAME_W;
+    const glowBoost = Math.max(0, 1 - distToLight * 3) * 0.15;
+    const alpha = Math.min(0.45, p.alpha + glowBoost);
+    // Radial gradient for luminous look
+    const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, pulsedSize * 2);
+    grad.addColorStop(0, `rgba(255, 245, 220, ${alpha})`);
+    grad.addColorStop(1, `rgba(255, 240, 210, 0)`);
+    ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, pulsedSize * 2, 0, Math.PI * 2);
     ctx.fill();
   });
 }
@@ -1169,7 +1184,34 @@ function drawRoom(roomIndex) {
   }
   ctx.globalAlpha = 1.0;
 
-  // -- Window with night sky (per-room position & size) --
+  // -- Wall stipple texture (scattered tiny dots for grain) --
+  ctx.fillStyle = 'rgba(0,0,0,0.03)';
+  for (let i = 0; i < 60; i++) {
+    // Deterministic positions based on room index for consistency
+    const sx = ((i * 137 + roomIndex * 53) % 467) / 467 * ROOM_W;
+    const sy = ROOM_Y + ((i * 89 + roomIndex * 31) % 239) / 239 * (ROOM_H - FLOOR_H);
+    ctx.fillRect(sx, sy, 1, 1);
+  }
+
+  // -- Corner vignettes (darken edges for depth) --
+  const vigL = ctx.createLinearGradient(0, 0, 60, 0);
+  vigL.addColorStop(0, 'rgba(0,0,0,0.12)');
+  vigL.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = vigL;
+  ctx.fillRect(0, ROOM_Y, 60, ROOM_H - FLOOR_H);
+  const vigR = ctx.createLinearGradient(ROOM_W, 0, ROOM_W - 60, 0);
+  vigR.addColorStop(0, 'rgba(0,0,0,0.12)');
+  vigR.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = vigR;
+  ctx.fillRect(ROOM_W - 60, ROOM_Y, 60, ROOM_H - FLOOR_H);
+  // Top corner darkening
+  const vigT = ctx.createLinearGradient(0, ROOM_Y, 0, ROOM_Y + 40);
+  vigT.addColorStop(0, 'rgba(0,0,0,0.08)');
+  vigT.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = vigT;
+  ctx.fillRect(0, ROOM_Y, ROOM_W, 40);
+
+  // -- Window with night sky — parallax layers --
   const win = room.window || { x: GAME_W / 2 - 34, y: ROOM_Y + 16, w: 68, h: 56 };
   const winX = win.x;
   const winY = win.y;
@@ -1177,32 +1219,106 @@ function drawRoom(roomIndex) {
   // Window recess shadow
   ctx.fillStyle = 'rgba(0,0,0,0.25)';
   ctx.fillRect(winX - 3, winY - 3, winW + 6, winH + 6);
-  // Night sky
+  // Night sky base
   ctx.fillStyle = room.windowNight;
   ctx.fillRect(winX, winY, winW, winH);
+
+  // Parallax offset based on average mouse position
+  const pipInRoom = state.miceState.pip.room === roomIndex;
+  const chaiInRoom = state.miceState.chai.room === roomIndex;
+  let avgMX = GAME_W / 2;
+  if (pipInRoom && chaiInRoom) avgMX = (state.miceState.pip.x + state.miceState.chai.x) / 2;
+  else if (pipInRoom) avgMX = state.miceState.pip.x;
+  else if (chaiInRoom) avgMX = state.miceState.chai.x;
+  const pxOffset = (avgMX / GAME_W - 0.5) * 6; // ±3px shift
+
+  // Clip to window frame for parallax content
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(winX, winY, winW, winH);
+  ctx.clip();
+
+  // Layer 1: Distant stars (slow parallax 0.2x)
+  const distStars = [
+    [0.08,0.12],[0.18,0.55],[0.32,0.08],[0.42,0.38],[0.55,0.22],[0.68,0.62],
+    [0.78,0.15],[0.88,0.45],[0.95,0.28],[0.12,0.72],[0.62,0.82],[0.38,0.68],
+    [0.25,0.3],[0.72,0.4],[0.48,0.55],[0.85,0.7]
+  ];
+  distStars.forEach(([sx, sy], i) => {
+    const twinkle = 0.3 + 0.5 * Math.abs(Math.sin(t * 0.8 + i * 2.3));
+    ctx.globalAlpha = twinkle;
+    ctx.fillStyle = i % 5 === 0 ? '#ffe8b0' : '#fffde0';
+    const sz = i % 4 === 0 ? 1.5 : 0.8;
+    ctx.beginPath();
+    ctx.arc(winX + sx * winW + pxOffset * 0.2, winY + sy * winH, sz, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1.0;
+
+  // Layer 2: Skyline silhouette (medium parallax 0.5x)
+  ctx.fillStyle = 'rgba(15,10,30,0.6)';
+  const skyY = winY + winH * 0.65;
+  const skyOff = pxOffset * 0.5;
+  ctx.beginPath();
+  ctx.moveTo(winX - 5 + skyOff, winY + winH);
+  // Varied building shapes
+  const bldgs = [0, 0.12, 0.2, 0.28, 0.38, 0.48, 0.55, 0.65, 0.75, 0.85, 0.95, 1.05];
+  const bHts =  [8, 18,   12,  22,   10,   26,   14,   20,   8,    16,   12,   6];
+  bldgs.forEach((bx, i) => {
+    const x = winX + bx * winW + skyOff;
+    ctx.lineTo(x, skyY - bHts[i]);
+    ctx.lineTo(x + winW * 0.06, skyY - bHts[i]);
+  });
+  ctx.lineTo(winX + winW + 5 + skyOff, winY + winH);
+  ctx.closePath();
+  ctx.fill();
+  // Tiny lit windows in buildings
+  ctx.fillStyle = 'rgba(255,220,100,0.4)';
+  bldgs.forEach((bx, i) => {
+    if (bHts[i] > 14 && Math.sin(t * 0.3 + i) > -0.3) {
+      const x = winX + bx * winW + skyOff + winW * 0.015;
+      ctx.fillRect(x, skyY - bHts[i] + 4, 2, 2);
+      if (bHts[i] > 18) ctx.fillRect(x + 4, skyY - bHts[i] + 8, 2, 2);
+    }
+  });
+
+  // Layer 3: Moon and close stars (full parallax 1x — existing)
   // Moon glow
+  ctx.globalAlpha = 1.0;
   ctx.fillStyle = room.windowGlow;
   ctx.beginPath();
-  ctx.arc(winX + winW - 14, winY + 14, 18, 0, Math.PI * 2);
+  ctx.arc(winX + winW - 14 + pxOffset, winY + 14, 18, 0, Math.PI * 2);
   ctx.fill();
   // Moon
   ctx.fillStyle = '#eee8d0';
   ctx.beginPath();
-  ctx.arc(winX + winW - 14, winY + 14, 7, 0, Math.PI * 2);
+  ctx.arc(winX + winW - 14 + pxOffset, winY + 14, 7, 0, Math.PI * 2);
   ctx.fill();
-  // Stars (twinkle)
-  const starPositions = [
-    [0.15, 0.2], [0.3, 0.65], [0.5, 0.15], [0.7, 0.5], [0.85, 0.3],
-    [0.25, 0.4], [0.6, 0.7], [0.45, 0.45]
+  // Moon crescent shadow
+  ctx.fillStyle = room.windowNight;
+  ctx.globalAlpha = 0.4;
+  ctx.beginPath();
+  ctx.arc(winX + winW - 12 + pxOffset, winY + 13, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1.0;
+
+  // Close twinkling stars
+  const closeStars = [
+    [0.15, 0.2], [0.3, 0.45], [0.5, 0.12], [0.7, 0.35], [0.85, 0.25],
+    [0.25, 0.32], [0.6, 0.52]
   ];
-  starPositions.forEach(([sx, sy], i) => {
-    const twinkle = 0.4 + 0.6 * Math.abs(Math.sin(t * 1.5 + i * 1.7));
+  closeStars.forEach(([sx, sy], i) => {
+    const twinkle = 0.5 + 0.5 * Math.abs(Math.sin(t * 1.8 + i * 1.7));
     ctx.globalAlpha = twinkle;
     ctx.fillStyle = '#fffde0';
-    const size = (i % 3 === 0) ? 2 : 1;
-    ctx.fillRect(winX + sx * winW, winY + sy * winH, size, size);
+    const sz = i % 3 === 0 ? 2 : 1.2;
+    ctx.beginPath();
+    ctx.arc(winX + sx * winW + pxOffset, winY + sy * winH, sz, 0, Math.PI * 2);
+    ctx.fill();
   });
   ctx.globalAlpha = 1.0;
+
+  ctx.restore(); // end window clip
   // Window panes (cross)
   ctx.strokeStyle = '#8a7a60';
   ctx.lineWidth = 3;
@@ -1223,6 +1339,28 @@ function drawRoom(roomIndex) {
   ctx.fillRect(winX - 2, winY, 8, winH);
   ctx.fillRect(winX + winW - 6, winY, 8, winH);
   ctx.globalAlpha = 1.0;
+
+  // -- Moonlight cone (light spilling from window onto floor) --
+  const floorY = ROOM_Y + ROOM_H - FLOOR_H;
+  const lightCenterX = winX + winW / 2;
+  const coneSpread = winW * 0.8;
+  const moonGrad = ctx.createLinearGradient(0, winY + winH, 0, floorY);
+  moonGrad.addColorStop(0, 'rgba(180,200,255,0.06)');
+  moonGrad.addColorStop(0.6, 'rgba(180,200,255,0.03)');
+  moonGrad.addColorStop(1, 'rgba(180,200,255,0)');
+  ctx.fillStyle = moonGrad;
+  ctx.beginPath();
+  ctx.moveTo(winX, winY + winH);
+  ctx.lineTo(lightCenterX - coneSpread, floorY);
+  ctx.lineTo(lightCenterX + coneSpread, floorY);
+  ctx.lineTo(winX + winW, winY + winH);
+  ctx.closePath();
+  ctx.fill();
+  // Floor light patch
+  ctx.fillStyle = 'rgba(180,200,255,0.025)';
+  ctx.beginPath();
+  ctx.ellipse(lightCenterX, floorY + 4, coneSpread * 0.7, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
 
   // -- Wall shelves (per-room positions) --
   const shelves = room.shelves || [
@@ -1291,6 +1429,10 @@ function drawRoom(roomIndex) {
     room.platforms.forEach(plat => {
       if (plat.id === 'main-floor') return; // main floor already drawn
       const pw = plat.xMax - plat.xMin;
+
+      // Darkened wall behind platform (alcove depth effect)
+      ctx.fillStyle = 'rgba(0,0,0,0.06)';
+      ctx.fillRect(plat.xMin, plat.y - 30, pw, 30);
 
       // Platform shadow
       ctx.fillStyle = 'rgba(0,0,0,0.12)';
@@ -1446,11 +1588,70 @@ function drawRoom(roomIndex) {
   roomItems.forEach(placed => {
     const item = FURNITURE.find(f => f.id === placed.itemId);
     if (!item) return;
-    // Exercise wheel gets custom rendering
+
+    // Furniture shadow (before drawing item)
+    const fpos = gridToGame(placed.gridX, placed.gridY);
+    const fw = item.w * GRID_SIZE;
+    const fh = item.h * GRID_SIZE;
+    if (!item.wallMount) {
+      // Shadow offset slightly toward window light source
+      const shadowOff = (fpos.x < winX + winW / 2) ? 3 : -3;
+      ctx.fillStyle = 'rgba(0,0,0,0.07)';
+      ctx.beginPath();
+      ctx.ellipse(fpos.x + fw / 2 + shadowOff, fpos.y + fh + 1, fw / 2 + 2, 2.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Draw the item
     if (item.id === 'exercise-wheel') {
       drawExerciseWheel(placed);
     } else {
       drawFurnitureItem(item, placed.gridX, placed.gridY);
+    }
+
+    // Ambient glow for light-emitting furniture
+    if (item.id === 'fairy-lights') {
+      // Warm twinkling glow along the item width
+      for (let li = 0; li < 5; li++) {
+        const lx = fpos.x + (li + 0.5) * fw / 5;
+        const ly = fpos.y + fh / 2;
+        const flicker = 0.4 + 0.6 * Math.abs(Math.sin(t * 3 + li * 1.4));
+        const glow = ctx.createRadialGradient(lx, ly, 0, lx, ly, 14);
+        glow.addColorStop(0, `rgba(255, 210, 80, ${0.08 * flicker})`);
+        glow.addColorStop(1, 'rgba(255, 210, 80, 0)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(lx - 14, ly - 14, 28, 28);
+      }
+    } else if (item.id === 'ring-light') {
+      const glow = ctx.createRadialGradient(fpos.x + fw / 2, fpos.y + fh / 2, 2, fpos.x + fw / 2, fpos.y + fh / 2, 20);
+      glow.addColorStop(0, 'rgba(255, 250, 240, 0.1)');
+      glow.addColorStop(1, 'rgba(255, 250, 240, 0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(fpos.x - 8, fpos.y - 8, fw + 16, fh + 16);
+    } else if (item.id === 'eraser-tv') {
+      const tvFlicker = 0.5 + 0.5 * Math.sin(t * 8 + Math.sin(t * 3) * 2);
+      const glow = ctx.createRadialGradient(fpos.x + fw / 2, fpos.y + fh / 2, 1, fpos.x + fw / 2, fpos.y + fh / 2, 18);
+      glow.addColorStop(0, `rgba(100, 180, 255, ${0.06 * tvFlicker})`);
+      glow.addColorStop(1, 'rgba(100, 180, 255, 0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(fpos.x - 8, fpos.y - 8, fw + 16, fh + 16);
+    } else if (item.id === 'tiny-laptop') {
+      const glow = ctx.createRadialGradient(fpos.x + fw / 2, fpos.y + 2, 1, fpos.x + fw / 2, fpos.y + 2, 14);
+      glow.addColorStop(0, 'rgba(120, 200, 255, 0.06)');
+      glow.addColorStop(1, 'rgba(120, 200, 255, 0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(fpos.x - 6, fpos.y - 6, fw + 12, fh + 12);
+    } else if (item.id === 'disco-ball') {
+      // Rotating sparkle beams
+      for (let bi = 0; bi < 4; bi++) {
+        const angle = t * 1.5 + bi * Math.PI / 2;
+        const bx = fpos.x + fw / 2 + Math.cos(angle) * 20;
+        const by = fpos.y + fh / 2 + Math.sin(angle) * 15;
+        ctx.fillStyle = `rgba(255,255,255,${0.04 + 0.03 * Math.sin(t * 4 + bi)})`;
+        ctx.beginPath();
+        ctx.arc(bx, by, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
   });
 
