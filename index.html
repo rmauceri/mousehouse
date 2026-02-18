@@ -4707,8 +4707,8 @@ function updateGoalDisplay() {
   if (!el || !row2) return;
 
   // Hunger warnings take priority over goals
-  const pipHungry = (state.miceState.pip.happiness || 80) < 35;
-  const chaiHungry = (state.miceState.chai.happiness || 80) < 35;
+  const pipHungry = (state.miceState.pip.happiness ?? 80) < 35;
+  const chaiHungry = (state.miceState.chai.happiness ?? 80) < 35;
   const hasFood = state.placedItems.some(p => {
     const item = FURNITURE.find(f => f.id === p.itemId);
     return item && item.servings && (p.servings === undefined || p.servings > 0);
@@ -5254,9 +5254,10 @@ function updateMouse(mouse, dt, personality) {
   }
 
   // Action timer countdown — skip if walking to a pending transition or walking to food
+  // Safety valve: if timer is very negative (stuck > 5s), allow pickNewAction to unstick
   mouse.actionTimer -= dt;
   const walkingToFood = mouse.action === 'eating' && mouse.targetX !== undefined;
-  if (mouse.actionTimer <= 0 && !mouse.pendingRoomChange && !mouse.pendingClimb && !walkingToFood) {
+  if (mouse.actionTimer <= 0 && !mouse.pendingRoomChange && !mouse.pendingClimb && (!walkingToFood || mouse.actionTimer < -5000)) {
     pickNewAction(mouse, personality);
   }
 
@@ -5396,9 +5397,10 @@ function pickNewAction(mouse, personality) {
     const foodInRoom = allFood.filter(p => p.room === mouse.room);
 
     if (foodInRoom.length > 0) {
-      // Rush to nearest food in this room — no complaining
+      // Rush to nearest food in this room — drop to main-floor first
       const target = foodInRoom[Math.floor(Math.random() * foodInRoom.length)];
       const pos = gridToGame(target.gridX, target.gridY);
+      mouse.level = 'main-floor';
       mouse.action = 'eating';
       mouse.targetX = pos.x + Math.random() * 10;
       mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
@@ -5832,7 +5834,7 @@ function tryPetMouse(gx, gy) {
       // Briefly pause their action (they enjoy it)
       m.state.action = 'idle';
       m.state.actionTimer = 2500;
-      m.state.happiness = Math.min(100, (m.state.happiness || 80) + 5);
+      m.state.happiness = Math.min(100, (m.state.happiness ?? 80) + 5);
       return true;
     }
   }
