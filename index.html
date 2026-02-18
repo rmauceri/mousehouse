@@ -4134,10 +4134,12 @@ function getRampY(ramp, x, roomIndex) {
   return fromPlat.y + (toPlat.y - fromPlat.y) * t;
 }
 
-function drawMouse(x, y, cfg, dir, frame, action) {
+function drawMouse(x, y, cfg, dir, frame, action, startled) {
   const mouseScale = cfg.scale || 1.0;
   const cx = Math.floor(x);
-  const cy = Math.floor(y);
+  // Startled: slight vertical jump
+  const startleJump = startled ? -3 : 0;
+  const cy = Math.floor(y) + startleJump;
   const t = Date.now() / 1000;
 
   ctx.save();
@@ -4156,6 +4158,12 @@ function drawMouse(x, y, cfg, dir, frame, action) {
   }
 
   if (action === 'sleeping') {
+    // Breathing cycle — gentle body scale pulse
+    const sleepBreath = Math.sin(t * 1.8) * 0.03;
+    ctx.translate(cx + 10, cy + 14);
+    ctx.scale(1 + sleepBreath, 1 - sleepBreath * 0.5);
+    ctx.translate(-(cx + 10), -(cy + 14));
+
     // Body
     ctx.fillStyle = cfg.bodyColor;
     ctx.beginPath();
@@ -4171,14 +4179,15 @@ function drawMouse(x, y, cfg, dir, frame, action) {
     ctx.beginPath();
     ctx.ellipse(cx + 17, cy + 8, 6, 5, 0.3, 0, Math.PI * 2);
     ctx.fill();
-    // Ear
+    // Ear with occasional twitch
+    const earTwitch = (Math.sin(t * 0.7) > 0.92) ? Math.sin(t * 12) * 0.3 : 0;
     ctx.fillStyle = cfg.earColor;
     ctx.beginPath();
-    ctx.ellipse(cx + 19, cy + 3, 4, 5, 0.4, 0, Math.PI * 2);
+    ctx.ellipse(cx + 19, cy + 3, 4, 5, 0.4 + earTwitch, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#ffb8c0';
     ctx.beginPath();
-    ctx.ellipse(cx + 19, cy + 3, 2.5, 3, 0.4, 0, Math.PI * 2);
+    ctx.ellipse(cx + 19, cy + 3, 2.5, 3, 0.4 + earTwitch, 0, Math.PI * 2);
     ctx.fill();
     // Tail curled
     ctx.strokeStyle = cfg.bodyColor;
@@ -4187,8 +4196,8 @@ function drawMouse(x, y, cfg, dir, frame, action) {
     ctx.moveTo(cx, cy + 12);
     ctx.quadraticCurveTo(cx - 8, cy + 6, cx - 4, cy + 2);
     ctx.stroke();
-    // Zzz
-    const zOff = Math.sin(t * 2) * 2;
+    // Zzz (slower float)
+    const zOff = Math.sin(t * 1.2) * 3;
     ctx.fillStyle = 'rgba(200,200,255,0.6)';
     ctx.font = '8px monospace';
     ctx.textAlign = 'left';
@@ -4303,10 +4312,23 @@ function drawMouse(x, y, cfg, dir, frame, action) {
   } else {
     // Standing / walking / idle / furniture-interaction mouse
     const isFurnitureAction = ['doomscrolling','watching','yoga','eating','playing'].includes(action);
-    const breathe = Math.sin(t * 3) * 0.6;
-    const bob = action === 'walking' ? Math.sin(t * 10) * 1.5 : breathe;
-    const lean = action === 'walking' ? Math.sin(t * 10) * 0.03 :
+
+    // Breathing: visible body pulse
+    const breathe = Math.sin(t * 3) * 0.8;
+    // Walk cycle: head bobs with slight offset from body
+    const walkCycle = action === 'walking' ? Math.sin(t * 10) : 0;
+    const bob = action === 'walking' ? walkCycle * 1.8 : breathe;
+    const headBob = action === 'walking' ? Math.sin(t * 10 + 0.5) * 1.2 : breathe * 0.6;
+    const lean = action === 'walking' ? Math.sin(t * 10) * 0.04 :
                  action === 'yoga' ? Math.sin(t * 2) * 0.06 : 0;
+
+    // Blink timer: eyes close briefly every 3-6 seconds
+    const blinkPhase = t % (3 + (cx % 3)); // vary per mouse position
+    const isBlinking = blinkPhase < 0.12;
+
+    // Ear twitch: random brief twitch when idle
+    const earTwitchL = (Math.sin(t * 0.6 + cx) > 0.9) ? Math.sin(t * 14) * 0.25 : 0;
+    const earTwitchR = (Math.sin(t * 0.8 + cx * 0.7) > 0.92) ? Math.sin(t * 16) * 0.2 : 0;
 
     ctx.translate(cx + 14, cy + 18);
     ctx.rotate(lean);
@@ -4318,31 +4340,54 @@ function drawMouse(x, y, cfg, dir, frame, action) {
     ctx.ellipse(cx + 14, cy + 20, 12, 3, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Tail
+    // Tail — expressive based on action
     ctx.strokeStyle = cfg.bodyColor;
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
-    const tailWag = Math.sin(t * 4) * 4;
+    let tailWag, tailCurveY, tailEndY;
+    if (action === 'eating') {
+      // Happy fast wag
+      tailWag = Math.sin(t * 8) * 6;
+      tailCurveY = cy + 2; tailEndY = cy + tailWag;
+    } else if (action === 'zoomies') {
+      tailWag = Math.sin(t * 6) * 5;
+      tailCurveY = cy + 1; tailEndY = cy + 5 + tailWag;
+    } else if (action === 'walking') {
+      // Bouncing tail synced to walk
+      tailWag = Math.sin(t * 5) * 4;
+      tailCurveY = cy + 4 + walkCycle; tailEndY = cy + 8 + tailWag;
+    } else if (isFurnitureAction) {
+      // Gentle slow sway
+      tailWag = Math.sin(t * 2) * 3;
+      tailCurveY = cy + 5; tailEndY = cy + 9 + tailWag;
+    } else {
+      // Idle — occasional lazy swish
+      tailWag = Math.sin(t * 2.5) * 3;
+      tailCurveY = cy + 4; tailEndY = cy + 8 + tailWag;
+    }
     ctx.beginPath();
     ctx.moveTo(cx + 2, cy + 12 + bob);
-    ctx.quadraticCurveTo(cx - 8, cy + 4 + tailWag, cx - 12, cy + 8 + tailWag);
+    ctx.quadraticCurveTo(cx - 8, tailCurveY + bob, cx - 12, tailEndY + bob);
     ctx.stroke();
     ctx.lineCap = 'butt';
 
-    // Back legs
-    const legAnim = action === 'walking' ? Math.sin(t * 10) * 3 : 0;
+    // Back legs — better walk stride
+    const legAnim = action === 'walking' ? Math.sin(t * 10) * 4 : 0;
+    const legLift = action === 'walking' ? Math.max(0, Math.sin(t * 10)) * 2 : 0;
+    const legLift2 = action === 'walking' ? Math.max(0, -Math.sin(t * 10)) * 2 : 0;
     ctx.fillStyle = cfg.bodyColor;
-    ctx.fillRect(cx + 4 - legAnim, cy + 16 + bob, 4, 5);
-    ctx.fillRect(cx + 12 + legAnim, cy + 16 + bob, 4, 5);
+    ctx.fillRect(cx + 4 - legAnim, cy + 16 + bob - legLift, 4, 5 + legLift);
+    ctx.fillRect(cx + 12 + legAnim, cy + 16 + bob - legLift2, 4, 5 + legLift2);
     // Tiny feet
     ctx.fillStyle = cfg.bellyColor;
     ctx.fillRect(cx + 3 - legAnim, cy + 20 + bob, 5, 2);
     ctx.fillRect(cx + 11 + legAnim, cy + 20 + bob, 5, 2);
 
-    // Body (rounded)
+    // Body (rounded) — breathing scale
+    const bodyBreath = 1 + Math.sin(t * 3) * 0.015;
     ctx.fillStyle = cfg.bodyColor;
     ctx.beginPath();
-    ctx.ellipse(cx + 10, cy + 11 + bob, 10, 8, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx + 10, cy + 11 + bob, 10 * bodyBreath, 8, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Belly
@@ -4351,103 +4396,131 @@ function drawMouse(x, y, cfg, dir, frame, action) {
     ctx.ellipse(cx + 10, cy + 13 + bob, 6, 5, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Head
+    // Head — offset bob for walking liveliness
     ctx.fillStyle = cfg.bodyColor;
     ctx.beginPath();
-    ctx.ellipse(cx + 19, cy + 5 + bob, 7, 6, 0.15, 0, Math.PI * 2);
+    ctx.ellipse(cx + 19, cy + 5 + headBob, 7, 6, 0.15, 0, Math.PI * 2);
     ctx.fill();
 
-    // Ears (big & round!)
+    // Ears (big & round!) with twitching
     // Left ear
     ctx.fillStyle = cfg.earColor;
     ctx.beginPath();
-    ctx.ellipse(cx + 15, cy - 4 + bob, 5, 6, -0.3, 0, Math.PI * 2);
+    ctx.ellipse(cx + 15, cy - 4 + headBob, 5, 6, -0.3 + earTwitchL, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#ffb8c0';
     ctx.beginPath();
-    ctx.ellipse(cx + 15, cy - 4 + bob, 3, 4, -0.3, 0, Math.PI * 2);
+    ctx.ellipse(cx + 15, cy - 4 + headBob, 3, 4, -0.3 + earTwitchL, 0, Math.PI * 2);
     ctx.fill();
     // Right ear
     ctx.fillStyle = cfg.earColor;
     ctx.beginPath();
-    ctx.ellipse(cx + 23, cy - 4 + bob, 5, 6, 0.3, 0, Math.PI * 2);
+    ctx.ellipse(cx + 23, cy - 4 + headBob, 5, 6, 0.3 + earTwitchR, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#ffb8c0';
     ctx.beginPath();
-    ctx.ellipse(cx + 23, cy - 4 + bob, 3, 4, 0.3, 0, Math.PI * 2);
+    ctx.ellipse(cx + 23, cy - 4 + headBob, 3, 4, 0.3 + earTwitchR, 0, Math.PI * 2);
     ctx.fill();
 
-    // Eyes (big & cute)
-    if (action === 'doomscrolling' || action === 'watching') {
+    // Eyes (big & cute) — with blinking
+    if (isBlinking) {
+      // Blink — thin horizontal lines
+      ctx.strokeStyle = '#111';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(cx + 15, cy + 3 + headBob);
+      ctx.lineTo(cx + 19, cy + 3 + headBob);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx + 20, cy + 3 + headBob);
+      ctx.lineTo(cx + 24, cy + 3 + headBob);
+      ctx.stroke();
+    } else if (action === 'doomscrolling' || action === 'watching') {
       // Screen-glow eyes
       ctx.fillStyle = '#66ccff';
       ctx.beginPath();
-      ctx.ellipse(cx + 17, cy + 3 + bob, 2.2, 2.8, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx + 17, cy + 3 + headBob, 2.2, 2.8, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.beginPath();
-      ctx.ellipse(cx + 22, cy + 3 + bob, 2.2, 2.8, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx + 22, cy + 3 + headBob, 2.2, 2.8, 0, 0, Math.PI * 2);
       ctx.fill();
     } else if (action === 'yoga') {
       // Closed peaceful eyes
       ctx.strokeStyle = '#111';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.arc(cx + 17, cy + 3 + bob, 2, 0.3, Math.PI - 0.3);
+      ctx.arc(cx + 17, cy + 3 + headBob, 2, 0.3, Math.PI - 0.3);
       ctx.stroke();
       ctx.beginPath();
-      ctx.arc(cx + 22, cy + 3 + bob, 2, 0.3, Math.PI - 0.3);
+      ctx.arc(cx + 22, cy + 3 + headBob, 2, 0.3, Math.PI - 0.3);
       ctx.stroke();
     } else if (action === 'eating') {
       // Happy squinty eyes
       ctx.strokeStyle = '#111';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.arc(cx + 17, cy + 4 + bob, 2, Math.PI + 0.3, -0.3);
+      ctx.arc(cx + 17, cy + 4 + headBob, 2, Math.PI + 0.3, -0.3);
       ctx.stroke();
       ctx.beginPath();
-      ctx.arc(cx + 22, cy + 4 + bob, 2, Math.PI + 0.3, -0.3);
+      ctx.arc(cx + 22, cy + 4 + headBob, 2, Math.PI + 0.3, -0.3);
       ctx.stroke();
+    } else if (startled) {
+      // Startled — wide round eyes!
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.ellipse(cx + 17, cy + 3 + headBob, 3, 3.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(cx + 22, cy + 3 + headBob, 3, 3.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#111';
+      ctx.beginPath();
+      ctx.arc(cx + 17, cy + 3 + headBob, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(cx + 22, cy + 3 + headBob, 1.8, 0, Math.PI * 2);
+      ctx.fill();
     } else {
       ctx.fillStyle = '#111';
       ctx.beginPath();
-      ctx.ellipse(cx + 17, cy + 3 + bob, 2, 2.5, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx + 17, cy + 3 + headBob, 2, 2.5, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.beginPath();
-      ctx.ellipse(cx + 22, cy + 3 + bob, 2, 2.5, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx + 22, cy + 3 + headBob, 2, 2.5, 0, 0, Math.PI * 2);
       ctx.fill();
       // Eye shine
       ctx.fillStyle = '#fff';
       ctx.beginPath();
-      ctx.arc(cx + 17.5, cy + 2 + bob, 0.8, 0, Math.PI * 2);
+      ctx.arc(cx + 17.5, cy + 2 + headBob, 0.8, 0, Math.PI * 2);
       ctx.fill();
       ctx.beginPath();
-      ctx.arc(cx + 22.5, cy + 2 + bob, 0.8, 0, Math.PI * 2);
+      ctx.arc(cx + 22.5, cy + 2 + headBob, 0.8, 0, Math.PI * 2);
       ctx.fill();
     }
 
     // Nose (tiny pink)
     ctx.fillStyle = cfg.noseColor;
     ctx.beginPath();
-    ctx.ellipse(cx + 26, cy + 5 + bob, 2, 1.5, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx + 26, cy + 5 + headBob, 2, 1.5, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Whiskers
     ctx.strokeStyle = 'rgba(180,160,140,0.5)';
     ctx.lineWidth = 0.7;
     ctx.beginPath();
-    ctx.moveTo(cx + 25, cy + 5 + bob);
-    ctx.lineTo(cx + 32, cy + 2 + bob);
-    ctx.moveTo(cx + 25, cy + 6 + bob);
-    ctx.lineTo(cx + 32, cy + 7 + bob);
-    ctx.moveTo(cx + 25, cy + 5.5 + bob);
-    ctx.lineTo(cx + 33, cy + 4.5 + bob);
+    ctx.moveTo(cx + 25, cy + 5 + headBob);
+    ctx.lineTo(cx + 32, cy + 2 + headBob);
+    ctx.moveTo(cx + 25, cy + 6 + headBob);
+    ctx.lineTo(cx + 32, cy + 7 + headBob);
+    ctx.moveTo(cx + 25, cy + 5.5 + headBob);
+    ctx.lineTo(cx + 33, cy + 4.5 + headBob);
     ctx.stroke();
 
     // Tiny smile
     ctx.strokeStyle = 'rgba(100,60,60,0.3)';
     ctx.lineWidth = 0.8;
     ctx.beginPath();
-    ctx.arc(cx + 23, cy + 6 + bob, 3, 0.2, 1.2);
+    ctx.arc(cx + 23, cy + 6 + headBob, 3, 0.2, 1.2);
     ctx.stroke();
   }
 
@@ -4943,6 +5016,31 @@ function updateMouseInteractions(dt) {
   const c = state.miceState.chai;
   if (s.room !== c.room) { interactionCooldown = 5000 + Math.random() * 5000; return; }
 
+  // Startled reaction: if one mouse zooms past the other
+  if (s.action === 'zoomies' && c.action !== 'zoomies' && c.action !== 'sleeping' && c.action !== 'flung') {
+    if (Math.abs(s.x - c.x) < 25 && !c._startled) {
+      c._startled = true;
+      c._startleTimer = 600;
+      speechBubbles = speechBubbles.filter(b => b.mouseKey !== 'chai');
+      speechBubbles.push({ x: c.x + 14, y: getMouseFloorY(c) - 10,
+        text: ['❗', 'AH!', 'omg', '😱', 'WHAT'][Math.floor(Math.random() * 5)],
+        timer: 1200, maxTimer: 1200, mouseKey: 'chai' });
+    }
+  }
+  if (c.action === 'zoomies' && s.action !== 'zoomies' && s.action !== 'sleeping' && s.action !== 'flung') {
+    if (Math.abs(c.x - s.x) < 25 && !s._startled) {
+      s._startled = true;
+      s._startleTimer = 600;
+      speechBubbles = speechBubbles.filter(b => b.mouseKey !== 'pip');
+      speechBubbles.push({ x: s.x + 14, y: getMouseFloorY(s) - 10,
+        text: ['❗', 'AH!', 'bruh', '😱', 'HEY'][Math.floor(Math.random() * 5)],
+        timer: 1200, maxTimer: 1200, mouseKey: 'pip' });
+    }
+  }
+  // Decay startle
+  if (s._startled) { s._startleTimer -= dt; if (s._startleTimer <= 0) s._startled = false; }
+  if (c._startled) { c._startleTimer -= dt; if (c._startleTimer <= 0) c._startled = false; }
+
   interactionCooldown -= dt;
   if (interactionCooldown > 0) return;
   interactionCooldown = 15000 + Math.random() * 10000;
@@ -5409,7 +5507,7 @@ function gameLoop(now) {
         if (pip.action === 'flung') {
           drawFlungMouse(pip, CONFIG.mice.pip);
         } else {
-          drawMouse(pip.x, pipFloorY, CONFIG.mice.pip, pip.dir, pip.frame, pip.action);
+          drawMouse(pip.x, pipFloorY, CONFIG.mice.pip, pip.dir, pip.frame, pip.action, pip._startled);
         }
         drawPartyHat(pip.action === 'flung' ? pip.flingX : pip.x,
                      pip.action === 'flung' ? pip.flingY : pipFloorY, pip.action, pip.dir, CONFIG.mice.pip);
@@ -5418,7 +5516,7 @@ function gameLoop(now) {
         if (chai.action === 'flung') {
           drawFlungMouse(chai, CONFIG.mice.chai);
         } else {
-          drawMouse(chai.x, chaiFloorY, CONFIG.mice.chai, chai.dir, chai.frame, chai.action);
+          drawMouse(chai.x, chaiFloorY, CONFIG.mice.chai, chai.dir, chai.frame, chai.action, chai._startled);
         }
         drawPartyHat(chai.action === 'flung' ? chai.flingX : chai.x,
                      chai.action === 'flung' ? chai.flingY : chaiFloorY, chai.action, chai.dir, CONFIG.mice.chai);
