@@ -231,7 +231,7 @@ body { display: flex; flex-direction: column; }
   position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
   width: 120px; height: 50px; background: rgba(200,50,50,0.7);
   border: 2px dashed #ff6666; border-radius: 10px 10px 0 0;
-  z-index: 31; display: none; justify-content: center; align-items: center;
+  z-index: 35; display: none; justify-content: center; align-items: center;
   color: #fff; font-size: 24px; font-family: 'Courier New', monospace;
   pointer-events: none;
 }
@@ -3285,13 +3285,17 @@ function toggleShopFlyout() {
   state.shopOpen = !state.shopOpen;
   const flyout = document.getElementById('shop-flyout');
   const tray = document.getElementById('item-tray');
+  const isMobile = window.innerWidth <= 480;
   if (state.shopOpen) {
     if (gamesOpen) closeGamesFlyout();
     refreshShopFlyout();
     refreshItemTray();
     flyout.classList.add('open');
-    tray.classList.add('open');
-    syncTrayToggle();
+    // On mobile, shop covers everything — don't force tray open
+    if (!isMobile) {
+      tray.classList.add('open');
+      syncTrayToggle();
+    }
     showBackdrop();
   } else {
     flyout.classList.remove('open');
@@ -5947,15 +5951,13 @@ function handleCanvasInput(sx, sy, originalEvent) {
   }
 
   // Check if clicking/touching a placed item to pick it up for repositioning
-  if (state.shopOpen || state.dragState.active) {
-    const placedIdx = findPlacedItemAt(pos.x, pos.y);
-    if (placedIdx >= 0) {
-      const placed = state.placedItems[placedIdx];
-      const item = FURNITURE.find(f => f.id === placed.itemId);
-      if (item && !item.exerciseRoom) {
-        startDrag(placed.itemId, sx, sy, true, placedIdx);
-        return;
-      }
+  const placedIdx = findPlacedItemAt(pos.x, pos.y);
+  if (placedIdx >= 0) {
+    const placed = state.placedItems[placedIdx];
+    const item = FURNITURE.find(f => f.id === placed.itemId);
+    if (item && !item.exerciseRoom) {
+      startDrag(placed.itemId, sx, sy, true, placedIdx);
+      return;
     }
   }
 
