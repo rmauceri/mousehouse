@@ -191,10 +191,10 @@ html, body {
 
 /* ---- Item Tray (bottom palette) ---- */
 #tray-toggle {
-  position: fixed; bottom: 0; right: 8px; z-index: 31;
-  width: 32px; height: 24px; background: rgba(30,20,10,0.92);
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  z-index: 31; width: 40px; height: 22px; background: rgba(30,20,10,0.92);
   border: 2px solid #a07040; border-bottom: none; border-radius: 6px 6px 0 0;
-  color: #f5d68a; font-size: 14px; cursor: pointer; display: none;
+  color: #f5d68a; font-size: 16px; cursor: pointer; display: none;
   align-items: center; justify-content: center; font-family: 'Courier New', monospace;
   transition: background 0.15s;
 }
@@ -400,7 +400,7 @@ html, body {
   </div>
 </div>
 
-<div id="tray-toggle" title="Toggle item tray">▲</div>
+<div id="tray-toggle" title="Toggle item tray"><span style="display:inline-block;transform:rotate(-90deg)">»</span></div>
 <div id="item-tray"></div>
 
 <div id="trash-zone">🗑</div>
@@ -2883,11 +2883,11 @@ function toggleTray() {
     refreshItemTray();
     tray.classList.add('open');
     btn.classList.add('open');
-    btn.textContent = '▼';
+    btn.querySelector('span').style.transform = 'rotate(90deg)';
   } else {
     if (!state.shopOpen) tray.classList.remove('open');
     btn.classList.remove('open');
-    btn.textContent = '▲';
+    btn.querySelector('span').style.transform = 'rotate(-90deg)';
     cancelPlacement();
   }
 }
@@ -2898,8 +2898,8 @@ function syncTrayToggle() {
   const btn = document.getElementById('tray-toggle');
   const tray = document.getElementById('item-tray');
   const isOpen = tray.classList.contains('open');
-  if (isOpen) { btn.classList.add('open'); btn.textContent = '▼'; }
-  else { btn.classList.remove('open'); btn.textContent = '▲'; }
+  if (isOpen) { btn.classList.add('open'); btn.querySelector('span').style.transform = 'rotate(90deg)'; }
+  else { btn.classList.remove('open'); btn.querySelector('span').style.transform = 'rotate(-90deg)'; }
 }
 
 function toggleShopFlyout() {
