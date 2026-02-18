@@ -4508,9 +4508,8 @@ function initMazeLevel(level) {
     deathPause: 0,
     animX: 0, animY: 0,
     moveTimer: 0,
-    moveInterval: 120, // ms per continuous move
-    moveQueue: [],
-    inputCooldown: 0
+    moveInterval: 85, // ms per continuous move
+    heldKeys: { up: false, down: false, left: false, right: false }
   });
 }
 
@@ -4569,27 +4568,24 @@ function updateMouseMaze(dt) {
   mz.elapsed = Date.now() - mz.startTime;
 
   // Smooth animation toward current cell
-  mz.animX += (0 - mz.animX) * 0.25;
-  mz.animY += (0 - mz.animY) * 0.25;
+  mz.animX += (0 - mz.animX) * 0.35;
+  mz.animY += (0 - mz.animY) * 0.35;
 
-  // Continuous movement: process direction input then auto-move
-  if (mz.moveQueue.length > 0) {
-    mz.nextDir = mz.moveQueue.shift();
-  }
+  // Continuous movement: check held keys for direction
+  const held = mz.heldKeys;
+  const lastPressed = held.up ? 'up' : held.down ? 'down' : held.left ? 'left' : held.right ? 'right' : null;
+  if (lastPressed) mz.nextDir = lastPressed;
 
   mz.moveTimer -= dt;
   if (mz.moveTimer <= 0) {
     mz.moveTimer = mz.moveInterval;
     // Try nextDir first, then keep current dir
-    let moved = false;
     if (mz.nextDir && canMazeMove(mz.nextDir)) {
       mz.playerDir = mz.nextDir;
       mz.nextDir = null;
       doMazeMove(mz.playerDir);
-      moved = true;
     } else if (canMazeMove(mz.playerDir)) {
       doMazeMove(mz.playerDir);
-      moved = true;
     }
   }
 
@@ -5069,10 +5065,14 @@ function mazeSwipeEnd(sx, sy) {
   mazeSwipeStart = null;
   const minDist = 15;
   if (Math.abs(dx) < minDist && Math.abs(dy) < minDist) return;
-  if (Math.abs(dx) > Math.abs(dy)) {
-    mz.moveQueue.push(dx > 0 ? 'right' : 'left');
-  } else {
-    mz.moveQueue.push(dy > 0 ? 'down' : 'up');
+  const dir = Math.abs(dx) > Math.abs(dy)
+    ? (dx > 0 ? 'right' : 'left')
+    : (dy > 0 ? 'down' : 'up');
+  mz.nextDir = dir;
+  if (canMazeMove(dir)) {
+    mz.playerDir = dir;
+    doMazeMove(dir);
+    mz.moveTimer = mz.moveInterval;
   }
 }
 
@@ -7277,13 +7277,34 @@ document.addEventListener('keydown', e => {
     if (e.key === 'ArrowUp' || e.key === 'w') cc.mouseY -= 10;
     if (e.key === 'ArrowDown' || e.key === 's') cc.mouseY += 10;
   }
-  if (mouseMazeActive && !mz.levelComplete && !mz.gameOver) {
-    if (e.key === 'ArrowUp' || e.key === 'w') { e.preventDefault(); mz.moveQueue.push('up'); }
-    if (e.key === 'ArrowDown' || e.key === 's') { e.preventDefault(); mz.moveQueue.push('down'); }
-    if (e.key === 'ArrowLeft' || e.key === 'a') { e.preventDefault(); mz.moveQueue.push('left'); }
-    if (e.key === 'ArrowRight' || e.key === 'd') { e.preventDefault(); mz.moveQueue.push('right'); }
+  if (mouseMazeActive && !mz.levelComplete && !mz.gameOver && mz.deathPause <= 0) {
+    const mazeDir = ({ ArrowUp:'up', w:'up', ArrowDown:'down', s:'down',
+                       ArrowLeft:'left', a:'left', ArrowRight:'right', d:'right' })[e.key];
+    if (mazeDir) {
+      e.preventDefault();
+      mz.heldKeys[mazeDir] = true;
+      // Immediate move on first press (no waiting for timer)
+      if (canMazeMove(mazeDir)) {
+        mz.playerDir = mazeDir;
+        mz.nextDir = null;
+        if (mz.moveTimer > 20) {
+          doMazeMove(mazeDir);
+          mz.moveTimer = mz.moveInterval;
+        }
+      } else {
+        mz.nextDir = mazeDir;
+      }
+    }
   }
   if (mouseMazeActive && e.key === 'Escape') { e.preventDefault(); endMouseMaze(); }
+});
+
+document.addEventListener('keyup', e => {
+  if (mouseMazeActive && mz.heldKeys) {
+    const mazeDir = ({ ArrowUp:'up', w:'up', ArrowDown:'down', s:'down',
+                       ArrowLeft:'left', a:'left', ArrowRight:'right', d:'right' })[e.key];
+    if (mazeDir) mz.heldKeys[mazeDir] = false;
+  }
 });
 
 // ============================================================
