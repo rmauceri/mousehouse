@@ -395,7 +395,7 @@ body { display: flex; flex-direction: column; }
     </div>
     <div class="hud-right">
       <div class="room-tabs" id="room-tabs"></div>
-      <button id="btn-shop">🛒<span class="btn-label"> Moustazon</span></button>
+      <button id="btn-shop">🛒<span class="btn-label"> aMouseZon</span></button>
       <button id="btn-games">🎮<span class="btn-label"> Games</span></button>
       <button id="btn-letter">💌</button>
       <button id="btn-sound" title="Sound">🔇</button>
@@ -426,7 +426,7 @@ body { display: flex; flex-direction: column; }
 
 <div id="shop-flyout">
   <div class="flyout-header">
-    <h2>🛒 Moustazon</h2>
+    <h2>🛒 aMouseZon</h2>
     <button class="flyout-close" id="flyout-close-btn">✖</button>
   </div>
   <div class="flyout-coins">Free 2-day delivery | 🧀 <strong id="flyout-coin-display">0</strong> coins</div>
@@ -442,7 +442,7 @@ body { display: flex; flex-direction: column; }
     <h2>🎮 Arcade</h2>
     <button class="flyout-close" id="games-flyout-close">✖</button>
   </div>
-  <div class="flyout-subtitle">Earn cheese coins to shop at Moustazon!</div>
+  <div class="flyout-subtitle">Earn cheese coins to shop at aMouseZon!</div>
   <div class="game-list">
     <div class="game-item" onclick="startCheeseChase()">
       <div class="gi-title">🧀 Cheese Chase</div>
@@ -489,7 +489,7 @@ body { display: flex; flex-direction: column; }
     <h3>🏠 Features</h3>
     <ul>
       <li><b>4 rooms</b> — Bedroom, Kitchen, Living Room & Exercise Room, each with platforms and ramps</li>
-      <li><b>20+ furniture items</b> — Buy from the Moustazon shop and place anywhere</li>
+      <li><b>20+ furniture items</b> — Buy from the aMouseZon shop and place anywhere</li>
       <li><b>3 mini-games</b> — Cheese Chase, Doomscroll & Mouse Maze</li>
       <li><b>Exercise Wheel</b> — Watch the mice spin (and get flung!)</li>
       <li><b>Mouse AI</b> — Pip & Chai explore, climb, nap, chase each other, and share thoughts</li>
@@ -497,7 +497,7 @@ body { display: flex; flex-direction: column; }
     <h3>🪙 How to Play</h3>
     <ul>
       <li>Earn coins by petting mice, playing mini-games, and completing goals</li>
-      <li>Spend coins in the <b>Moustazon</b> shop (🛍 button) to buy furniture</li>
+      <li>Spend coins in the <b>aMouseZon</b> shop (🛍 button) to buy furniture</li>
       <li>Drag items from the tray to place them; double-click placed items to reposition</li>
       <li>Click empty space to close the shop (light dismiss)</li>
       <li>Switch rooms using the tabs at the top</li>
@@ -4717,7 +4717,7 @@ function updateGoalDisplay() {
   if (pipHungry || chaiHungry) {
     const names = [pipHungry && 'Pip', chaiHungry && 'Chai'].filter(Boolean).join(' & ');
     el.textContent = hasFood ? `🍽 ${names} ${pipHungry && chaiHungry ? 'are' : 'is'} hungry! Food is available.`
-                             : `⚠️ ${names} ${pipHungry && chaiHungry ? 'are' : 'is'} hungry! Buy food from the Store!`;
+                             : `⚠️ ${names} ${pipHungry && chaiHungry ? 'are' : 'is'} hungry! Buy food from aMouseZon!`;
     el.style.color = '#e06050';
     row2.classList.add('visible');
     return;
