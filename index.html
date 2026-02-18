@@ -1474,11 +1474,9 @@ function ringStepToward(from, to) {
 
 function buildRoomTabs() {
   const tabsHTML =
-    `<button onclick="switchRoom(roomLeft(state.currentRoom))">◀</button>` +
     ROOMS.map((r, i) =>
       `<button class="${i === state.currentRoom ? 'active' : ''}" onclick="switchRoom(${i})">${r.icon}</button>`
-    ).join('') +
-    `<button onclick="switchRoom(roomRight(state.currentRoom))">▶</button>`;
+    ).join('');
   document.getElementById('room-tabs').innerHTML = tabsHTML;
   document.getElementById('room-tabs-mobile').innerHTML = tabsHTML;
 }
