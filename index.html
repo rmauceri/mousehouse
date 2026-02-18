@@ -1256,6 +1256,18 @@ const FURNITURE = [
   { id: 'tiny-hoodie', name: 'Tiny Hoodie Rack', icon: '🧥', price: 12,
     desc: 'For when the vibes are chilly.', w: 1, h: 1,
     color: '#4169E1', mouseBehavior: null },
+  { id: 'hammock', name: 'Cozy Hammock', icon: '🏖️', price: 20,
+    desc: 'Two-mouse napping pod. Peak comfort achieved.', w: 3, h: 2,
+    color: '#c9956b', mouseBehavior: 'sleeping' },
+  { id: 'tp-tunnel', name: 'TP Tube Tunnel', icon: '🧻', price: 8,
+    desc: 'Hide and seek champion. Infinite entertainment.', w: 2, h: 1,
+    color: '#e8dcc8', mouseBehavior: 'hiding' },
+  { id: 'chew-stick', name: 'Chew Stick', icon: '🪵', price: 6,
+    desc: 'Anxiety coping mechanism. Very therapeutic.', w: 1, h: 1,
+    color: '#a0764a', mouseBehavior: 'chewing' },
+  { id: 'climbing-rope', name: 'Climbing Rope', icon: '🪢', price: 15,
+    desc: 'Vertical zoomies. Spider-mouse era.', w: 1, h: 2,
+    color: '#c4a050', mouseBehavior: 'swinging' },
   // Birthday items (hidden until birthday event)
   { id: 'birthday-cake', name: 'Birthday Cake', icon: '🎂', price: 0,
     desc: 'Happy 20th Nico & Rose! 🎉', w: 1, h: 1,
@@ -1517,7 +1529,7 @@ function switchRoom(i) {
     const otherKey = key === 'pip' ? 'chai' : 'pip';
     const other = state.miceState[otherKey];
     const isAlone = other.room !== i;
-    const caughtActions = ['mischief', 'eating', 'grooming', 'doomscrolling'];
+    const caughtActions = ['mischief', 'eating', 'grooming', 'doomscrolling', 'hiding', 'chewing', 'swinging'];
     if (isAlone && caughtActions.includes(mouse.action) && Math.random() < 0.5) {
       // Freeze and look guilty
       const prevAction = mouse.action;
@@ -2850,6 +2862,157 @@ function drawFurnitureItem(item, gx, gy, placedRef) {
       ctx.lineTo(fx, fy+10);
       ctx.closePath(); ctx.fill();
     }
+    break;
+  }
+
+  case 'hammock': { // 3x2 72x48
+    const t2 = Date.now() / 1000;
+    const sway = Math.sin(t2 * 1.2) * 2;
+    // Two posts
+    ctx.fillStyle = '#6b4226';
+    ctx.fillRect(x+4, y+2, 5, 44);
+    ctx.fillRect(x+63, y+2, 5, 44);
+    // Post caps
+    ctx.fillStyle = '#8b5a2e';
+    ctx.beginPath(); ctx.arc(x+6.5, y+4, 4, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x+65.5, y+4, 4, 0, Math.PI*2); ctx.fill();
+    // Hammock fabric (catenary curve)
+    ctx.fillStyle = item.color;
+    ctx.beginPath();
+    ctx.moveTo(x+8, y+10);
+    ctx.quadraticCurveTo(x+36, y+30 + sway, x+64, y+10);
+    ctx.lineTo(x+64, y+16);
+    ctx.quadraticCurveTo(x+36, y+36 + sway, x+8, y+16);
+    ctx.closePath();
+    ctx.fill();
+    // Fabric pattern stripes
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.lineWidth = 1;
+    for (let si = 0; si < 4; si++) {
+      const sx = x + 18 + si * 12;
+      ctx.beginPath();
+      ctx.moveTo(sx, y+12 + sway*0.3);
+      ctx.lineTo(sx, y+28 + sway*0.7);
+      ctx.stroke();
+    }
+    // Rope ties at ends
+    ctx.strokeStyle = '#a08040';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x+6.5, y+6); ctx.lineTo(x+10, y+11); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+65.5, y+6); ctx.lineTo(x+62, y+11); ctx.stroke();
+    break;
+  }
+
+  case 'tp-tunnel': { // 2x1 48x24
+    // Outer tube
+    ctx.fillStyle = item.color;
+    ctx.beginPath();
+    ctx.ellipse(x+24, y+13, 22, 10, 0, 0, Math.PI*2);
+    ctx.fill();
+    // Inner tube (dark opening)
+    ctx.fillStyle = '#3a2a1a';
+    ctx.beginPath();
+    ctx.ellipse(x+24, y+13, 16, 7, 0, 0, Math.PI*2);
+    ctx.fill();
+    // Cardboard texture lines
+    ctx.strokeStyle = 'rgba(160,130,90,0.3)';
+    ctx.lineWidth = 0.5;
+    for (let ri = 0; ri < 6; ri++) {
+      ctx.beginPath();
+      ctx.moveTo(x+6+ri*7, y+4);
+      ctx.lineTo(x+6+ri*7, y+22);
+      ctx.stroke();
+    }
+    // Highlight on top
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.beginPath();
+    ctx.ellipse(x+24, y+8, 18, 4, 0, 0, Math.PI);
+    ctx.fill();
+    // Torn edges
+    ctx.fillStyle = darker;
+    const edgeY = y+13;
+    for (let ei = 0; ei < 3; ei++) {
+      ctx.fillRect(x+4+ei*4, edgeY+7, 2, 1);
+      ctx.fillRect(x+38+ei*4, edgeY+7, 2, 1);
+    }
+    break;
+  }
+
+  case 'chew-stick': { // 1x1 24x24
+    // Stick body (diagonal)
+    ctx.save();
+    ctx.translate(x+12, y+12);
+    ctx.rotate(-0.3);
+    ctx.fillStyle = item.color;
+    ctx.beginPath();
+    ctx.roundRect(-10, -4, 20, 8, 2);
+    ctx.fill();
+    // Wood grain
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+    ctx.lineWidth = 0.5;
+    for (let gi = 0; gi < 4; gi++) {
+      ctx.beginPath();
+      ctx.moveTo(-8+gi*5, -3);
+      ctx.lineTo(-8+gi*5, 3);
+      ctx.stroke();
+    }
+    // Bark texture
+    ctx.fillStyle = darker;
+    ctx.fillRect(-10, -4, 3, 8);
+    ctx.fillRect(7, -4, 3, 8);
+    // Chew marks (bite marks on one end)
+    ctx.fillStyle = lighter;
+    ctx.fillRect(8, -2, 2, 1.5);
+    ctx.fillRect(8, 1, 2, 1.5);
+    ctx.restore();
+    // Small wood chips scattered
+    ctx.fillStyle = lighter;
+    ctx.fillRect(x+16, y+20, 2, 1);
+    ctx.fillRect(x+6, y+19, 1.5, 1.5);
+    break;
+  }
+
+  case 'climbing-rope': { // 1x2 24x48
+    const t2 = Date.now() / 1000;
+    const ropeSwing = Math.sin(t2 * 0.8) * 1.5;
+    // Anchor point (hook at top)
+    ctx.fillStyle = '#888';
+    ctx.beginPath();
+    ctx.arc(x+12, y+3, 3, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#666';
+    ctx.fillRect(x+11, y+0, 2, 4);
+    // Rope (braided look)
+    ctx.strokeStyle = item.color;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(x+12, y+5);
+    for (let ri = 0; ri < 8; ri++) {
+      const ry = y+5 + ri*5;
+      const rx = x+12 + Math.sin(ri*0.8)*1.5 + ropeSwing*(ri/8);
+      ctx.lineTo(rx, ry);
+    }
+    ctx.stroke();
+    // Rope detail (twist pattern)
+    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+    ctx.lineWidth = 1;
+    for (let ki = 0; ki < 6; ki++) {
+      const ky = y+8 + ki*6;
+      ctx.beginPath();
+      ctx.moveTo(x+10 + ropeSwing*(ki/6), ky);
+      ctx.lineTo(x+14 + ropeSwing*(ki/6), ky+3);
+      ctx.stroke();
+    }
+    // Knot at bottom
+    ctx.fillStyle = item.color;
+    const knotY = y + 42 + ropeSwing;
+    ctx.beginPath();
+    ctx.arc(x+12 + ropeSwing, knotY, 4, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = darker;
+    ctx.beginPath();
+    ctx.arc(x+12 + ropeSwing, knotY, 2, 0, Math.PI*2);
+    ctx.fill();
     break;
   }
 
@@ -4979,7 +5142,7 @@ function drawMouse(x, y, cfg, dir, frame, action, startled) {
 
   } else {
     // Standing / walking / idle / furniture-interaction mouse
-    const isFurnitureAction = ['doomscrolling','watching','yoga','eating','playing','grooming','stretching','mischief'].includes(action);
+    const isFurnitureAction = ['doomscrolling','watching','yoga','eating','playing','grooming','stretching','mischief','hiding','chewing','swinging'].includes(action);
 
     // Breathing: visible body pulse
     const breathe = Math.sin(t * 3) * 0.8;
@@ -5552,6 +5715,33 @@ function pickNewAction(mouse, personality) {
     if (pick.behavior === 'sleeping') mouse.actionTimer = 3000 + Math.random() * 3000;
     if (pick.behavior === 'zoomies') mouse.actionTimer = 2000 + Math.random() * 2000;
     if (pick.behavior === 'wheeling') mouse.actionTimer = 4000 + Math.random() * 5000;
+    if (pick.behavior === 'hiding') mouse.actionTimer = 3000 + Math.random() * 3000;
+    if (pick.behavior === 'chewing') mouse.actionTimer = 2000 + Math.random() * 2000;
+    if (pick.behavior === 'swinging') mouse.actionTimer = 3000 + Math.random() * 3000;
+    // Speech for new behaviors
+    if (mouse.room === state.currentRoom) {
+      const mouseKey = mouse === state.miceState.pip ? 'pip' : 'chai';
+      let quotes = null;
+      if (pick.behavior === 'hiding') {
+        quotes = mouseKey === 'pip'
+          ? ['you can\'t see me! 🫣', '*tunneling*', 'stealth 100', 'am I invisible yet?', 'secret passage!']
+          : ['cozy in here 🥰', '*peeks out*', 'introvert recharging', 'my safe space', 'tunnel vision'];
+      } else if (pick.behavior === 'chewing') {
+        quotes = mouseKey === 'pip'
+          ? ['*cronch cronch*', 'teething era 🦷', 'this is mine now', 'stress relief 💯', 'good texture']
+          : ['*nibble nibble*', 'therapeutic', 'chew toy acquired', 'zen mode 🧘', 'very satisfying'];
+      } else if (pick.behavior === 'swinging') {
+        quotes = mouseKey === 'pip'
+          ? ['PARKOUR! 💪', 'spider-mouse!', 'look no paws!', 'vertical zoomies!', 'I\'m basically an acrobat']
+          : ['wheee! 🎪', 'hang in there', 'this is fun actually', '*swings gently*', 'circus era'];
+      }
+      if (quotes) {
+        speechBubbles = speechBubbles.filter(b => b.mouseKey !== mouseKey);
+        speechBubbles.push({ x: mouse.x + 14, y: getMouseFloorY(mouse) - 10,
+          text: quotes[Math.floor(Math.random() * quotes.length)],
+          timer: 2500, maxTimer: 2500, mouseKey });
+      }
+    }
     return;
   }
 
@@ -5667,7 +5857,8 @@ function drawMouseStatus() {
 
   const actionIcons = { sleeping: '💤', walking: '🐾', zoomies: '💨', eating: '😋',
     doomscrolling: '📱', watching: '📺', yoga: '🧘', playing: '🏃',
-    wheeling: '🎡', flung: '😵‍💫', climbing: '🪜', grooming: '💅', mischief: '😈', stretching: '🙆' };
+    wheeling: '🎡', flung: '😵‍💫', climbing: '🪜', grooming: '💅', mischief: '😈', stretching: '🙆',
+    hiding: '🫣', chewing: '🪵', swinging: '🪢' };
 
   // Pip status (left)
   const sIcon = actionIcons[pip.action] || '✨';
