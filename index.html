@@ -8209,6 +8209,25 @@ document.addEventListener('keyup', e => {
     pipCtx.save();
     pipCtx.setTransform(1, 0, 0, 1, 0, 0);
     pipCtx.clearRect(0, 0, 200, 160);
+    // Spotlight effect
+    const spotPulse1 = 0.85 + Math.sin(t * 1.2) * 0.1;
+    const spotGrad1 = pipCtx.createRadialGradient(100, 40, 10, 100, 80, 110);
+    spotGrad1.addColorStop(0, `rgba(255,240,200,${0.18 * spotPulse1})`);
+    spotGrad1.addColorStop(0.4, `rgba(255,220,160,${0.08 * spotPulse1})`);
+    spotGrad1.addColorStop(1, 'rgba(255,220,160,0)');
+    pipCtx.fillStyle = spotGrad1;
+    pipCtx.fillRect(0, 0, 200, 160);
+    // Spotlight beam cone
+    pipCtx.save();
+    pipCtx.globalAlpha = 0.06 * spotPulse1;
+    pipCtx.fillStyle = '#fff8e0';
+    pipCtx.beginPath();
+    pipCtx.moveTo(100, 0);
+    pipCtx.lineTo(45, 140);
+    pipCtx.lineTo(155, 140);
+    pipCtx.closePath();
+    pipCtx.fill();
+    pipCtx.restore();
     pipCtx.translate(100, 85);
     pipCtx.scale(3, 3);
     pipCtx.translate(-14, -12);
@@ -8222,6 +8241,25 @@ document.addEventListener('keyup', e => {
     chaiCtx.save();
     chaiCtx.setTransform(1, 0, 0, 1, 0, 0);
     chaiCtx.clearRect(0, 0, 200, 160);
+    // Spotlight effect
+    const spotPulse2 = 0.85 + Math.sin(t * 1.2 + 1.5) * 0.1;
+    const spotGrad2 = chaiCtx.createRadialGradient(100, 40, 10, 100, 80, 110);
+    spotGrad2.addColorStop(0, `rgba(255,240,200,${0.18 * spotPulse2})`);
+    spotGrad2.addColorStop(0.4, `rgba(255,220,160,${0.08 * spotPulse2})`);
+    spotGrad2.addColorStop(1, 'rgba(255,220,160,0)');
+    chaiCtx.fillStyle = spotGrad2;
+    chaiCtx.fillRect(0, 0, 200, 160);
+    // Spotlight beam cone
+    chaiCtx.save();
+    chaiCtx.globalAlpha = 0.06 * spotPulse2;
+    chaiCtx.fillStyle = '#fff8e0';
+    chaiCtx.beginPath();
+    chaiCtx.moveTo(100, 0);
+    chaiCtx.lineTo(45, 140);
+    chaiCtx.lineTo(155, 140);
+    chaiCtx.closePath();
+    chaiCtx.fill();
+    chaiCtx.restore();
     chaiCtx.translate(100, 85);
     chaiCtx.scale(3, 3);
     chaiCtx.translate(-14, -12);
