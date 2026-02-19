@@ -4652,6 +4652,8 @@ document.getElementById('flyout-loot-btn').addEventListener('click', () => {
 // Wire up tray drag events (delegated)
 (function setupTrayDrag() {
   const tray = document.getElementById('item-tray');
+  const DRAG_THRESHOLD = 10; // px before deciding scroll vs drag
+  let pendingTouch = null; // { itemId, startX, startY, identifier }
 
   tray.addEventListener('mousedown', e => {
     const tile = e.target.closest('.tray-item');
@@ -4659,13 +4661,49 @@ document.getElementById('flyout-loot-btn').addEventListener('click', () => {
     e.preventDefault();
     startDrag(tile.dataset.itemId, e.clientX, e.clientY, false, -1);
   });
+
   tray.addEventListener('touchstart', e => {
     const tile = e.target.closest('.tray-item');
     if (!tile) return;
-    e.preventDefault();
+    // Don't preventDefault yet — let browser scroll if horizontal
     const t = e.touches[0];
-    startDrag(tile.dataset.itemId, t.clientX, t.clientY, false, -1);
+    pendingTouch = {
+      itemId: tile.dataset.itemId,
+      startX: t.clientX,
+      startY: t.clientY,
+      identifier: t.identifier
+    };
+  }, { passive: true });
+
+  tray.addEventListener('touchmove', e => {
+    if (!pendingTouch) return;
+    const t = Array.from(e.touches).find(tt => tt.identifier === pendingTouch.identifier);
+    if (!t) return;
+    const dx = Math.abs(t.clientX - pendingTouch.startX);
+    const dy = t.clientY - pendingTouch.startY; // negative = finger moving up
+    const ady = Math.abs(dy);
+    if (ady > DRAG_THRESHOLD && dy < 0 && ady > dx) {
+      // Upward drag (toward canvas) — start item drag
+      e.preventDefault();
+      startDrag(pendingTouch.itemId, t.clientX, t.clientY, false, -1);
+      pendingTouch = null;
+    } else if (dx > DRAG_THRESHOLD || (ady > DRAG_THRESHOLD && dy > 0)) {
+      // Horizontal swipe or downward scroll — let browser handle
+      pendingTouch = null;
+    }
   }, { passive: false });
+
+  tray.addEventListener('touchend', e => {
+    if (!pendingTouch) return;
+    // Touch ended without crossing threshold — treat as tap to select
+    const t = e.changedTouches[0];
+    if (t && t.identifier === pendingTouch.identifier) {
+      startPlacement(pendingTouch.itemId);
+    }
+    pendingTouch = null;
+  }, { passive: true });
+
+  tray.addEventListener('touchcancel', () => { pendingTouch = null; });
 })();
 
 // Horizontal mouse-wheel scrolling for the item tray (desktop)
