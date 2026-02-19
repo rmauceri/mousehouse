@@ -1144,6 +1144,97 @@ function playMazeMusicNote() {
   gameMusicTimeout = setTimeout(playMazeMusicNote, tempo);
 }
 
+// --- Whack-a-Cat: dramatic, percussive tension ---
+const WHACK_NOTES = [
+  // D minor: tense, dramatic (short staccato hits)
+  [294, 349, 294, 262, 294, 349, 440, 349],
+  // Builds: chromatic tension
+  [294, 311, 330, 349, 370, 392, 415, 440],
+  // Climax: fast descending strikes
+  [523, 494, 466, 440, 415, 392, 370, 349],
+  // Frenzy: rapid alternating
+  [440, 294, 523, 349, 440, 294, 587, 440],
+];
+let whackNoteIdx = 0, whackPhraseIdx = 0;
+
+function startWhackMusic() {
+  if (!audioCtx || audioMuted) return;
+  gameMusicPlaying = true;
+  gameMusicIntensity = 0;
+  whackNoteIdx = 0;
+  whackPhraseIdx = 0;
+  playWhackMusicNote();
+}
+
+function playWhackMusicNote() {
+  if (!gameMusicPlaying || audioMuted) { gameMusicPlaying = false; return; }
+  const phrase = WHACK_NOTES[whackPhraseIdx % WHACK_NOTES.length];
+  const freq = phrase[whackNoteIdx % phrase.length];
+  // Tempo: 200ms → 110ms as intensity rises
+  const tempo = Math.max(110, 200 - gameMusicIntensity * 90);
+  const dur = tempo * 0.5; // very short staccato
+
+  // Lead: sharp square wave stabs
+  const osc = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  osc.type = 'square';
+  osc.frequency.value = freq;
+  const vol = 0.035 + gameMusicIntensity * 0.025;
+  g.gain.setValueAtTime(vol, audioCtx.currentTime);
+  g.gain.setTargetAtTime(0, audioCtx.currentTime + dur / 1000 * 0.3, dur / 1000 * 0.1);
+  osc.connect(g); g.connect(musicGain);
+  osc.start(audioCtx.currentTime);
+  osc.stop(audioCtx.currentTime + dur / 1000 + 0.05);
+
+  // Percussive hit on every 2nd note — noise burst
+  if (whackNoteIdx % 2 === 0) {
+    const bufSize = audioCtx.sampleRate * 0.03;
+    const noiseBuf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+    const data = noiseBuf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * 0.3;
+    const noise = audioCtx.createBufferSource();
+    const ng = audioCtx.createGain();
+    noise.buffer = noiseBuf;
+    ng.gain.setValueAtTime(0.04 + gameMusicIntensity * 0.03, audioCtx.currentTime);
+    ng.gain.setTargetAtTime(0, audioCtx.currentTime + 0.015, 0.008);
+    noise.connect(ng); ng.connect(musicGain);
+    noise.start(audioCtx.currentTime);
+  }
+
+  // Deep bass throb every 4 notes
+  if (whackNoteIdx % 4 === 0) {
+    const ob = audioCtx.createOscillator();
+    const gb = audioCtx.createGain();
+    ob.type = 'sawtooth';
+    ob.frequency.value = freq * 0.25;
+    gb.gain.setValueAtTime(0.04, audioCtx.currentTime);
+    gb.gain.setTargetAtTime(0, audioCtx.currentTime + 0.1, 0.04);
+    ob.connect(gb); gb.connect(musicGain);
+    ob.start(audioCtx.currentTime);
+    ob.stop(audioCtx.currentTime + 0.2);
+  }
+
+  // Dissonant tension layer at high intensity
+  if (gameMusicIntensity > 0.5 && whackNoteIdx % 3 === 0) {
+    const ot = audioCtx.createOscillator();
+    const gt = audioCtx.createGain();
+    ot.type = 'sawtooth';
+    ot.frequency.value = freq * 1.06; // slightly sharp = tension
+    gt.gain.value = 0.015;
+    gt.gain.setTargetAtTime(0, audioCtx.currentTime + 0.04, 0.02);
+    ot.connect(gt); gt.connect(musicGain);
+    ot.start(audioCtx.currentTime);
+    ot.stop(audioCtx.currentTime + 0.08);
+  }
+
+  whackNoteIdx++;
+  if (whackNoteIdx >= phrase.length) {
+    whackNoteIdx = 0;
+    whackPhraseIdx = Math.min(Math.floor(gameMusicIntensity * WHACK_NOTES.length), WHACK_NOTES.length - 1);
+  }
+  gameMusicTimeout = setTimeout(playWhackMusicNote, tempo);
+}
+
 // Wire up sound button and volume slider
 document.getElementById('btn-sound').addEventListener('click', (e) => {
   toggleMute();
@@ -4604,7 +4695,7 @@ function startWhackACat() {
   closeGamesFlyout();
   whackACatActive = true;
   stopMusic();
-  startChaseMusic();
+  startWhackMusic();
   wac = {
     score: 0,
     misses: 0,
@@ -4636,10 +4727,14 @@ function startWhackACat() {
 }
 
 function updateWhackACat(dt) {
-  if (!whackACatActive || wac.gameOver) return;
+  if (!whackACatActive) return;
+  if (wac.gameOver) {
+    if (wac.gameOverDelay > 0) wac.gameOverDelay -= dt;
+    return;
+  }
 
   wac.timer -= dt;
-  if (wac.timer <= 0) { wac.gameOver = true; return; }
+  if (wac.timer <= 0) { wac.gameOver = true; wac.gameOverDelay = 800; return; }
 
   if (wac.comboTimer > 0) { wac.comboTimer -= dt; if (wac.comboTimer <= 0) wac.combo = 0; }
   if (wac.cheerTimer > 0) wac.cheerTimer -= dt;
@@ -4688,7 +4783,7 @@ function updateWhackACat(dt) {
     if (cat.popTimer <= 0 && !cat.bonked) {
       if (cat.type !== 'cheese') {
         wac.misses++;
-        if (wac.misses >= wac.maxMisses) wac.gameOver = true;
+        if (wac.misses >= wac.maxMisses) { wac.gameOver = true; wac.gameOverDelay = 800; }
       }
       h.cat = null;
     } else if (cat.bonked && cat.popTimer <= 0) {
@@ -4708,7 +4803,7 @@ function handleWhackInput(sx, sy) {
   if (pos.x >= GAME_W - 42 && pos.x <= GAME_W - 6 && pos.y >= 4 && pos.y <= 22) {
     endWhackACat(); return;
   }
-  if (wac.gameOver) { endWhackACat(); return; }
+  if (wac.gameOver) { if (wac.gameOverDelay <= 0) endWhackACat(); return; }
 
   // Check hole hits
   const hitRadius = 32;
@@ -4725,7 +4820,7 @@ function handleWhackInput(sx, sy) {
         cat.bonked = true;
         cat.popTimer = 400;
         sfxCrash();
-        if (wac.misses >= wac.maxMisses) wac.gameOver = true;
+        if (wac.misses >= wac.maxMisses) { wac.gameOver = true; wac.gameOverDelay = 800; }
       } else {
         // Bonk the cat!
         cat.bonked = true;
@@ -7889,7 +7984,7 @@ document.addEventListener('keydown', e => {
   }
   if (cheeseChaseActive && cc.gameOver) { endCheeseChase(); return; }
   if (cheeseChaseActive && e.key === 'Escape') { e.preventDefault(); endCheeseChase(); return; }
-  if (whackACatActive && wac.gameOver) { endWhackACat(); return; }
+  if (whackACatActive && wac.gameOver && wac.gameOverDelay <= 0) { endWhackACat(); return; }
   if (whackACatActive && e.key === 'Escape') { e.preventDefault(); endWhackACat(); return; }
   if (mouseMazeActive && !mz.levelComplete && !mz.gameOver && mz.deathPause <= 0) {
     const mazeDir = ({ ArrowUp:'up', w:'up', ArrowDown:'down', s:'down',
