@@ -1550,7 +1550,9 @@ function takeMouseSelfie() {
   }
 
   // Draw cropped region (zoomed into mice)
-  sctx.drawImage(canvas, srcX, srcY, srcW, srcH, 0, 0, SELFIE_W, SELFIE_H);
+  // Canvas pixels are scaled by devicePixelRatio, so multiply source coords
+  const dpr = window.devicePixelRatio || 1;
+  sctx.drawImage(canvas, srcX * dpr, srcY * dpr, srcW * dpr, srcH * dpr, 0, 0, SELFIE_W, SELFIE_H);
 
   // Photobomb: drawn into raw image so it persists
   if (photobomb) {
