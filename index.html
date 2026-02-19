@@ -1322,6 +1322,7 @@ const ACHIEVEMENTS = [
   }},
   { id: 'unhinged', icon: '😈', name: 'Unhinged Energy', hint: 'Witness 10 mischief events', check: s => s.stats.mischiefsWitnessed >= 10 },
   { id: 'goal-getter', icon: '🎯', name: 'Goal Getter', hint: 'Complete 5 mouse goals', check: s => s.stats.goalsCompleted >= 5 },
+  { id: 'wheel-warrior', icon: '🎡', name: 'Wheel Warrior', hint: 'Watch a mouse get flung off the wheel', check: () => false, manual: true },
 
   // Meta
   { id: 'slay', icon: '💅', name: 'Slay', hint: 'Earn 500 total coins', check: s => s.totalCoinsEarned >= 500 },
@@ -3520,6 +3521,7 @@ function flingMouseOffWheel(flingKey, stayKey, wheelPlaced) {
   // Fling the mouse!
   mouse.action = 'flung';
   mouse.actionTimer = 2500;
+  unlockAchievement('wheel-warrior');
   mouse.flingVX = (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 2);
   mouse.flingVY = -(3 + Math.random() * 2);
   mouse.flingX = center.x - 14;
