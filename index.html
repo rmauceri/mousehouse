@@ -4691,11 +4691,13 @@ function toggleOverflowMenu() {
     showBackdrop();
   }
 }
-// Close overflow when backdrop is tapped (add to existing backdrop handler)
-const _origBackdropClick = document.getElementById('flyout-backdrop').onclick;
+// Close overflow when backdrop is tapped
 document.getElementById('flyout-backdrop').addEventListener('click', () => {
   const menu = document.getElementById('overflow-menu');
-  if (menu.classList.contains('open')) menu.classList.remove('open');
+  if (menu.classList.contains('open')) {
+    menu.classList.remove('open');
+    hideBackdrop();
+  }
 });
 
 // ============================================================
