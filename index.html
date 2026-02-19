@@ -2938,16 +2938,7 @@ function drawRoom(roomIndex) {
     }
   }
 
-  // -- Room name label --
-  ctx.fillStyle = 'rgba(0,0,0,0.4)';
-  const labelW = ctx.measureText(`${room.icon} ${room.name}`).width + 20;
-  ctx.fillRect(GAME_W / 2 - labelW / 2, ROOM_Y + ROOM_H - 20, labelW, 18);
-  ctx.fillStyle = '#d0c0a0';
-  ctx.font = '11px monospace';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(`${room.icon} ${room.name}`, GAME_W / 2, ROOM_Y + ROOM_H - 11);
-  ctx.textAlign = 'left';
+  // -- Room name label drawn on top bar instead (see game loop) --
   ctx.textBaseline = 'alphabetic';
 
   // -- Bottom bar --
@@ -9017,25 +9008,27 @@ function gameLoop(now) {
       drawEdgeArrows();
       drawMouseStatus();
 
-      // In landscape mode, draw coins/happiness on the canvas top bar
-      if (window.innerHeight <= 440 && window.innerWidth > window.innerHeight) {
+      // Draw room name + stats on canvas top bar
+      {
         ctx.save();
+        const isLand = window.innerHeight <= 440 && window.innerWidth > window.innerHeight;
         ctx.font = 'bold 12px monospace';
         ctx.textBaseline = 'middle';
         const barY = ROOM_Y / 2;
-        // Coins (left)
-        ctx.fillStyle = '#f5d68a';
-        ctx.textAlign = 'left';
-        ctx.fillText('\u{1f9c0} ' + state.coins, 8, barY);
-        // Happiness (center-left)
-        const hap = Math.round((state.miceState.pip.happiness + state.miceState.chai.happiness) / 2);
-        ctx.fillStyle = hap < 35 ? '#e06050' : '#f5d68a';
-        ctx.fillText('\u2764\ufe0f ' + hap + '%', 80, barY);
-        // Room name (right)
+        // Room name (right side)
         const room = ROOMS[state.currentRoom];
         ctx.fillStyle = '#a89070';
         ctx.textAlign = 'right';
         ctx.fillText(room.icon + ' ' + room.name, GAME_W - 8, barY);
+        // In landscape, also draw coins/happiness (HTML HUD stats hidden)
+        if (isLand) {
+          ctx.textAlign = 'left';
+          ctx.fillStyle = '#f5d68a';
+          ctx.fillText('\u{1f9c0} ' + state.coins, 8, barY);
+          const hap = Math.round((state.miceState.pip.happiness + state.miceState.chai.happiness) / 2);
+          ctx.fillStyle = hap < 35 ? '#e06050' : '#f5d68a';
+          ctx.fillText('\u2764\ufe0f ' + hap + '%', 80, barY);
+        }
         ctx.restore();
       }
 
