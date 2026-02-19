@@ -390,12 +390,15 @@ body { display: flex; flex-direction: column; }
 
   /* Item tray: bottom sheet grid instead of horizontal strip */
   #item-tray {
-    height: auto !important; max-height: 50vh;
+    height: auto !important; max-height: 35vh;
     overflow-y: auto !important; overflow-x: hidden !important;
     white-space: normal !important;
     flex-wrap: wrap !important;
     padding: 8px !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; -ms-overflow-style: none;
   }
+  #item-tray::-webkit-scrollbar { display: none; }
   #item-tray.open {
     display: grid !important;
     grid-template-columns: repeat(4, 1fr);
@@ -439,6 +442,13 @@ body { display: flex; flex-direction: column; }
   #btn-overflow { display: none !important; }
   /* Flyouts & modals */
   #shop-flyout, #games-flyout { width: 300px; }
+  /* Tray: constrain height in landscape */
+  #item-tray {
+    max-height: 30vh;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; -ms-overflow-style: none;
+  }
+  #item-tray::-webkit-scrollbar { display: none; }
   .modal-content { max-height: 95vh; }
   #overflow-menu { width: 160px; }
 }
@@ -4203,7 +4213,19 @@ function ensureExerciseRoomSetup() {
 function startPlacement(itemId) {
   state.placementMode = itemId;
   state.removeMode = false;
+  // Auto-open tray if not already open
+  if (!trayOpen) {
+    autoTrayOpened = true;
+    openTray();
+  }
   highlightTrayItem(itemId);
+  // On mobile, close shop flyout so canvas is visible for placement
+  const isMobile = window.innerWidth <= 480 || (window.innerHeight <= 440 && window.innerWidth > window.innerHeight);
+  if (isMobile && state.shopOpen) {
+    // Close flyout without canceling the placement we just started
+    state.shopOpen = false;
+    document.getElementById('shop-flyout').classList.remove('open');
+  }
 }
 
 function cancelPlacement() {
@@ -4211,6 +4233,10 @@ function cancelPlacement() {
   state.removeMode = false;
   state.dragState = { active: false, itemId: null, screenX: 0, screenY: 0, fromPlaced: false, fromPlacedIdx: -1 };
   document.getElementById('trash-zone').classList.remove('visible', 'hover');
+  // Auto-close tray if it was auto-opened for placement
+  if (autoTrayOpened && trayOpen) {
+    closeTray();
+  }
 }
 
 function toggleRemoveMode() {
@@ -4341,26 +4367,41 @@ function reactToNewFurniture(item) {
 // SHOP FLYOUT PANEL
 // ============================================================
 let trayOpen = false;
+let autoTrayOpened = false;
 
-function toggleTray() {
-  trayOpen = !trayOpen;
+function openTray() {
+  trayOpen = true;
   const tray = document.getElementById('item-tray');
   const btn = document.getElementById('tray-toggle');
+  refreshItemTray();
+  tray.classList.add('open');
+  btn.classList.add('open');
+  btn.querySelector('span').style.transform = 'rotate(90deg)';
+  requestAnimationFrame(() => {
+    btn.style.bottom = tray.offsetHeight + 'px';
+  });
+  if (!state.shopOpen && !gamesOpen) showBackdrop();
+}
+
+function closeTray() {
+  trayOpen = false;
+  autoTrayOpened = false;
+  const tray = document.getElementById('item-tray');
+  const btn = document.getElementById('tray-toggle');
+  tray.classList.remove('open');
+  btn.classList.remove('open');
+  btn.querySelector('span').style.transform = 'rotate(-90deg)';
+  btn.style.bottom = '';
+  cancelPlacement();
+  if (!state.shopOpen && !gamesOpen) hideBackdrop();
+}
+
+function toggleTray() {
   if (trayOpen) {
-    refreshItemTray();
-    tray.classList.add('open');
-    btn.classList.add('open');
-    btn.querySelector('span').style.transform = 'rotate(90deg)';
-    // On mobile, position toggle above the variable-height tray
-    requestAnimationFrame(() => {
-      btn.style.bottom = tray.offsetHeight + 'px';
-    });
+    closeTray();
   } else {
-    if (!state.shopOpen) tray.classList.remove('open');
-    btn.classList.remove('open');
-    btn.querySelector('span').style.transform = 'rotate(-90deg)';
-    btn.style.bottom = '';
-    cancelPlacement();
+    autoTrayOpened = false;
+    openTray();
   }
 }
 
@@ -4383,39 +4424,29 @@ function syncTrayToggle() {
 
 function showBackdrop() { document.getElementById('flyout-backdrop').classList.add('visible'); }
 function hideBackdrop() { document.getElementById('flyout-backdrop').classList.remove('visible'); }
-// Light-dismiss: tapping backdrop closes any open flyout
+// Light-dismiss: tapping backdrop closes any open flyout or tray
 document.getElementById('flyout-backdrop').addEventListener('click', () => {
   if (state.shopOpen) closeShopFlyout();
   if (gamesOpen) closeGamesFlyout();
+  if (trayOpen) closeTray();
 });
 
 function openShop() {
   if (state.shopOpen) { closeShopFlyout(); return; }
   state.shopOpen = true;
   const flyout = document.getElementById('shop-flyout');
-  const tray = document.getElementById('item-tray');
-  const isMobile = window.innerWidth <= 480 || (window.innerHeight <= 440 && window.innerWidth > window.innerHeight);
   if (gamesOpen) closeGamesFlyout();
   refreshShopFlyout();
   refreshItemTray();
   flyout.classList.add('open');
-  if (!isMobile) {
-    tray.classList.add('open');
-    syncTrayToggle();
-  } else {
-    tray.classList.remove('open');
-    syncTrayToggle();
-  }
   showBackdrop();
 }
 
 function closeShopFlyout() {
   state.shopOpen = false;
   document.getElementById('shop-flyout').classList.remove('open');
-  if (!trayOpen) document.getElementById('item-tray').classList.remove('open');
   cancelPlacement();
-  syncTrayToggle();
-  hideBackdrop();
+  if (!trayOpen && !gamesOpen) hideBackdrop();
 }
 
 function refreshShopFlyout() {
@@ -4637,6 +4668,15 @@ document.getElementById('flyout-loot-btn').addEventListener('click', () => {
   }, { passive: false });
 })();
 
+// Horizontal mouse-wheel scrolling for the item tray (desktop)
+document.getElementById('item-tray').addEventListener('wheel', e => {
+  const tray = document.getElementById('item-tray');
+  if (tray.scrollWidth > tray.clientWidth) {
+    e.preventDefault();
+    tray.scrollLeft += e.deltaY;
+  }
+}, { passive: false });
+
 // Global mouse/touch move & up for drag
 document.addEventListener('mousemove', e => {
   if (state.dragState.active) {
@@ -4705,6 +4745,7 @@ function exitToTitle() {
   document.getElementById('tray-toggle').style.display = 'none';
   document.getElementById('title-screen').style.display = 'flex';
   if (state.shopOpen) closeShopFlyout();
+  if (trayOpen) closeTray();
   document.getElementById('games-flyout').classList.remove('open');
   document.getElementById('overflow-menu').classList.remove('open');
   hideBackdrop();
@@ -4751,7 +4792,7 @@ function openMinigames() {
 function closeGamesFlyout() {
   gamesOpen = false;
   document.getElementById('games-flyout').classList.remove('open');
-  hideBackdrop();
+  if (!trayOpen && !state.shopOpen) hideBackdrop();
 }
 
 // ============================================================
