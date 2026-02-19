@@ -413,22 +413,23 @@ body { display: flex; flex-direction: column; }
   body { flex-direction: row; }
   #hud {
     position: relative; order: -1;
-    flex-direction: column; width: auto; height: 100vh;
+    flex-direction: column; width: 36px !important; min-width: 36px; max-width: 36px;
+    height: 100vh;
     border-bottom: none; border-right: 2px solid #a07040;
-    padding: 4px 2px; overflow: hidden;
-    flex-shrink: 0; justify-content: center;
+    padding: 6px 0; overflow: hidden;
+    flex-shrink: 0; align-items: center; justify-content: center;
   }
   #hud-row1 {
-    flex-direction: column; padding: 2px; gap: 4px;
-    align-items: center;
+    flex-direction: column; padding: 0; gap: 6px;
+    align-items: center; width: 100%;
   }
-  #hud-stats { display: none; }
-  #hud-actions { display: none; }
-  #hud-utils { display: none; }
-  .hud-group-rooms { display: none; }
-  #hud-nav-row { display: none; }
-  #hud-row2 { display: none; }
-  #btn-overflow { display: block; padding: 6px 8px; font-size: 16px; }
+  #hud-stats { display: none !important; }
+  #hud-actions { display: none !important; }
+  #hud-utils { display: none !important; }
+  .hud-group-rooms { display: none !important; }
+  #hud-nav-row { display: none !important; }
+  #hud-row2 { display: none !important; }
+  #btn-overflow { display: block !important; padding: 4px 6px; font-size: 18px; }
   /* Flyouts & modals */
   #shop-flyout, #games-flyout { width: 260px; }
   .modal-content { max-height: 95vh; }
@@ -2022,13 +2023,12 @@ function resizeCanvas() {
   const hudEl = document.getElementById('hud');
 
   if (isLandscape) {
-    // Landscape: HUD is narrow side bar, canvas fills the rest edge-to-edge
-    const hudW = (hudEl && hudEl.style.display !== 'none') ? hudEl.offsetWidth : 0;
+    // Landscape: HUD is a fixed 36px + 2px border strip on the left
+    const hudW = (hudEl && hudEl.style.display !== 'none') ? 38 : 0;
     const availW = w - hudW;
     scale = Math.min(availW / GAME_W, h / GAME_H);
     canvas.style.width = (GAME_W * scale) + 'px';
     canvas.style.height = (GAME_H * scale) + 'px';
-    // No margins — canvas flush against HUD and screen edges
     canvas.style.marginLeft = '0px';
     canvas.style.marginTop = '0px';
     offsetX = hudW;
@@ -9025,6 +9025,28 @@ function gameLoop(now) {
       drawFloatingEffects();
       drawEdgeArrows();
       drawMouseStatus();
+
+      // In landscape mode, draw coins/happiness on the canvas top bar
+      if (window.innerHeight <= 440 && window.innerWidth > window.innerHeight) {
+        ctx.save();
+        ctx.font = 'bold 12px monospace';
+        ctx.textBaseline = 'middle';
+        const barY = ROOM_Y / 2;
+        // Coins (left)
+        ctx.fillStyle = '#f5d68a';
+        ctx.textAlign = 'left';
+        ctx.fillText('\u{1f9c0} ' + state.coins, 8, barY);
+        // Happiness (center-left)
+        const hap = Math.round((state.miceState.pip.happiness + state.miceState.chai.happiness) / 2);
+        ctx.fillStyle = hap < 35 ? '#e06050' : '#f5d68a';
+        ctx.fillText('\u2764\ufe0f ' + hap + '%', 80, barY);
+        // Room name (right)
+        const room = ROOMS[state.currentRoom];
+        ctx.fillStyle = '#a89070';
+        ctx.textAlign = 'right';
+        ctx.fillText(room.icon + ' ' + room.name, GAME_W - 8, barY);
+        ctx.restore();
+      }
 
       // Selfie flash effect
       if (selfieFlash > 0) {
