@@ -385,8 +385,8 @@ body { display: flex; flex-direction: column; }
   #hud button { padding: 4px 8px; font-size: 12px; }
   .room-tabs button { padding: 3px 8px; font-size: 12px; }
 
-  /* Flyouts: full width on mobile */
-  #shop-flyout, #games-flyout { width: 100%; }
+  /* Flyouts: leave backdrop strip visible for light-dismiss */
+  #shop-flyout, #games-flyout { width: 85%; }
 
   /* Item tray: bottom sheet grid instead of horizontal strip */
   #item-tray {
@@ -4358,15 +4358,18 @@ function toggleShopFlyout() {
   state.shopOpen = !state.shopOpen;
   const flyout = document.getElementById('shop-flyout');
   const tray = document.getElementById('item-tray');
-  const isMobile = window.innerWidth <= 480;
+  const isMobile = window.innerWidth <= 480 || (window.innerHeight <= 440 && window.innerWidth > window.innerHeight);
   if (state.shopOpen) {
     if (gamesOpen) closeGamesFlyout();
     refreshShopFlyout();
     refreshItemTray();
     flyout.classList.add('open');
-    // On mobile, shop covers everything — don't force tray open
+    // On mobile/landscape, shop covers everything — don't force tray open, hide if visible
     if (!isMobile) {
       tray.classList.add('open');
+      syncTrayToggle();
+    } else {
+      tray.classList.remove('open');
       syncTrayToggle();
     }
     showBackdrop();
