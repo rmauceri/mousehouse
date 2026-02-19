@@ -371,10 +371,11 @@ body { display: flex; flex-direction: column; }
   /* HUD flows above canvas instead of overlaying */
   #hud { position: relative; order: -1; }
 
-  /* Row 1: stats + overflow button only */
+  /* Row 1: stats + core actions + overflow; hide utils & room tabs (they go in nav-row / overflow) */
   #hud-row1 { justify-content: space-between; padding: 4px 6px; }
   #hud-stats { display: flex; }
-  #hud-actions { display: none; }
+  #hud-actions { display: flex; }
+  #hud-actions .btn-label { display: none; }
   #hud-utils { display: none; }
   .hud-group-rooms { display: none; }
   #btn-overflow { display: block; }
@@ -412,23 +413,22 @@ body { display: flex; flex-direction: column; }
   body { flex-direction: row; }
   #hud {
     position: relative; order: -1;
-    flex-direction: column; width: 44px; height: 100vh;
+    flex-direction: column; width: auto; height: 100vh;
     border-bottom: none; border-right: 2px solid #a07040;
-    padding: 4px 2px; overflow-y: auto; overflow-x: hidden;
-    flex-shrink: 0;
+    padding: 4px 2px; overflow: hidden;
+    flex-shrink: 0; justify-content: center;
   }
   #hud-row1 {
-    flex-direction: column; padding: 4px 2px; gap: 6px;
+    flex-direction: column; padding: 2px; gap: 4px;
     align-items: center;
   }
-  #hud-stats { flex-direction: column; gap: 2px; font-size: 11px; }
+  #hud-stats { display: none; }
   #hud-actions { display: none; }
   #hud-utils { display: none; }
   .hud-group-rooms { display: none; }
   #hud-nav-row { display: none; }
   #hud-row2 { display: none; }
-  #btn-overflow { display: block; padding: 4px 6px; font-size: 14px; }
-  #hud button { padding: 3px 6px; font-size: 11px; }
+  #btn-overflow { display: block; padding: 6px 8px; font-size: 16px; }
   /* Flyouts & modals */
   #shop-flyout, #games-flyout { width: 260px; }
   .modal-content { max-height: 95vh; }
@@ -2022,16 +2022,17 @@ function resizeCanvas() {
   const hudEl = document.getElementById('hud');
 
   if (isLandscape) {
-    // Landscape: HUD is side bar, canvas fills remaining width
+    // Landscape: HUD is narrow side bar, canvas fills the rest edge-to-edge
     const hudW = (hudEl && hudEl.style.display !== 'none') ? hudEl.offsetWidth : 0;
     const availW = w - hudW;
     scale = Math.min(availW / GAME_W, h / GAME_H);
     canvas.style.width = (GAME_W * scale) + 'px';
     canvas.style.height = (GAME_H * scale) + 'px';
-    offsetX = hudW + (availW - GAME_W * scale) / 2;
-    offsetY = (h - GAME_H * scale) / 2;
-    canvas.style.marginLeft = (offsetX - hudW) + 'px';
-    canvas.style.marginTop = offsetY + 'px';
+    // No margins — canvas flush against HUD and screen edges
+    canvas.style.marginLeft = '0px';
+    canvas.style.marginTop = '0px';
+    offsetX = hudW;
+    offsetY = 0;
   } else {
     // Portrait / desktop: HUD on top
     const hudH = (isMobile && hudEl && hudEl.style.display !== 'none') ? hudEl.offsetHeight : 0;
