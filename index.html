@@ -495,34 +495,39 @@ body { display: flex; flex-direction: column; }
 <div id="title-about-overlay" onclick="closeTitleAbout()">
   <div id="title-about-box" onclick="event.stopPropagation()">
     <h2>🐭 Mouse House</h2>
-    <p>A cozy virtual pet game for Nico & Rose! Watch Pip and Chai explore their dollhouse, buy them furniture, and play mini-games together.</p>
+    <p>A cozy virtual pet game for Nico & Rose! Watch Pip and Chai explore their dollhouse, buy them furniture, play mini-games, and unlock achievements together.</p>
     <h3>🏠 Features</h3>
     <ul>
-      <li><b>4 rooms</b> — Bedroom, Kitchen, Living Room & Exercise Room, each with platforms and ramps</li>
-      <li><b>20+ furniture items</b> — Buy from the aMouseZon shop and place anywhere</li>
-      <li><b>4 mini-games</b> — Cheese Chase, Doomscroll, Pac Mouse & Whack-a-Cat</li>
+      <li><b>4 rooms</b> — Bedroom, Kitchen, Living Room & Exercise Room with platforms and ramps</li>
+      <li><b>20+ furniture items</b> — Hammocks, climbing ropes, beds, laptops, yoga mats & more from the aMouseZon shop</li>
+      <li><b>4 mini-games</b> — Cheese Chase (dodge & collect), Pac Mouse (maze with cat ghost), Whack-a-Cat (bonk the cats!), and Doomscroll (curate your feed)</li>
+      <li><b>22 achievements</b> — Track your progress in the 🏆 Trophy Case</li>
       <li><b>Exercise Wheel</b> — Watch the mice spin (and get flung!)</li>
-      <li><b>Mouse AI</b> — Pip & Chai explore, climb, nap, chase each other, and share thoughts</li>
+      <li><b>Mouse AI</b> — Pip & Chai explore, climb, nap, chase each other, use furniture, do mischief, and share their thoughts</li>
+      <li><b>Goals</b> — Mice request items; place them to earn bonus coins and watch the mouse react</li>
     </ul>
     <h3>🪙 How to Play</h3>
     <ul>
       <li>Earn coins by petting mice, playing mini-games, and completing goals</li>
-      <li>Spend coins in the <b>aMouseZon</b> shop (🛍 button) to buy furniture</li>
-      <li>Drag items from the tray to place them; double-click placed items to reposition</li>
-      <li>Click empty space to close the shop (light dismiss)</li>
-      <li>Switch rooms using the tabs at the top</li>
+      <li>Shop at <b>aMouseZon</b> (🛒) to buy furniture and food</li>
+      <li>Drag items from the tray to place them; click placed items to reposition</li>
+      <li>Switch rooms with the tabs or swipe left/right</li>
+      <li>Play mini-games from the 🎮 button — use keyboard or touch</li>
     </ul>
     <h3>💡 Tips</h3>
     <ul>
       <li><b>Pet the mice!</b> Click/tap on them for coins and happiness</li>
       <li><b>Feed them!</b> Buy cheese 🧀 or blueberries 🫐 — they get hungry over time</li>
-      <li><b>Double-click status bar</b> (bottom) to jump to a mouse's room</li>
-      <li><b>Goals</b> appear at the top — complete them for bonus coins</li>
-      <li><b>Loot Crumbs</b> button in the shop gives free coins (once per day)</li>
-      <li>Food items are consumable — buy more when they run out! (🔄 in shop)</li>
-      <li>Mice have personalities: Pip is chaotic & hungry, Chai is cozy & chill</li>
+      <li><b>Double-click status bar</b> to jump to a mouse's room</li>
+      <li><b>Loot Crumbs</b> in the shop gives free coins once per day</li>
+      <li>Food is consumable — buy more when it runs out! (🔄 in shop)</li>
+      <li>New furniture sparks curiosity — mice will check it out!</li>
+      <li>Pip is chaotic & hungry 😈 · Chai is cozy & chill 🧘</li>
     </ul>
     <button class="close-about" onclick="closeTitleAbout()">Got it! 🐭</button>
+    <div style="text-align:center;margin-top:10px;">
+      <a href="#" onclick="event.preventDefault();if(confirm('Reset all progress? This cannot be undone!')){localStorage.removeItem('mouseHouseSave');location.reload();}" style="color:#7a6a5a;font-size:11px;text-decoration:underline;cursor:pointer;">Reset Game</a>
+    </div>
   </div>
 </div>
 
