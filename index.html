@@ -343,16 +343,41 @@ body { display: flex; flex-direction: column; }
 }
 #flyout-backdrop.visible { display: block; }
 
+/* ---- Overflow menu (mobile) ---- */
+#btn-overflow {
+  display: none; background: #3d2b1a; color: #f5d68a; border: 2px solid #a07040;
+  padding: 4px 10px; font-size: 16px; cursor: pointer; border-radius: 4px;
+  font-family: 'Courier New', monospace; line-height: 1;
+}
+#btn-overflow:hover { background: #5a3d24; }
+#overflow-menu {
+  display: none; position: fixed; top: 0; right: 0; width: 180px; height: 100%;
+  background: rgba(30,20,10,0.97); border-left: 2px solid #a07040;
+  z-index: 35; flex-direction: column; padding: 12px 10px; gap: 4px;
+  font-family: 'Courier New', monospace;
+  transform: translateX(100%); transition: transform 0.25s ease;
+}
+#overflow-menu.open { display: flex; transform: translateX(0); }
+#overflow-menu button {
+  background: #2b1d0e; color: #f5d68a; border: 2px solid #6b5030;
+  padding: 10px 12px; font-size: 14px; cursor: pointer; border-radius: 6px;
+  font-family: 'Courier New', monospace; text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+#overflow-menu button:hover { border-color: #f5d68a; background: #3d2b1a; }
+
 /* ---- Mobile layout (portrait phones) ---- */
 @media (max-width: 480px) {
   /* HUD flows above canvas instead of overlaying */
   #hud { position: relative; order: -1; }
 
-  /* Row 1 on mobile: stats, store/games, letter/sound/exit */
+  /* Row 1: stats + overflow button only */
   #hud-row1 { justify-content: space-between; padding: 4px 6px; }
   #hud-stats { display: flex; }
-  #hud-actions .btn-label { display: none; }
+  #hud-actions { display: none; }
+  #hud-utils { display: none; }
   .hud-group-rooms { display: none; }
+  #btn-overflow { display: block; }
 
   /* Row 2 on mobile: room switcher centered */
   #hud-nav-row { display: flex; justify-content: center; padding: 4px 6px; }
@@ -381,6 +406,34 @@ body { display: flex; flex-direction: column; }
   }
   #tray-toggle.open { bottom: auto; }
 }
+
+/* ---- Landscape phones ---- */
+@media (max-height: 440px) and (orientation: landscape) {
+  body { flex-direction: row; }
+  #hud {
+    position: relative; order: -1;
+    flex-direction: column; width: 44px; height: 100vh;
+    border-bottom: none; border-right: 2px solid #a07040;
+    padding: 4px 2px; overflow-y: auto; overflow-x: hidden;
+    flex-shrink: 0;
+  }
+  #hud-row1 {
+    flex-direction: column; padding: 4px 2px; gap: 6px;
+    align-items: center;
+  }
+  #hud-stats { flex-direction: column; gap: 2px; font-size: 11px; }
+  #hud-actions { display: none; }
+  #hud-utils { display: none; }
+  .hud-group-rooms { display: none; }
+  #hud-nav-row { display: none; }
+  #hud-row2 { display: none; }
+  #btn-overflow { display: block; padding: 4px 6px; font-size: 14px; }
+  #hud button { padding: 3px 6px; font-size: 11px; }
+  /* Flyouts & modals */
+  #shop-flyout, #games-flyout { width: 260px; }
+  .modal-content { max-height: 95vh; }
+  #overflow-menu { width: 160px; }
+}
 </style>
 </head>
 <body>
@@ -408,6 +461,7 @@ body { display: flex; flex-direction: column; }
       <button id="btn-sound" title="Sound">🔇</button>
       <button id="btn-exit" title="Exit to title">🚪</button>
     </div>
+    <button id="btn-overflow" title="More" onclick="toggleOverflowMenu()">⋯</button>
   </div>
   <div id="hud-nav-row">
     <div class="room-tabs" id="room-tabs-mobile"></div>
@@ -415,6 +469,17 @@ body { display: flex; flex-direction: column; }
   <div id="hud-row2">
     <div id="goal-display"></div>
   </div>
+</div>
+
+<div id="overflow-menu">
+  <button onclick="toggleOverflowMenu();document.getElementById('btn-shop').click()">🛒 Store</button>
+  <button onclick="toggleOverflowMenu();document.getElementById('btn-games').click()">🎮 Games</button>
+  <button onclick="toggleOverflowMenu();takeMouseSelfie()">📸 Selfie</button>
+  <button onclick="toggleOverflowMenu();openPhotoAlbum()">🖼️ Album</button>
+  <button onclick="toggleOverflowMenu();openTrophyCase()">🏆 Achievements</button>
+  <button onclick="toggleOverflowMenu();document.getElementById('btn-letter').click()">💌 Letter</button>
+  <button onclick="toggleOverflowMenu();document.getElementById('btn-sound').click()">🔇 Sound</button>
+  <button onclick="toggleOverflowMenu();exitToTitle()">🚪 Exit</button>
 </div>
 
 <div id="volume-popup" style="display:none;position:fixed;z-index:15;background:rgba(30,20,10,0.95);border:2px solid #a07040;border-radius:8px;padding:10px 14px;font-family:'Courier New',monospace;">
@@ -1953,21 +2018,36 @@ function resizeCanvas() {
   const w = window.innerWidth;
   const h = window.innerHeight;
   const isMobile = w <= 480;
-  // On mobile, HUD is in flow above canvas — subtract its height
+  const isLandscape = h <= 440 && w > h;
   const hudEl = document.getElementById('hud');
-  const hudH = (isMobile && hudEl && hudEl.style.display !== 'none') ? hudEl.offsetHeight : 0;
-  const availH = h - hudH;
-  scale = Math.min(w / GAME_W, availH / GAME_H);
-  canvas.style.width = (GAME_W * scale) + 'px';
-  canvas.style.height = (GAME_H * scale) + 'px';
+
+  if (isLandscape) {
+    // Landscape: HUD is side bar, canvas fills remaining width
+    const hudW = (hudEl && hudEl.style.display !== 'none') ? hudEl.offsetWidth : 0;
+    const availW = w - hudW;
+    scale = Math.min(availW / GAME_W, h / GAME_H);
+    canvas.style.width = (GAME_W * scale) + 'px';
+    canvas.style.height = (GAME_H * scale) + 'px';
+    offsetX = hudW + (availW - GAME_W * scale) / 2;
+    offsetY = (h - GAME_H * scale) / 2;
+    canvas.style.marginLeft = (offsetX - hudW) + 'px';
+    canvas.style.marginTop = offsetY + 'px';
+  } else {
+    // Portrait / desktop: HUD on top
+    const hudH = (isMobile && hudEl && hudEl.style.display !== 'none') ? hudEl.offsetHeight : 0;
+    const availH = h - hudH;
+    scale = Math.min(w / GAME_W, availH / GAME_H);
+    canvas.style.width = (GAME_W * scale) + 'px';
+    canvas.style.height = (GAME_H * scale) + 'px';
+    offsetX = (w - GAME_W * scale) / 2;
+    offsetY = isMobile ? 0 : (h - GAME_H * scale) / 2;
+    canvas.style.marginLeft = offsetX + 'px';
+    canvas.style.marginTop = isMobile ? '0px' : offsetY + 'px';
+  }
   const dpr = window.devicePixelRatio || 1;
   canvas.width = GAME_W * dpr;
   canvas.height = GAME_H * dpr;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  offsetX = (w - GAME_W * scale) / 2;
-  offsetY = isMobile ? 0 : (h - GAME_H * scale) / 2;
-  canvas.style.marginLeft = offsetX + 'px';
-  canvas.style.marginTop = isMobile ? '0px' : offsetY + 'px';
 }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
@@ -4595,9 +4675,32 @@ function exitToTitle() {
   document.getElementById('title-screen').style.display = 'flex';
   if (state.shopOpen) closeShopFlyout();
   document.getElementById('games-flyout').classList.remove('open');
+  document.getElementById('overflow-menu').classList.remove('open');
   hideBackdrop();
 }
 document.getElementById('btn-exit').addEventListener('click', exitToTitle);
+
+// Overflow menu toggle (mobile)
+function toggleOverflowMenu() {
+  const menu = document.getElementById('overflow-menu');
+  const isOpen = menu.classList.contains('open');
+  if (isOpen) {
+    menu.classList.remove('open');
+    hideBackdrop();
+  } else {
+    // Update sound button label
+    const soundBtn = menu.querySelector('button:nth-child(7)');
+    if (soundBtn) soundBtn.textContent = audioMuted ? '🔇 Sound' : '🔊 Sound';
+    menu.classList.add('open');
+    showBackdrop();
+  }
+}
+// Close overflow when backdrop is tapped (add to existing backdrop handler)
+const _origBackdropClick = document.getElementById('flyout-backdrop').onclick;
+document.getElementById('flyout-backdrop').addEventListener('click', () => {
+  const menu = document.getElementById('overflow-menu');
+  if (menu.classList.contains('open')) menu.classList.remove('open');
+});
 
 // ============================================================
 // MINI-GAME MENU (flyout)
