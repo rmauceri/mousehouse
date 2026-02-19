@@ -4424,8 +4424,8 @@ function generateMaze(cols, rows) {
       cur = stack.pop();
     }
   }
-  // Open a few extra walls to create loops (more Pac-Man-like)
-  const extraOpenings = Math.floor(cols * rows * 0.15);
+  // Open many extra walls to create loops (Pac-Man-like open layout)
+  const extraOpenings = Math.floor(cols * rows * 0.45);
   for (let i = 0; i < extraOpenings; i++) {
     const r = Math.floor(Math.random() * rows);
     const c = Math.floor(Math.random() * cols);
