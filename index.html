@@ -399,9 +399,11 @@ body { display: flex; flex-direction: column; }
     <div class="hud-group" id="hud-actions">
       <button id="btn-shop">🛒<span class="btn-label"> aMouseZon</span></button>
       <button id="btn-games">🎮<span class="btn-label"> Games</span></button>
+      <button id="btn-selfie" title="Take a selfie!" onclick="takeMouseSelfie()">📸</button>
     </div>
     <div class="hud-group" id="hud-utils">
       <button id="btn-trophy" title="Achievements" onclick="openTrophyCase()">🏆</button>
+      <button id="btn-album" title="Photo Album" onclick="openPhotoAlbum()">🖼️</button>
       <button id="btn-letter">💌</button>
       <button id="btn-sound" title="Sound">🔇</button>
       <button id="btn-exit" title="Exit to title">🚪</button>
@@ -501,10 +503,11 @@ body { display: flex; flex-direction: column; }
       <li><b>4 rooms</b> — Bedroom, Kitchen, Living Room & Exercise Room with platforms and ramps</li>
       <li><b>20+ furniture items</b> — Hammocks, climbing ropes, beds, laptops, yoga mats & more from the aMouseZon shop</li>
       <li><b>4 mini-games</b> — Cheese Chase (dodge & collect), Pac Mouse (maze with cat ghost), Whack-a-Cat (bonk the cats!), and Doomscroll (curate your feed)</li>
-      <li><b>22 achievements</b> — Track your progress in the 🏆 Trophy Case</li>
+      <li><b>23 achievements</b> — Track your progress in the 🏆 Trophy Case</li>
       <li><b>Exercise Wheel</b> — Watch the mice spin (and get flung!)</li>
       <li><b>Mouse AI</b> — Pip & Chai explore, climb, nap, chase each other, use furniture, do mischief, and share their thoughts</li>
       <li><b>Goals</b> — Mice request items; place them to earn bonus coins and watch the mouse react</li>
+      <li><b>📸 Selfies</b> — Snap photos with random filters & captions, saved in the 🖼️ Photo Album</li>
     </ul>
     <h3>🪙 How to Play</h3>
     <ul>
@@ -1286,7 +1289,8 @@ let state = {
   gameStarted: false,
   activeGoal: null,
   achievements: [],
-  stats: { mischiefsWitnessed: 0, itemsPlaced: 0, gamesPlayed: { chase: 0, doomscroll: 0, maze: 0, whack: 0 }, goalsCompleted: 0 }
+  stats: { mischiefsWitnessed: 0, itemsPlaced: 0, gamesPlayed: { chase: 0, doomscroll: 0, maze: 0, whack: 0 }, goalsCompleted: 0 },
+  photos: []
 };
 
 // ============================================================
@@ -1328,6 +1332,7 @@ const ACHIEVEMENTS = [
   { id: 'unhinged', icon: '😈', name: 'Unhinged Energy', hint: 'Witness 10 mischief events', check: s => s.stats.mischiefsWitnessed >= 10 },
   { id: 'goal-getter', icon: '🎯', name: 'Goal Getter', hint: 'Complete 5 mouse goals', check: s => s.stats.goalsCompleted >= 5 },
   { id: 'wheel-warrior', icon: '🎡', name: 'Wheel Warrior', hint: 'Watch a mouse get flung off the wheel', check: () => false, manual: true },
+  { id: 'influencer', icon: '📸', name: 'Influencer', hint: 'Take 10 selfies', check: s => s.photos.length >= 10 },
 
   // Meta
   { id: 'slay', icon: '💅', name: 'Slay', hint: 'Earn 500 total coins', check: s => s.totalCoinsEarned >= 500 },
@@ -1422,6 +1427,244 @@ function openTrophyCase() {
   html += '</div></div>';
   container.innerHTML = html;
 }
+
+// ============================================================
+// MOUSE SELFIES 📸
+// ============================================================
+const SELFIE_W = 200, SELFIE_H = 150;
+const SELFIE_MAX = 20;
+
+const SELFIE_FILTERS = [
+  { name: 'cottagecore 🌿', tint: 'rgba(180,220,160,0.12)', border: '#8B7355' },
+  { name: 'golden hour ☀️', tint: 'rgba(255,200,80,0.15)', border: '#DAA520' },
+  { name: 'dark academia 📚', tint: 'rgba(40,30,20,0.2)', border: '#5a3e28' },
+  { name: 'Y2K 💿', tint: 'rgba(200,150,255,0.12)', border: '#cc88ff' },
+  { name: 'lo-fi 🎵', tint: 'rgba(100,140,180,0.15)', border: '#6688aa' },
+  { name: 'no filter 🐭', tint: 'rgba(0,0,0,0)', border: '#f5d68a' },
+  { name: 'cozy vibes ✨', tint: 'rgba(255,180,120,0.12)', border: '#e8a040' },
+  { name: 'midnight 🌙', tint: 'rgba(30,20,60,0.2)', border: '#8888cc' },
+];
+
+const SELFIE_CAPTIONS = {
+  idle: ['no thoughts just vibes', 'literally just existing', 'main character energy ✨', 'serving face 💅'],
+  walking: ['on the move 🐾', 'steps goal: completed', 'exploring hours', 'adventure awaits'],
+  zoomies: ['ZOOMIES 💨', 'can\'t stop won\'t stop', 'nyoom', 'speed demon mode'],
+  sleeping: ['caught napping 😴', 'do not disturb', 'beauty sleep era', 'snoozin & cruisin'],
+  eating: ['snack break 🧀', 'foodie mode activated', 'nom nom nom', 'eating my feelings'],
+  grooming: ['spa day 💅', 'self care sunday', 'glow up in progress', 'beauty routine'],
+  mischief: ['crime scene selfie 😈', 'chaos mode: ON', 'nothing to see here', 'caught in 4k'],
+  yoga: ['namaste 🧘', 'stretching goals', 'zen mode', 'inner peace achieved'],
+  doomscrolling: ['doomscroll break 📱', 'one more post...', 'algorithm won today', 'screen time: yes'],
+  wheeling: ['gym selfie 🎡', 'leg day every day', 'cardio queen', 'fitness era'],
+  climbing: ['rock climbing 🧗', 'summit selfie', 'living on the edge', 'going up!'],
+  hiding: ['you can\'t see me 👀', 'stealth mode', 'introvert hours', 'hiding spot: found'],
+  default: ['we\'re literally icons', 'slay 💅', 'POV: mice being cute', 'living our best life 🐭', 'no notes', 'iconic behavior', 'this is our year']
+};
+
+const SELFIE_REACTIONS = {
+  pip: ['omg wait let me pose', 'this is my good side 💅', 'another one for the gram', 'delete that rn', 'SLAY', 'ok this one\'s cute', '*poses aggressively*', 'we ate that up'],
+  chai: ['wait I wasn\'t ready', 'do I look ok? 🥺', 'one more one more', 'aesthetic 📸', '*subtle pose*', 'tag me', 'my whiskers look weird', 'this is THE one']
+};
+
+function takeMouseSelfie() {
+  if (cheeseChaseActive || mouseMazeActive || whackACatActive) return;
+
+  const pip = state.miceState.pip;
+  const chai = state.miceState.chai;
+  const filter = SELFIE_FILTERS[Math.floor(Math.random() * SELFIE_FILTERS.length)];
+
+  // Pick caption based on current actions
+  const actions = [pip.action, chai.action];
+  let captionPool = SELFIE_CAPTIONS.default;
+  for (const a of actions) {
+    if (SELFIE_CAPTIONS[a]) { captionPool = SELFIE_CAPTIONS[a]; break; }
+  }
+  const caption = captionPool[Math.floor(Math.random() * captionPool.length)];
+
+  // Photobomb chance (5%)
+  const photobomb = Math.random() < 0.05;
+
+  // Create offscreen canvas
+  const sc = document.createElement('canvas');
+  sc.width = SELFIE_W;
+  sc.height = SELFIE_H;
+  const sctx = sc.getContext('2d');
+
+  // Draw room background (scaled down from game canvas)
+  sctx.drawImage(canvas, 0, ROOM_Y, GAME_W, ROOM_H, 0, 0, SELFIE_W, SELFIE_H);
+
+  // Filter tint overlay
+  if (filter.tint !== 'rgba(0,0,0,0)') {
+    sctx.fillStyle = filter.tint;
+    sctx.fillRect(0, 0, SELFIE_W, SELFIE_H);
+  }
+
+  // Vignette
+  const vig = sctx.createRadialGradient(SELFIE_W / 2, SELFIE_H / 2, 40, SELFIE_W / 2, SELFIE_H / 2, SELFIE_W * 0.7);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(0,0,0,0.3)');
+  sctx.fillStyle = vig;
+  sctx.fillRect(0, 0, SELFIE_W, SELFIE_H);
+
+  // Photobomb: big cat eyes peeking from corner
+  if (photobomb) {
+    sctx.font = '28px serif';
+    sctx.fillText('😼', SELFIE_W - 35, SELFIE_H - 8);
+  }
+
+  // Filter name tag (top-left)
+  sctx.fillStyle = 'rgba(0,0,0,0.5)';
+  sctx.beginPath();
+  sctx.roundRect(4, 4, 80, 14, 3);
+  sctx.fill();
+  sctx.fillStyle = '#fff';
+  sctx.font = '8px monospace';
+  sctx.fillText(filter.name, 8, 14);
+
+  // Caption (bottom center)
+  sctx.fillStyle = 'rgba(0,0,0,0.6)';
+  const capW = Math.min(SELFIE_W - 16, sctx.measureText(caption).width + 16);
+  sctx.beginPath();
+  sctx.roundRect((SELFIE_W - capW) / 2, SELFIE_H - 22, capW, 16, 4);
+  sctx.fill();
+  sctx.fillStyle = '#fff';
+  sctx.font = '9px monospace';
+  sctx.textAlign = 'center';
+  sctx.fillText(caption, SELFIE_W / 2, SELFIE_H - 10);
+  sctx.textAlign = 'left';
+
+  // Frame border
+  sctx.strokeStyle = filter.border;
+  sctx.lineWidth = 3;
+  sctx.strokeRect(1.5, 1.5, SELFIE_W - 3, SELFIE_H - 3);
+
+  // Save photo
+  const dataUrl = sc.toDataURL('image/jpeg', 0.7);
+  const photo = {
+    data: dataUrl,
+    caption: caption,
+    filter: filter.name,
+    room: ROOMS[state.currentRoom].name,
+    pipAction: pip.action,
+    chaiAction: chai.action,
+    photobomb: photobomb,
+    timestamp: Date.now()
+  };
+
+  state.photos.unshift(photo);
+  if (state.photos.length > SELFIE_MAX) state.photos.pop();
+
+  // Flash effect on game canvas
+  selfieFlash = 500;
+
+  // Mouse reactions
+  const pipReact = SELFIE_REACTIONS.pip[Math.floor(Math.random() * SELFIE_REACTIONS.pip.length)];
+  const chaiReact = SELFIE_REACTIONS.chai[Math.floor(Math.random() * SELFIE_REACTIONS.chai.length)];
+  if (pip.room === state.currentRoom) {
+    speechBubbles = speechBubbles.filter(b => b.mouseKey !== 'pip');
+    speechBubbles.push({ x: pip.x + 14, y: getMouseFloorY(pip) - 10, text: pipReact, timer: 2500, maxTimer: 2500, mouseKey: 'pip' });
+  }
+  setTimeout(() => {
+    if (chai.room === state.currentRoom) {
+      speechBubbles = speechBubbles.filter(b => b.mouseKey !== 'chai');
+      speechBubbles.push({ x: chai.x + 14, y: getMouseFloorY(chai) - 10, text: chaiReact, timer: 2500, maxTimer: 2500, mouseKey: 'chai' });
+    }
+  }, 800);
+
+  // Sound effect
+  sfxSelfie();
+
+  // Toast
+  const toastMsg = photobomb ? '📸 Selfie taken! ...wait, is that a CAT?! 😼' : `📸 Selfie saved! "${caption}"`;
+  showToast(toastMsg);
+
+  // Achievement check
+  if (state.photos.length >= 10) unlockAchievement('influencer');
+  saveGame();
+}
+
+let selfieFlash = 0;
+
+function sfxSelfie() {
+  if (!audioCtx || audioMuted) return;
+  // Camera shutter: quick noise burst + high click
+  const bufSize = audioCtx.sampleRate * 0.04;
+  const noiseBuf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+  const data = noiseBuf.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * 0.4;
+  const noise = audioCtx.createBufferSource();
+  const ng = audioCtx.createGain();
+  noise.buffer = noiseBuf;
+  ng.gain.setValueAtTime(0.06, audioCtx.currentTime);
+  ng.gain.setTargetAtTime(0, audioCtx.currentTime + 0.02, 0.01);
+  noise.connect(ng); ng.connect(musicGain);
+  noise.start(audioCtx.currentTime);
+  // Click tone
+  const osc = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = 2000;
+  g.gain.setValueAtTime(0.05, audioCtx.currentTime + 0.02);
+  g.gain.setTargetAtTime(0, audioCtx.currentTime + 0.05, 0.01);
+  osc.connect(g); g.connect(musicGain);
+  osc.start(audioCtx.currentTime + 0.02);
+  osc.stop(audioCtx.currentTime + 0.08);
+}
+
+function openPhotoAlbum() {
+  const container = document.getElementById('modal-container');
+  let html = '<div class="modal-overlay" onclick="if(event.target===this)closeModal()">';
+  html += '<div class="modal-content" style="max-width:640px;max-height:85vh;overflow-y:auto;">';
+  html += '<h2 style="font-size:20px;">📸 Photo Album</h2>';
+  html += `<p style="text-align:center;color:#a89070;font-size:12px;margin-bottom:14px;">${state.photos.length} / ${SELFIE_MAX} photos</p>`;
+
+  if (state.photos.length === 0) {
+    html += '<p style="text-align:center;color:#7a6a5a;font-size:13px;padding:20px 0;">No photos yet! Tap 📸 to take a selfie.</p>';
+  } else {
+    html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">';
+    state.photos.forEach((photo, i) => {
+      const date = new Date(photo.timestamp);
+      const timeStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' + date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+      html += `<div style="cursor:pointer;border-radius:6px;overflow:hidden;border:2px solid #3d2b1a;background:#1a1008;transition:border-color 0.2s;" onclick="viewPhoto(${i})" onmouseover="this.style.borderColor='#f5d68a'" onmouseout="this.style.borderColor='#3d2b1a'">
+        <img src="${photo.data}" style="width:100%;display:block;" alt="Selfie">
+        <div style="padding:4px 6px;">
+          <div style="color:#f5d68a;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${photo.caption}</div>
+          <div style="color:#7a6a5a;font-size:8px;">${photo.room} · ${timeStr}</div>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  html += '<button class="close-btn" onclick="closeModal()" style="margin-top:14px;">Close</button>';
+  html += '</div></div>';
+  container.innerHTML = html;
+}
+
+function viewPhoto(idx) {
+  const photo = state.photos[idx];
+  if (!photo) return;
+  const date = new Date(photo.timestamp);
+  const timeStr = date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) + ' ' + date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  const container = document.getElementById('modal-container');
+  let html = '<div class="modal-overlay" onclick="if(event.target===this)openPhotoAlbum()">';
+  html += '<div class="modal-content" style="max-width:480px;text-align:center;">';
+  html += `<h2 style="font-size:16px;">📸 ${photo.caption}</h2>`;
+  html += `<img src="${photo.data}" style="width:100%;max-width:400px;border-radius:8px;border:3px solid #5a3e28;margin:10px 0;" alt="Selfie">`;
+  html += `<p style="color:#a89070;font-size:11px;margin:4px 0;">📍 ${photo.room} · ${photo.filter}</p>`;
+  html += `<p style="color:#7a6a5a;font-size:10px;margin:2px 0;">🐭 Pip: ${photo.pipAction} · Chai: ${photo.chaiAction}${photo.photobomb ? ' · 😼 PHOTOBOMBED!' : ''}</p>`;
+  html += `<p style="color:#5a4a3a;font-size:9px;margin:2px 0;">${timeStr}</p>`;
+  html += `<div style="display:flex;gap:8px;justify-content:center;margin-top:12px;">`;
+  html += `<button class="close-btn" onclick="openPhotoAlbum()">← Back</button>`;
+  html += `<button class="close-btn" style="background:#5a2020;" onclick="if(confirm('Delete this photo?')){state.photos.splice(${idx},1);saveGame();openPhotoAlbum();}">🗑️ Delete</button>`;
+  html += `</div>`;
+  html += '</div></div>';
+  container.innerHTML = html;
+}
+
+// ============================================================
+// FURNITURE CATALOG
+// ============================================================
 const FURNITURE = [
   { id: 'matchbox-bed', name: 'Matchbox Bed', icon: '🛏', price: 10,
     desc: 'A cozy matchbox. Smells like sulfur and dreams.', w: 2, h: 1,
@@ -1596,7 +1839,8 @@ function saveGame() {
       miceState: state.miceState, birthdayEventSeen: state.birthdayEventSeen,
       letterRead: state.letterRead, lootCrumbsUsed: state.lootCrumbsUsed,
       totalCoinsEarned: state.totalCoinsEarned, activeGoal: state.activeGoal,
-      achievements: state.achievements, stats: state.stats
+      achievements: state.achievements, stats: state.stats,
+      photos: state.photos
     }));
   } catch (e) {}
 }
@@ -1626,6 +1870,7 @@ function loadGame() {
       state.activeGoal = d.activeGoal ?? null;
       state.achievements = d.achievements ?? [];
       if (d.stats) Object.assign(state.stats, d.stats);
+      state.photos = d.photos ?? [];
       if (d.miceState) {
         Object.assign(state.miceState.pip, d.miceState.pip || d.miceState.shadow || {});
         Object.assign(state.miceState.chai, d.miceState.chai || d.miceState.cloud || {});
@@ -8505,6 +8750,14 @@ function gameLoop(now) {
       drawFloatingEffects();
       drawEdgeArrows();
       drawMouseStatus();
+
+      // Selfie flash effect
+      if (selfieFlash > 0) {
+        selfieFlash -= dt;
+        const alpha = selfieFlash > 300 ? (500 - selfieFlash) / 200 : selfieFlash / 300;
+        ctx.fillStyle = `rgba(255,255,255,${Math.min(0.7, alpha * 0.7)})`;
+        ctx.fillRect(0, 0, GAME_W, GAME_H);
+      }
     }
   }
 
