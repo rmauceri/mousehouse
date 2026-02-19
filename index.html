@@ -507,7 +507,7 @@ body { display: flex; flex-direction: column; }
       <li><b>Exercise Wheel</b> — Watch the mice spin (and get flung!)</li>
       <li><b>Mouse AI</b> — Pip & Chai explore, climb, nap, chase each other, use furniture, do mischief, and share their thoughts</li>
       <li><b>Goals</b> — Mice request items; place them to earn bonus coins and watch the mouse react</li>
-      <li><b>📸 Selfies</b> — Snap photos with random filters & captions, saved in the 🖼️ Photo Album</li>
+      <li><b>📸 Selfies</b> — Snap photos of the mice, pick your filter in the 🖼️ Photo Album</li>
     </ul>
     <h3>🪙 How to Play</h3>
     <ul>
@@ -1431,8 +1431,8 @@ function openTrophyCase() {
 // ============================================================
 // MOUSE SELFIES 📸
 // ============================================================
-const SELFIE_W = 200, SELFIE_H = 150;
-const SELFIE_MAX = 20;
+const SELFIE_W = 200, SELFIE_H = 200;
+const SELFIE_MAX = 10;
 
 const SELFIE_FILTERS = [
   { name: 'cottagecore 🌿', tint: 'rgba(180,220,160,0.12)', border: '#8B7355' },
@@ -1471,7 +1471,6 @@ function takeMouseSelfie() {
 
   const pip = state.miceState.pip;
   const chai = state.miceState.chai;
-  const filter = SELFIE_FILTERS[Math.floor(Math.random() * SELFIE_FILTERS.length)];
 
   // Pick caption based on current actions
   const actions = [pip.action, chai.action];
@@ -1517,23 +1516,21 @@ function takeMouseSelfie() {
     const pad = 40;
     minX -= pad; minY -= pad; maxX += pad; maxY += pad;
 
-    // Ensure aspect ratio matches SELFIE_W/SELFIE_H (4:3)
+    // Ensure aspect ratio matches SELFIE_W/SELFIE_H (1:1)
     const aspect = SELFIE_W / SELFIE_H;
     let cropW = maxX - minX;
     let cropH = maxY - minY;
     // Enforce minimum crop size so single mouse isn't absurdly zoomed
-    const minCropW = 140, minCropH = minCropW / aspect;
-    if (cropW < minCropW) { const d = minCropW - cropW; minX -= d / 2; cropW = minCropW; }
-    if (cropH < minCropH) { const d = minCropH - cropH; minY -= d / 2; cropH = minCropH; }
-    // Fix aspect ratio
-    if (cropW / cropH > aspect) {
-      const newH = cropW / aspect;
-      minY -= (newH - cropH) / 2;
-      cropH = newH;
+    const minCrop = 120;
+    if (cropW < minCrop) { const d = minCrop - cropW; minX -= d / 2; cropW = minCrop; }
+    if (cropH < minCrop) { const d = minCrop - cropH; minY -= d / 2; cropH = minCrop; }
+    // Fix aspect ratio (square)
+    if (cropW > cropH) {
+      minY -= (cropW - cropH) / 2;
+      cropH = cropW;
     } else {
-      const newW = cropH * aspect;
-      minX -= (newW - cropW) / 2;
-      cropW = newW;
+      minX -= (cropH - cropW) / 2;
+      cropW = cropH;
     }
     // Clamp to room bounds
     if (minX < 0) minX = 0;
@@ -1547,64 +1544,27 @@ function takeMouseSelfie() {
     cropH = Math.min(cropH, ROOM_H);
     srcX = minX; srcY = minY; srcW = cropW; srcH = cropH;
   } else {
-    // No mice visible — fall back to full room
-    srcX = 0; srcY = ROOM_Y; srcW = GAME_W; srcH = ROOM_H;
+    // No mice visible — fall back to center square of room
+    const side = Math.min(GAME_W, ROOM_H);
+    srcX = (GAME_W - side) / 2; srcY = ROOM_Y + (ROOM_H - side) / 2; srcW = side; srcH = side;
   }
 
   // Draw cropped region (zoomed into mice)
   sctx.drawImage(canvas, srcX, srcY, srcW, srcH, 0, 0, SELFIE_W, SELFIE_H);
 
-  // Filter tint overlay
-  if (filter.tint !== 'rgba(0,0,0,0)') {
-    sctx.fillStyle = filter.tint;
-    sctx.fillRect(0, 0, SELFIE_W, SELFIE_H);
-  }
-
-  // Vignette
-  const vig = sctx.createRadialGradient(SELFIE_W / 2, SELFIE_H / 2, 40, SELFIE_W / 2, SELFIE_H / 2, SELFIE_W * 0.7);
-  vig.addColorStop(0, 'rgba(0,0,0,0)');
-  vig.addColorStop(1, 'rgba(0,0,0,0.3)');
-  sctx.fillStyle = vig;
-  sctx.fillRect(0, 0, SELFIE_W, SELFIE_H);
-
-  // Photobomb: big cat eyes peeking from corner
+  // Photobomb: drawn into raw image so it persists
   if (photobomb) {
-    sctx.font = '28px serif';
-    sctx.fillText('😼', SELFIE_W - 35, SELFIE_H - 8);
+    sctx.font = '32px serif';
+    sctx.fillText('😼', SELFIE_W - 40, SELFIE_H - 8);
   }
 
-  // Filter name tag (top-left)
-  sctx.fillStyle = 'rgba(0,0,0,0.5)';
-  sctx.beginPath();
-  sctx.roundRect(4, 4, 80, 14, 3);
-  sctx.fill();
-  sctx.fillStyle = '#fff';
-  sctx.font = '8px monospace';
-  sctx.fillText(filter.name, 8, 14);
-
-  // Caption (bottom center)
-  sctx.fillStyle = 'rgba(0,0,0,0.6)';
-  const capW = Math.min(SELFIE_W - 16, sctx.measureText(caption).width + 16);
-  sctx.beginPath();
-  sctx.roundRect((SELFIE_W - capW) / 2, SELFIE_H - 22, capW, 16, 4);
-  sctx.fill();
-  sctx.fillStyle = '#fff';
-  sctx.font = '9px monospace';
-  sctx.textAlign = 'center';
-  sctx.fillText(caption, SELFIE_W / 2, SELFIE_H - 10);
-  sctx.textAlign = 'left';
-
-  // Frame border
-  sctx.strokeStyle = filter.border;
-  sctx.lineWidth = 3;
-  sctx.strokeRect(1.5, 1.5, SELFIE_W - 3, SELFIE_H - 3);
-
-  // Save photo
-  const dataUrl = sc.toDataURL('image/jpeg', 0.7);
+  // Save RAW image (no filter/caption/frame — those are applied on view)
+  const dataUrl = sc.toDataURL('image/jpeg', 0.8);
+  const filterIdx = Math.floor(Math.random() * SELFIE_FILTERS.length);
   const photo = {
     data: dataUrl,
     caption: caption,
-    filter: filter.name,
+    filterIdx: filterIdx,
     room: ROOMS[state.currentRoom].name,
     pipAction: pip.action,
     chaiAction: chai.action,
@@ -1672,6 +1632,50 @@ function sfxSelfie() {
   osc.stop(audioCtx.currentTime + 0.08);
 }
 
+function renderFilteredPhoto(photo, filterIdx) {
+  const filter = SELFIE_FILTERS[filterIdx != null ? filterIdx : (photo.filterIdx || 0)];
+  const sc = document.createElement('canvas');
+  sc.width = SELFIE_W; sc.height = SELFIE_H;
+  const sctx = sc.getContext('2d');
+  const img = new Image();
+  return new Promise(resolve => {
+    img.onload = () => {
+      sctx.drawImage(img, 0, 0, SELFIE_W, SELFIE_H);
+      // Filter tint
+      if (filter.tint !== 'rgba(0,0,0,0)') {
+        sctx.fillStyle = filter.tint;
+        sctx.fillRect(0, 0, SELFIE_W, SELFIE_H);
+      }
+      // Vignette
+      const r = SELFIE_W * 0.6;
+      const vig = sctx.createRadialGradient(SELFIE_W / 2, SELFIE_H / 2, r * 0.4, SELFIE_W / 2, SELFIE_H / 2, r);
+      vig.addColorStop(0, 'rgba(0,0,0,0)');
+      vig.addColorStop(1, 'rgba(0,0,0,0.3)');
+      sctx.fillStyle = vig;
+      sctx.fillRect(0, 0, SELFIE_W, SELFIE_H);
+      // Caption
+      sctx.font = '10px monospace';
+      const capW = Math.min(SELFIE_W - 16, sctx.measureText(photo.caption).width + 16);
+      sctx.fillStyle = 'rgba(0,0,0,0.6)';
+      sctx.beginPath(); sctx.roundRect((SELFIE_W - capW) / 2, SELFIE_H - 24, capW, 18, 4); sctx.fill();
+      sctx.fillStyle = '#fff';
+      sctx.textAlign = 'center';
+      sctx.fillText(photo.caption, SELFIE_W / 2, SELFIE_H - 10);
+      sctx.textAlign = 'left';
+      // Filter tag
+      sctx.fillStyle = 'rgba(0,0,0,0.5)';
+      sctx.beginPath(); sctx.roundRect(4, 4, 82, 15, 3); sctx.fill();
+      sctx.fillStyle = '#fff'; sctx.font = '9px monospace';
+      sctx.fillText(filter.name, 8, 15);
+      // Frame border
+      sctx.strokeStyle = filter.border; sctx.lineWidth = 3;
+      sctx.strokeRect(1.5, 1.5, SELFIE_W - 3, SELFIE_H - 3);
+      resolve(sc.toDataURL('image/jpeg', 0.85));
+    };
+    img.src = photo.data;
+  });
+}
+
 function openPhotoAlbum() {
   const container = document.getElementById('modal-container');
   let html = '<div class="modal-overlay" onclick="if(event.target===this)closeModal()">';
@@ -1687,7 +1691,7 @@ function openPhotoAlbum() {
       const date = new Date(photo.timestamp);
       const timeStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' + date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
       html += `<div style="cursor:pointer;border-radius:6px;overflow:hidden;border:2px solid #3d2b1a;background:#1a1008;transition:border-color 0.2s;" onclick="viewPhoto(${i})" onmouseover="this.style.borderColor='#f5d68a'" onmouseout="this.style.borderColor='#3d2b1a'">
-        <img src="${photo.data}" style="width:100%;display:block;" alt="Selfie">
+        <img id="album-thumb-${i}" src="${photo.data}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block;" alt="Selfie">
         <div style="padding:4px 6px;">
           <div style="color:#f5d68a;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${photo.caption}</div>
           <div style="color:#7a6a5a;font-size:8px;">${photo.room} · ${timeStr}</div>
@@ -1700,6 +1704,14 @@ function openPhotoAlbum() {
   html += '<button class="close-btn" onclick="closeModal()" style="margin-top:14px;">Close</button>';
   html += '</div></div>';
   container.innerHTML = html;
+
+  // Render filtered thumbnails asynchronously
+  state.photos.forEach((photo, i) => {
+    renderFilteredPhoto(photo).then(url => {
+      const thumb = document.getElementById('album-thumb-' + i);
+      if (thumb) thumb.src = url;
+    });
+  });
 }
 
 function viewPhoto(idx) {
@@ -1708,11 +1720,20 @@ function viewPhoto(idx) {
   const date = new Date(photo.timestamp);
   const timeStr = date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) + ' ' + date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
   const container = document.getElementById('modal-container');
+  const curFilter = photo.filterIdx != null ? photo.filterIdx : 0;
+
   let html = '<div class="modal-overlay" onclick="if(event.target===this)openPhotoAlbum()">';
   html += '<div class="modal-content" style="max-width:480px;text-align:center;">';
   html += `<h2 style="font-size:16px;">📸 ${photo.caption}</h2>`;
-  html += `<img src="${photo.data}" style="width:100%;max-width:400px;border-radius:8px;border:3px solid #5a3e28;margin:10px 0;" alt="Selfie">`;
-  html += `<p style="color:#a89070;font-size:11px;margin:4px 0;">📍 ${photo.room} · ${photo.filter}</p>`;
+  html += `<img id="photo-detail-img" src="${photo.data}" style="width:100%;max-width:320px;aspect-ratio:1;object-fit:cover;border-radius:8px;border:3px solid #5a3e28;margin:10px auto;display:block;" alt="Selfie">`;
+  // Filter picker
+  html += `<div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin:8px 0;">`;
+  SELFIE_FILTERS.forEach((f, fi) => {
+    const sel = fi === curFilter;
+    html += `<button onclick="applyPhotoFilter(${idx},${fi})" style="font-size:10px;padding:3px 7px;border-radius:10px;border:2px solid ${sel ? '#f5d68a' : '#3d2b1a'};background:${sel ? '#3d2b1a' : '#1a1008'};color:${sel ? '#f5d68a' : '#8a7a6a'};cursor:pointer;transition:all 0.2s;">${f.name}</button>`;
+  });
+  html += `</div>`;
+  html += `<p style="color:#a89070;font-size:11px;margin:4px 0;">📍 ${photo.room}</p>`;
   html += `<p style="color:#7a6a5a;font-size:10px;margin:2px 0;">🐭 Pip: ${photo.pipAction} · Chai: ${photo.chaiAction}${photo.photobomb ? ' · 😼 PHOTOBOMBED!' : ''}</p>`;
   html += `<p style="color:#5a4a3a;font-size:9px;margin:2px 0;">${timeStr}</p>`;
   html += `<div style="display:flex;gap:8px;justify-content:center;margin-top:12px;">`;
@@ -1721,6 +1742,20 @@ function viewPhoto(idx) {
   html += `</div>`;
   html += '</div></div>';
   container.innerHTML = html;
+
+  // Render with current filter
+  renderFilteredPhoto(photo, curFilter).then(url => {
+    const img = document.getElementById('photo-detail-img');
+    if (img) img.src = url;
+  });
+}
+
+function applyPhotoFilter(idx, filterIdx) {
+  const photo = state.photos[idx];
+  if (!photo) return;
+  photo.filterIdx = filterIdx;
+  saveGame();
+  viewPhoto(idx);
 }
 
 // ============================================================
