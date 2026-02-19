@@ -1625,11 +1625,6 @@ function applyFilterToCanvas(rawDataUrl, filterIdx, caption) {
         sctx.fillText(caption, SELFIE_W / 2, SELFIE_H - 10);
         sctx.textAlign = 'left';
       }
-      // Filter tag
-      sctx.fillStyle = 'rgba(0,0,0,0.5)';
-      sctx.beginPath(); sctx.roundRect(4, 4, 82, 15, 3); sctx.fill();
-      sctx.fillStyle = '#fff'; sctx.font = '9px monospace';
-      sctx.fillText(filter.name, 8, 15);
       // Frame border
       sctx.strokeStyle = filter.border; sctx.lineWidth = 3;
       sctx.strokeRect(1.5, 1.5, SELFIE_W - 3, SELFIE_H - 3);
