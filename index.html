@@ -444,19 +444,17 @@ body { display: flex; flex-direction: column; }
 }
 /* ---- D-Pad Controller (mobile maze) ---- */
 #maze-dpad {
-  display: none; position: fixed; z-index: 35;
-  bottom: 10px; left: 50%; transform: translateX(-50%);
+  display: none;
+  grid-template-columns: 44px 44px 44px;
+  grid-template-rows: 44px 44px 44px;
+  gap: 3px; justify-content: center; align-content: center;
+  padding: 6px 0;
 }
 #maze-dpad.visible { display: grid; }
-#maze-dpad {
-  grid-template-columns: 56px 56px 56px;
-  grid-template-rows: 56px 56px 56px;
-  gap: 4px;
-}
 .dpad-btn {
-  width: 56px; height: 56px; border: 2px solid #a07040;
-  border-radius: 10px; background: rgba(30,20,10,0.9);
-  color: #f5d68a; font-size: 24px; cursor: pointer;
+  width: 44px; height: 44px; border: 2px solid #a07040;
+  border-radius: 8px; background: rgba(30,20,10,0.9);
+  color: #f5d68a; font-size: 20px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   user-select: none; -webkit-user-select: none;
   touch-action: manipulation;
@@ -465,6 +463,12 @@ body { display: flex; flex-direction: column; }
 .dpad-center { background: transparent; border: none; }
 @media (min-width: 769px) {
   #maze-dpad { display: none !important; }
+}
+@media (max-height: 440px) and (orientation: landscape) {
+  #maze-dpad.visible {
+    position: fixed; right: 8px; top: 50%; transform: translateY(-50%);
+    display: grid; padding: 0;
+  }
 }
 
 </style>
