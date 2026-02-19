@@ -8377,6 +8377,7 @@ document.getElementById('title-screen').addEventListener('touchstart', () => {
 document.getElementById('title-screen').addEventListener('click', e => {
   // Don't start game if about overlay is showing or clicking buttons
   if (document.getElementById('title-about-overlay').classList.contains('visible')) return;
+  if (e.target.closest('.title-buttons')) return;
   startGame();
 });
 document.getElementById('title-screen').addEventListener('touchstart', e => {
@@ -8399,7 +8400,8 @@ function startGame() {
   state.gameStarted = true;
   stopTitleMusic();
   document.getElementById('title-screen').style.display = 'none';
-  document.getElementById('title-about-overlay').style.display = 'none';
+  document.getElementById('title-about-overlay').classList.remove('visible');
+  document.getElementById('title-about-overlay').style.display = '';
   document.getElementById('hud').style.display = 'flex';
   document.getElementById('tray-toggle').style.display = 'flex';
   loadGame();
