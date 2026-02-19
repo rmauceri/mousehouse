@@ -385,8 +385,8 @@ body { display: flex; flex-direction: column; }
   #hud button { padding: 4px 8px; font-size: 12px; }
   .room-tabs button { padding: 3px 8px; font-size: 12px; }
 
-  /* Flyouts: full width on mobile */
-  #shop-flyout, #games-flyout { width: 100%; }
+  /* Flyouts: 80% width on mobile, leaving backdrop strip for light-dismiss */
+  #shop-flyout, #games-flyout { width: 80%; }
 
   /* Item tray: bottom sheet grid instead of horizontal strip */
   #item-tray {
@@ -4354,32 +4354,24 @@ document.getElementById('flyout-backdrop').addEventListener('click', () => {
   if (gamesOpen) closeGamesFlyout();
 });
 
-function toggleShopFlyout() {
-  state.shopOpen = !state.shopOpen;
+function openShop() {
+  if (state.shopOpen) { closeShopFlyout(); return; }
+  state.shopOpen = true;
   const flyout = document.getElementById('shop-flyout');
   const tray = document.getElementById('item-tray');
   const isMobile = window.innerWidth <= 480 || (window.innerHeight <= 440 && window.innerWidth > window.innerHeight);
-  if (state.shopOpen) {
-    if (gamesOpen) closeGamesFlyout();
-    refreshShopFlyout();
-    refreshItemTray();
-    flyout.classList.add('open');
-    // On mobile/landscape, shop covers everything — don't force tray open, hide if visible
-    if (!isMobile) {
-      tray.classList.add('open');
-      syncTrayToggle();
-    } else {
-      tray.classList.remove('open');
-      syncTrayToggle();
-    }
-    showBackdrop();
-  } else {
-    flyout.classList.remove('open');
-    if (!trayOpen) tray.classList.remove('open');
-    cancelPlacement();
+  if (gamesOpen) closeGamesFlyout();
+  refreshShopFlyout();
+  refreshItemTray();
+  flyout.classList.add('open');
+  if (!isMobile) {
+    tray.classList.add('open');
     syncTrayToggle();
-    hideBackdrop();
+  } else {
+    tray.classList.remove('open');
+    syncTrayToggle();
   }
+  showBackdrop();
 }
 
 function closeShopFlyout() {
@@ -4635,10 +4627,6 @@ document.addEventListener('touchend', e => {
   }
 });
 
-function openShop() {
-  toggleShopFlyout();
-}
-
 function buyItem(itemId) {
   const item = FURNITURE.find(f => f.id === itemId);
   if (!item || state.coins < item.price) return;
@@ -4715,27 +4703,18 @@ document.getElementById('flyout-backdrop').addEventListener('click', () => {
 // ============================================================
 let gamesOpen = false;
 
-function toggleGamesFlyout() {
-  gamesOpen = !gamesOpen;
-  const flyout = document.getElementById('games-flyout');
-  if (gamesOpen) {
-    if (state.shopOpen) closeShopFlyout();
-    flyout.classList.add('open');
-    showBackdrop();
-  } else {
-    flyout.classList.remove('open');
-    hideBackdrop();
-  }
+function openMinigames() {
+  if (gamesOpen) { closeGamesFlyout(); return; }
+  gamesOpen = true;
+  if (state.shopOpen) closeShopFlyout();
+  document.getElementById('games-flyout').classList.add('open');
+  showBackdrop();
 }
 
 function closeGamesFlyout() {
   gamesOpen = false;
   document.getElementById('games-flyout').classList.remove('open');
   hideBackdrop();
-}
-
-function openMinigames() {
-  toggleGamesFlyout();
 }
 
 // ============================================================
