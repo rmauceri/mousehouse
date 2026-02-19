@@ -417,7 +417,7 @@ body { display: flex; flex-direction: column; }
     height: 100vh;
     border-bottom: none; border-right: 2px solid #a07040;
     padding: 4px 0; overflow: hidden;
-    flex-shrink: 0; align-items: center; justify-content: space-evenly;
+    flex-shrink: 0; align-items: center; justify-content: center;
   }
   #hud-row1 {
     flex-direction: column; padding: 0; gap: 4px;
@@ -429,11 +429,14 @@ body { display: flex; flex-direction: column; }
   }
   #hud-actions .btn-label { display: none; }
   #hud-actions button { padding: 2px 4px; font-size: 16px; min-width: 28px; border: none; background: none; }
-  #hud-utils { display: none !important; }
+  #hud-utils {
+    display: flex !important; flex-direction: column; gap: 4px; align-items: center;
+  }
+  #hud-utils button { padding: 2px 4px; font-size: 16px; min-width: 28px; border: none; background: none; }
   .hud-group-rooms { display: none !important; }
   #hud-nav-row { display: none !important; }
   #hud-row2 { display: none !important; }
-  #btn-overflow { display: block !important; padding: 2px 4px; font-size: 16px; min-width: 28px; border: none; background: none; }
+  #btn-overflow { display: none !important; }
   /* Flyouts & modals */
   #shop-flyout, #games-flyout { width: 260px; }
   .modal-content { max-height: 95vh; }
