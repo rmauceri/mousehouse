@@ -442,11 +442,48 @@ body { display: flex; flex-direction: column; }
   .modal-content { max-height: 95vh; }
   #overflow-menu { width: 160px; }
 }
+/* ---- D-Pad Controller (mobile maze) ---- */
+#maze-dpad {
+  display: none; position: fixed; z-index: 35;
+  bottom: 10px; left: 50%; transform: translateX(-50%);
+}
+#maze-dpad.visible { display: grid; }
+#maze-dpad {
+  grid-template-columns: 56px 56px 56px;
+  grid-template-rows: 56px 56px 56px;
+  gap: 4px;
+}
+.dpad-btn {
+  width: 56px; height: 56px; border: 2px solid #a07040;
+  border-radius: 10px; background: rgba(30,20,10,0.9);
+  color: #f5d68a; font-size: 24px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  user-select: none; -webkit-user-select: none;
+  touch-action: manipulation;
+}
+.dpad-btn:active { background: #3d2b1a; border-color: #f5d68a; }
+.dpad-center { background: transparent; border: none; }
+@media (min-width: 769px) {
+  #maze-dpad { display: none !important; }
+}
+
 </style>
 </head>
 <body>
 
 <canvas id="gameCanvas"></canvas>
+
+<div id="maze-dpad">
+  <div></div>
+  <button class="dpad-btn" data-dir="up">▲</button>
+  <div></div>
+  <button class="dpad-btn" data-dir="left">◀</button>
+  <div class="dpad-center"></div>
+  <button class="dpad-btn" data-dir="right">▶</button>
+  <div></div>
+  <button class="dpad-btn" data-dir="down">▼</button>
+  <div></div>
+</div>
 
 <div id="hud">
   <div id="hud-row1">
@@ -5802,6 +5839,7 @@ function startMouseMaze() {
   mouseMazeActive = true;
   stopMusic();
   startMazeMusic();
+  showMazeDpad();
   mz = {
     level: 1,
     totalScore: 0,
@@ -6375,6 +6413,7 @@ function drawMouseMaze() {
 
 function endMouseMaze() {
   stopGameMusic();
+  hideMazeDpad();
   const earned = mz.totalScore;
   state.coins += earned;
   state.totalCoinsEarned += earned;
@@ -6437,6 +6476,30 @@ function mazeSwipeEnd(sx, sy) {
     mz.moveTimer = mz.moveInterval;
   }
 }
+
+// D-Pad controller for mobile maze play
+function showMazeDpad() {
+  document.getElementById('maze-dpad').classList.add('visible');
+}
+function hideMazeDpad() {
+  document.getElementById('maze-dpad').classList.remove('visible');
+}
+document.querySelectorAll('#maze-dpad .dpad-btn').forEach(btn => {
+  function fireDpad(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!mouseMazeActive || !mz || mz.levelComplete || mz.gameOver) return;
+    const dir = btn.dataset.dir;
+    mz.nextDir = dir;
+    if (canMazeMove(dir)) {
+      mz.playerDir = dir;
+      doMazeMove(dir);
+      mz.moveTimer = mz.moveInterval;
+    }
+  }
+  btn.addEventListener('touchstart', fireDpad, { passive: false });
+  btn.addEventListener('mousedown', fireDpad);
+});
 
 // ============================================================
 // BIRTHDAY EVENT
