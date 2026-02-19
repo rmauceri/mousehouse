@@ -1558,27 +1558,12 @@ function takeMouseSelfie() {
     sctx.fillText('😼', SELFIE_W - 40, SELFIE_H - 8);
   }
 
-  // Save RAW image (no filter/caption/frame — those are applied on view)
-  const dataUrl = sc.toDataURL('image/jpeg', 0.8);
-  const filterIdx = Math.floor(Math.random() * SELFIE_FILTERS.length);
-  const photo = {
-    data: dataUrl,
-    caption: caption,
-    filterIdx: filterIdx,
-    room: ROOMS[state.currentRoom].name,
-    pipAction: pip.action,
-    chaiAction: chai.action,
-    photobomb: photobomb,
-    timestamp: Date.now()
-  };
+  const rawDataUrl = sc.toDataURL('image/jpeg', 0.85);
 
-  state.photos.unshift(photo);
-  if (state.photos.length > SELFIE_MAX) state.photos.pop();
-
-  // Flash effect on game canvas
+  // Flash + sound + reactions
   selfieFlash = 500;
+  sfxSelfie();
 
-  // Mouse reactions
   const pipReact = SELFIE_REACTIONS.pip[Math.floor(Math.random() * SELFIE_REACTIONS.pip.length)];
   const chaiReact = SELFIE_REACTIONS.chai[Math.floor(Math.random() * SELFIE_REACTIONS.chai.length)];
   if (pip.room === state.currentRoom) {
@@ -1592,19 +1577,166 @@ function takeMouseSelfie() {
     }
   }, 800);
 
-  // Sound effect
-  sfxSelfie();
-
-  // Toast
-  const toastMsg = photobomb ? '📸 Selfie taken! ...wait, is that a CAT?! 😼' : `📸 Selfie saved! "${caption}"`;
-  showToast(toastMsg);
-
-  // Achievement check
-  if (state.photos.length >= 10) unlockAchievement('influencer');
-  saveGame();
+  // Open preview modal after brief delay for flash
+  setTimeout(() => {
+    _selfiePreviewFilterIdx = Math.floor(Math.random() * SELFIE_FILTERS.length);
+    openSelfiePreview({
+      rawData: rawDataUrl,
+      caption: caption,
+      room: ROOMS[state.currentRoom].name,
+      pipAction: pip.action,
+      chaiAction: chai.action,
+      photobomb: photobomb,
+      timestamp: Date.now()
+    });
+  }, 350);
 }
 
 let selfieFlash = 0;
+let _selfiePreviewFilterIdx = 0;
+
+function applyFilterToCanvas(rawDataUrl, filterIdx, caption) {
+  const filter = SELFIE_FILTERS[filterIdx];
+  const sc = document.createElement('canvas');
+  sc.width = SELFIE_W; sc.height = SELFIE_H;
+  const sctx = sc.getContext('2d');
+  const img = new Image();
+  return new Promise(resolve => {
+    img.onload = () => {
+      sctx.drawImage(img, 0, 0, SELFIE_W, SELFIE_H);
+      if (filter.tint !== 'rgba(0,0,0,0)') {
+        sctx.fillStyle = filter.tint;
+        sctx.fillRect(0, 0, SELFIE_W, SELFIE_H);
+      }
+      // Vignette
+      const r = SELFIE_W * 0.6;
+      const vig = sctx.createRadialGradient(SELFIE_W / 2, SELFIE_H / 2, r * 0.4, SELFIE_W / 2, SELFIE_H / 2, r);
+      vig.addColorStop(0, 'rgba(0,0,0,0)');
+      vig.addColorStop(1, 'rgba(0,0,0,0.3)');
+      sctx.fillStyle = vig;
+      sctx.fillRect(0, 0, SELFIE_W, SELFIE_H);
+      // Caption
+      if (caption) {
+        sctx.font = '10px monospace';
+        const capW = Math.min(SELFIE_W - 16, sctx.measureText(caption).width + 16);
+        sctx.fillStyle = 'rgba(0,0,0,0.6)';
+        sctx.beginPath(); sctx.roundRect((SELFIE_W - capW) / 2, SELFIE_H - 24, capW, 18, 4); sctx.fill();
+        sctx.fillStyle = '#fff'; sctx.textAlign = 'center';
+        sctx.fillText(caption, SELFIE_W / 2, SELFIE_H - 10);
+        sctx.textAlign = 'left';
+      }
+      // Filter tag
+      sctx.fillStyle = 'rgba(0,0,0,0.5)';
+      sctx.beginPath(); sctx.roundRect(4, 4, 82, 15, 3); sctx.fill();
+      sctx.fillStyle = '#fff'; sctx.font = '9px monospace';
+      sctx.fillText(filter.name, 8, 15);
+      // Frame border
+      sctx.strokeStyle = filter.border; sctx.lineWidth = 3;
+      sctx.strokeRect(1.5, 1.5, SELFIE_W - 3, SELFIE_H - 3);
+      resolve(sc.toDataURL('image/jpeg', 0.85));
+    };
+    img.src = rawDataUrl;
+  });
+}
+
+function openSelfiePreview(draft) {
+  const container = document.getElementById('modal-container');
+  const fi = _selfiePreviewFilterIdx;
+
+  let html = '<div class="modal-overlay">';
+  html += '<div class="modal-content" style="max-width:420px;text-align:center;">';
+  html += `<h2 style="font-size:16px;">\u{1f4f8} ${draft.caption}</h2>`;
+  html += `<img id="selfie-preview-img" src="${draft.rawData}" style="width:100%;max-width:280px;aspect-ratio:1;object-fit:cover;border-radius:8px;border:3px solid ${SELFIE_FILTERS[fi].border};margin:8px auto;display:block;" alt="Preview">`;
+  // Filter picker
+  html += `<div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin:8px 0;">`;
+  SELFIE_FILTERS.forEach((f, i) => {
+    const sel = i === fi;
+    html += `<button onclick="_selfiePreviewFilterIdx=${i};openSelfiePreview(_selfieDraft)" style="font-size:10px;padding:3px 7px;border-radius:10px;border:2px solid ${sel ? '#f5d68a' : '#3d2b1a'};background:${sel ? '#3d2b1a' : '#1a1008'};color:${sel ? '#f5d68a' : '#8a7a6a'};cursor:pointer;">${f.name}</button>`;
+  });
+  html += `</div>`;
+  html += `<p style="color:#7a6a5a;font-size:10px;margin:4px 0;">\u{1f4cd} ${draft.room} \u00b7 \u{1f42d} Pip: ${draft.pipAction} \u00b7 Chai: ${draft.chaiAction}${draft.photobomb ? ' \u00b7 \u{1f63c} PHOTOBOMBED!' : ''}</p>`;
+  // Action buttons
+  html += `<div style="display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap;">`;
+  html += `<button class="close-btn" style="background:#2a5a2a;" onclick="saveSelfie()">\u{1f4be} Save</button>`;
+  html += `<button class="close-btn" onclick="copySelfieToClipboard()">\u{1f4cb} Copy</button>`;
+  html += `<button class="close-btn" style="background:#5a2020;" onclick="_selfieDraft=null;closeModal()">\u{1f5d1}\ufe0f Discard</button>`;
+  html += `</div>`;
+  html += '</div></div>';
+
+  window._selfieDraft = draft;
+  container.innerHTML = html;
+
+  applyFilterToCanvas(draft.rawData, fi, draft.caption).then(url => {
+    const img = document.getElementById('selfie-preview-img');
+    if (img) { img.src = url; img.style.borderColor = SELFIE_FILTERS[fi].border; }
+  });
+}
+
+function saveSelfie() {
+  const draft = window._selfieDraft;
+  if (!draft) return;
+  const fi = _selfiePreviewFilterIdx;
+  applyFilterToCanvas(draft.rawData, fi, draft.caption).then(finalUrl => {
+    const photo = {
+      data: finalUrl,
+      caption: draft.caption,
+      filter: SELFIE_FILTERS[fi].name,
+      room: draft.room,
+      pipAction: draft.pipAction,
+      chaiAction: draft.chaiAction,
+      photobomb: draft.photobomb,
+      timestamp: draft.timestamp
+    };
+    state.photos.unshift(photo);
+    if (state.photos.length > SELFIE_MAX) state.photos.pop();
+    if (state.photos.length >= 10) unlockAchievement('influencer');
+    saveGame();
+    window._selfieDraft = null;
+    closeModal();
+    showToast(draft.photobomb ? '\u{1f4f8} Saved! ...wait, is that a CAT?! \u{1f63c}' : `\u{1f4f8} Saved! "${draft.caption}"`);
+  });
+}
+
+function copySelfieToClipboard() {
+  const draft = window._selfieDraft;
+  if (!draft) return;
+  const fi = _selfiePreviewFilterIdx;
+  applyFilterToCanvas(draft.rawData, fi, draft.caption).then(url => {
+    const img = new Image();
+    img.onload = () => {
+      const sc = document.createElement('canvas');
+      sc.width = SELFIE_W; sc.height = SELFIE_H;
+      sc.getContext('2d').drawImage(img, 0, 0);
+      sc.toBlob(blob => {
+        if (!blob) { showToast('\u274c Copy failed'); return; }
+        navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(
+          () => showToast('\u{1f4cb} Copied to clipboard!'),
+          () => showToast('\u274c Clipboard not available')
+        );
+      }, 'image/png');
+    };
+    img.src = url;
+  });
+}
+
+function copyAlbumPhotoToClipboard(idx) {
+  const photo = state.photos[idx];
+  if (!photo) return;
+  const img = new Image();
+  img.onload = () => {
+    const sc = document.createElement('canvas');
+    sc.width = img.naturalWidth; sc.height = img.naturalHeight;
+    sc.getContext('2d').drawImage(img, 0, 0);
+    sc.toBlob(blob => {
+      if (!blob) { showToast('\u274c Copy failed'); return; }
+      navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(
+        () => showToast('\u{1f4cb} Copied to clipboard!'),
+        () => showToast('\u274c Clipboard not available')
+      );
+    }, 'image/png');
+  };
+  img.src = photo.data;
+}
 
 function sfxSelfie() {
   if (!audioCtx || audioMuted) return;
@@ -1632,69 +1764,25 @@ function sfxSelfie() {
   osc.stop(audioCtx.currentTime + 0.08);
 }
 
-function renderFilteredPhoto(photo, filterIdx) {
-  const filter = SELFIE_FILTERS[filterIdx != null ? filterIdx : (photo.filterIdx || 0)];
-  const sc = document.createElement('canvas');
-  sc.width = SELFIE_W; sc.height = SELFIE_H;
-  const sctx = sc.getContext('2d');
-  const img = new Image();
-  return new Promise(resolve => {
-    img.onload = () => {
-      sctx.drawImage(img, 0, 0, SELFIE_W, SELFIE_H);
-      // Filter tint
-      if (filter.tint !== 'rgba(0,0,0,0)') {
-        sctx.fillStyle = filter.tint;
-        sctx.fillRect(0, 0, SELFIE_W, SELFIE_H);
-      }
-      // Vignette
-      const r = SELFIE_W * 0.6;
-      const vig = sctx.createRadialGradient(SELFIE_W / 2, SELFIE_H / 2, r * 0.4, SELFIE_W / 2, SELFIE_H / 2, r);
-      vig.addColorStop(0, 'rgba(0,0,0,0)');
-      vig.addColorStop(1, 'rgba(0,0,0,0.3)');
-      sctx.fillStyle = vig;
-      sctx.fillRect(0, 0, SELFIE_W, SELFIE_H);
-      // Caption
-      sctx.font = '10px monospace';
-      const capW = Math.min(SELFIE_W - 16, sctx.measureText(photo.caption).width + 16);
-      sctx.fillStyle = 'rgba(0,0,0,0.6)';
-      sctx.beginPath(); sctx.roundRect((SELFIE_W - capW) / 2, SELFIE_H - 24, capW, 18, 4); sctx.fill();
-      sctx.fillStyle = '#fff';
-      sctx.textAlign = 'center';
-      sctx.fillText(photo.caption, SELFIE_W / 2, SELFIE_H - 10);
-      sctx.textAlign = 'left';
-      // Filter tag
-      sctx.fillStyle = 'rgba(0,0,0,0.5)';
-      sctx.beginPath(); sctx.roundRect(4, 4, 82, 15, 3); sctx.fill();
-      sctx.fillStyle = '#fff'; sctx.font = '9px monospace';
-      sctx.fillText(filter.name, 8, 15);
-      // Frame border
-      sctx.strokeStyle = filter.border; sctx.lineWidth = 3;
-      sctx.strokeRect(1.5, 1.5, SELFIE_W - 3, SELFIE_H - 3);
-      resolve(sc.toDataURL('image/jpeg', 0.85));
-    };
-    img.src = photo.data;
-  });
-}
-
 function openPhotoAlbum() {
   const container = document.getElementById('modal-container');
   let html = '<div class="modal-overlay" onclick="if(event.target===this)closeModal()">';
   html += '<div class="modal-content" style="max-width:640px;max-height:85vh;overflow-y:auto;">';
-  html += '<h2 style="font-size:20px;">📸 Photo Album</h2>';
+  html += '<h2 style="font-size:20px;">\u{1f4f8} Photo Album</h2>';
   html += `<p style="text-align:center;color:#a89070;font-size:12px;margin-bottom:14px;">${state.photos.length} / ${SELFIE_MAX} photos</p>`;
 
   if (state.photos.length === 0) {
-    html += '<p style="text-align:center;color:#7a6a5a;font-size:13px;padding:20px 0;">No photos yet! Tap 📸 to take a selfie.</p>';
+    html += '<p style="text-align:center;color:#7a6a5a;font-size:13px;padding:20px 0;">No photos yet! Tap \u{1f4f8} to take a selfie.</p>';
   } else {
     html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">';
     state.photos.forEach((photo, i) => {
       const date = new Date(photo.timestamp);
       const timeStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' + date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
       html += `<div style="cursor:pointer;border-radius:6px;overflow:hidden;border:2px solid #3d2b1a;background:#1a1008;transition:border-color 0.2s;" onclick="viewPhoto(${i})" onmouseover="this.style.borderColor='#f5d68a'" onmouseout="this.style.borderColor='#3d2b1a'">
-        <img id="album-thumb-${i}" src="${photo.data}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block;" alt="Selfie">
+        <img src="${photo.data}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block;" alt="Selfie">
         <div style="padding:4px 6px;">
           <div style="color:#f5d68a;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${photo.caption}</div>
-          <div style="color:#7a6a5a;font-size:8px;">${photo.room} · ${timeStr}</div>
+          <div style="color:#7a6a5a;font-size:8px;">${photo.room} \u00b7 ${timeStr}</div>
         </div>
       </div>`;
     });
@@ -1704,14 +1792,6 @@ function openPhotoAlbum() {
   html += '<button class="close-btn" onclick="closeModal()" style="margin-top:14px;">Close</button>';
   html += '</div></div>';
   container.innerHTML = html;
-
-  // Render filtered thumbnails asynchronously
-  state.photos.forEach((photo, i) => {
-    renderFilteredPhoto(photo).then(url => {
-      const thumb = document.getElementById('album-thumb-' + i);
-      if (thumb) thumb.src = url;
-    });
-  });
 }
 
 function viewPhoto(idx) {
@@ -1720,42 +1800,40 @@ function viewPhoto(idx) {
   const date = new Date(photo.timestamp);
   const timeStr = date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) + ' ' + date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
   const container = document.getElementById('modal-container');
-  const curFilter = photo.filterIdx != null ? photo.filterIdx : 0;
 
   let html = '<div class="modal-overlay" onclick="if(event.target===this)openPhotoAlbum()">';
   html += '<div class="modal-content" style="max-width:480px;text-align:center;">';
-  html += `<h2 style="font-size:16px;">📸 ${photo.caption}</h2>`;
-  html += `<img id="photo-detail-img" src="${photo.data}" style="width:100%;max-width:320px;aspect-ratio:1;object-fit:cover;border-radius:8px;border:3px solid #5a3e28;margin:10px auto;display:block;" alt="Selfie">`;
-  // Filter picker
-  html += `<div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin:8px 0;">`;
-  SELFIE_FILTERS.forEach((f, fi) => {
-    const sel = fi === curFilter;
-    html += `<button onclick="applyPhotoFilter(${idx},${fi})" style="font-size:10px;padding:3px 7px;border-radius:10px;border:2px solid ${sel ? '#f5d68a' : '#3d2b1a'};background:${sel ? '#3d2b1a' : '#1a1008'};color:${sel ? '#f5d68a' : '#8a7a6a'};cursor:pointer;transition:all 0.2s;">${f.name}</button>`;
-  });
-  html += `</div>`;
-  html += `<p style="color:#a89070;font-size:11px;margin:4px 0;">📍 ${photo.room}</p>`;
-  html += `<p style="color:#7a6a5a;font-size:10px;margin:2px 0;">🐭 Pip: ${photo.pipAction} · Chai: ${photo.chaiAction}${photo.photobomb ? ' · 😼 PHOTOBOMBED!' : ''}</p>`;
+  html += `<h2 style="font-size:16px;">\u{1f4f8} ${photo.caption}</h2>`;
+  html += `<img src="${photo.data}" style="width:100%;max-width:320px;aspect-ratio:1;object-fit:cover;border-radius:8px;border:3px solid #5a3e28;margin:10px auto;display:block;" alt="Selfie">`;
+  html += `<p style="color:#a89070;font-size:11px;margin:4px 0;">\u{1f4cd} ${photo.room}${photo.filter ? ' \u00b7 ' + photo.filter : ''}</p>`;
+  html += `<p style="color:#7a6a5a;font-size:10px;margin:2px 0;">\u{1f42d} Pip: ${photo.pipAction} \u00b7 Chai: ${photo.chaiAction}${photo.photobomb ? ' \u00b7 \u{1f63c} PHOTOBOMBED!' : ''}</p>`;
   html += `<p style="color:#5a4a3a;font-size:9px;margin:2px 0;">${timeStr}</p>`;
-  html += `<div style="display:flex;gap:8px;justify-content:center;margin-top:12px;">`;
-  html += `<button class="close-btn" onclick="openPhotoAlbum()">← Back</button>`;
-  html += `<button class="close-btn" style="background:#5a2020;" onclick="if(confirm('Delete this photo?')){state.photos.splice(${idx},1);saveGame();openPhotoAlbum();}">🗑️ Delete</button>`;
+  html += `<div style="display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap;">`;
+  html += `<button class="close-btn" onclick="openPhotoAlbum()">\u2190 Back</button>`;
+  html += `<button class="close-btn" onclick="copyAlbumPhotoToClipboard(${idx})">\u{1f4cb} Copy</button>`;
+  html += `<button id="del-photo-btn" class="close-btn" style="background:#5a2020;" onclick="confirmDeletePhoto(this,${idx})">\u{1f5d1}\ufe0f Delete</button>`;
   html += `</div>`;
   html += '</div></div>';
   container.innerHTML = html;
-
-  // Render with current filter
-  renderFilteredPhoto(photo, curFilter).then(url => {
-    const img = document.getElementById('photo-detail-img');
-    if (img) img.src = url;
-  });
 }
 
-function applyPhotoFilter(idx, filterIdx) {
-  const photo = state.photos[idx];
-  if (!photo) return;
-  photo.filterIdx = filterIdx;
-  saveGame();
-  viewPhoto(idx);
+let _deletePhotoTimer = null;
+function confirmDeletePhoto(btn, idx) {
+  if (btn.dataset.armed === 'true') {
+    clearTimeout(_deletePhotoTimer);
+    state.photos.splice(idx, 1);
+    saveGame();
+    openPhotoAlbum();
+    return;
+  }
+  btn.dataset.armed = 'true';
+  btn.textContent = 'Tap again to delete';
+  btn.style.background = '#8a2020';
+  _deletePhotoTimer = setTimeout(() => {
+    btn.dataset.armed = '';
+    btn.textContent = '\u{1f5d1}\ufe0f Delete';
+    btn.style.background = '#5a2020';
+  }, 3000);
 }
 
 // ============================================================
