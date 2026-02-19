@@ -385,8 +385,8 @@ body { display: flex; flex-direction: column; }
   #hud button { padding: 4px 8px; font-size: 12px; }
   .room-tabs button { padding: 3px 8px; font-size: 12px; }
 
-  /* Flyouts: leave backdrop strip visible for light-dismiss */
-  #shop-flyout, #games-flyout { width: 85%; }
+  /* Flyouts: full width on mobile */
+  #shop-flyout, #games-flyout { width: 100%; }
 
   /* Item tray: bottom sheet grid instead of horizontal strip */
   #item-tray {
@@ -4388,7 +4388,7 @@ function closeShopFlyout() {
   if (!trayOpen) document.getElementById('item-tray').classList.remove('open');
   cancelPlacement();
   syncTrayToggle();
-  if (!gamesOpen) hideBackdrop();
+  hideBackdrop();
 }
 
 function refreshShopFlyout() {
@@ -4731,7 +4731,7 @@ function toggleGamesFlyout() {
 function closeGamesFlyout() {
   gamesOpen = false;
   document.getElementById('games-flyout').classList.remove('open');
-  if (!state.shopOpen) hideBackdrop();
+  hideBackdrop();
 }
 
 function openMinigames() {
