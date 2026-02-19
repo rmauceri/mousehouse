@@ -401,6 +401,7 @@ body { display: flex; flex-direction: column; }
       <button id="btn-games">🎮<span class="btn-label"> Games</span></button>
     </div>
     <div class="hud-group" id="hud-utils">
+      <button id="btn-trophy" title="Achievements" onclick="openTrophyCase()">🏆</button>
       <button id="btn-letter">💌</button>
       <button id="btn-sound" title="Sound">🔇</button>
       <button id="btn-exit" title="Exit to title">🚪</button>
@@ -1278,12 +1279,141 @@ let state = {
   dragState: { active: false, itemId: null, screenX: 0, screenY: 0, fromPlaced: false, fromPlacedIdx: -1 },
   shopOpen: false,
   gameStarted: false,
-  activeGoal: null
+  activeGoal: null,
+  achievements: [],
+  stats: { mischiefsWitnessed: 0, itemsPlaced: 0, gamesPlayed: { chase: 0, doomscroll: 0, maze: 0, whack: 0 }, goalsCompleted: 0 }
 };
 
 // ============================================================
-// FURNITURE CATALOG
+// ACHIEVEMENTS
 // ============================================================
+const ACHIEVEMENTS = [
+  // Mouse Care
+  { id: 'first-place', icon: '🏠', name: 'Touch Grass (Bedding)', hint: 'Place your first item', check: s => s.stats.itemsPlaced >= 1 },
+  { id: 'interior-designer', icon: '🎨', name: 'Interior Designer', hint: 'Place 10 items', check: s => s.stats.itemsPlaced >= 10 },
+  { id: 'full-house', icon: '🏡', name: 'Full House', hint: 'Have items in every room', check: s => {
+    const rooms = new Set(s.placedItems.map(p => p.room));
+    return rooms.size >= 4;
+  }},
+  { id: 'fed-watered', icon: '💚', name: 'Fed & Watered', hint: 'Both mice at 100% health', check: s => s.miceState.pip.happiness >= 100 && s.miceState.chai.happiness >= 100 },
+  { id: 'neglectful', icon: '😰', name: 'Neglectful Parent', hint: 'Let a mouse drop below 10%', check: s => s.miceState.pip.happiness < 10 || s.miceState.chai.happiness < 10 },
+
+  // Mini-Games
+  { id: 'gamer-mouse', icon: '🎮', name: 'Gamer Mouse', hint: 'Play all 4 mini-games', check: s => s.stats.gamesPlayed.chase > 0 && s.stats.gamesPlayed.doomscroll > 0 && s.stats.gamesPlayed.maze > 0 && s.stats.gamesPlayed.whack > 0 },
+  { id: 'pac-pro', icon: '🕹️', name: 'Pac Mouse Pro', hint: 'Clear all 3 maze levels', check: () => false, manual: true },
+  { id: 'cat-bonker', icon: '🔨', name: 'Cat Bonker 9000', hint: 'Whack 30 cats in one game', check: () => false, manual: true },
+  { id: 'speed-runner', icon: '💨', name: 'Speed Runner', hint: 'Reach 500m in Cheese Chase', check: () => false, manual: true },
+  { id: 'doomscroll-detox', icon: '📱', name: 'Doomscroll Detox', hint: 'Get 15+ likes, zero strikes', check: () => false, manual: true },
+
+  // Economy
+  { id: 'first-coin', icon: '🪙', name: 'First Paycheck', hint: 'Earn your first coin', check: s => s.totalCoinsEarned > 0 },
+  { id: 'hoarder', icon: '🧀', name: 'Cheese Hoarder', hint: 'Have 100 coins saved', check: s => s.coins >= 100 },
+  { id: 'big-spender', icon: '💸', name: 'Big Spender', hint: 'Spend 200 total coins', check: s => (s.totalCoinsEarned - s.coins) >= 200 },
+  { id: 'capitalism', icon: '🏪', name: 'Capitalism', hint: 'Buy every shop item once', check: s => {
+    const buyable = FURNITURE.filter(f => !f.exerciseRoom && f.id !== 'party-banner');
+    return buyable.every(f => s.ownedItems.includes(f.id) || s.placedItems.some(p => p.itemId === f.id));
+  }},
+
+  // Social / Vibes
+  { id: 'birthday', icon: '🎂', name: 'Birthday Mode', hint: 'Place a birthday cake', check: s => s.placedItems.some(p => p.itemId === 'birthday-cake') },
+  { id: 'cozy-certified', icon: '🛋️', name: 'Certified Cozy', hint: 'Place a hammock, bed & blanket', check: s => {
+    const ids = s.placedItems.map(p => p.itemId);
+    return ids.includes('hammock') && ids.includes('matchbox-bed') && (ids.includes('blanket-nest') || ids.includes('tissue-blanket'));
+  }},
+  { id: 'unhinged', icon: '😈', name: 'Unhinged Energy', hint: 'Witness 10 mischief events', check: s => s.stats.mischiefsWitnessed >= 10 },
+  { id: 'goal-getter', icon: '🎯', name: 'Goal Getter', hint: 'Complete 5 mouse goals', check: s => s.stats.goalsCompleted >= 5 },
+
+  // Meta
+  { id: 'slay', icon: '💅', name: 'Slay', hint: 'Earn 500 total coins', check: s => s.totalCoinsEarned >= 500 },
+  { id: 'main-character', icon: '👑', name: 'Main Character Energy', hint: 'Unlock 15 achievements', check: s => s.achievements.length >= 15 },
+  { id: 'completionist', icon: '🏆', name: 'Completionist', hint: 'Unlock all other achievements', check: s => s.achievements.length >= ACHIEVEMENTS.length - 1 },
+];
+
+function checkAchievements() {
+  let newlyUnlocked = false;
+  for (const ach of ACHIEVEMENTS) {
+    if (state.achievements.includes(ach.id)) continue;
+    if (ach.manual) continue;
+    if (ach.check(state)) {
+      state.achievements.push(ach.id);
+      showAchievementToast(ach);
+      newlyUnlocked = true;
+    }
+  }
+  if (newlyUnlocked) {
+    // Re-check for meta achievements (main-character, completionist)
+    for (const ach of ACHIEVEMENTS) {
+      if (state.achievements.includes(ach.id) || ach.manual) continue;
+      if (ach.check(state)) {
+        state.achievements.push(ach.id);
+        showAchievementToast(ach);
+      }
+    }
+    saveGame();
+  }
+}
+
+function unlockAchievement(id) {
+  if (state.achievements.includes(id)) return;
+  const ach = ACHIEVEMENTS.find(a => a.id === id);
+  if (!ach) return;
+  state.achievements.push(id);
+  showAchievementToast(ach);
+  checkAchievements(); // trigger meta checks
+  saveGame();
+}
+
+function showAchievementToast(ach) {
+  showToast(`🏆 Achievement: ${ach.icon} ${ach.name}`);
+  sfxAchievement();
+}
+
+function sfxAchievement() {
+  if (!audioCtx || audioMuted) return;
+  // Triumphant chime: rising arpeggio
+  const notes = [523, 659, 784, 1047];
+  notes.forEach((freq, i) => {
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    g.gain.setValueAtTime(0, audioCtx.currentTime + i * 0.1);
+    g.gain.linearRampToValueAtTime(0.06, audioCtx.currentTime + i * 0.1 + 0.02);
+    g.gain.setTargetAtTime(0, audioCtx.currentTime + i * 0.1 + 0.15, 0.08);
+    osc.connect(g); g.connect(musicGain);
+    osc.start(audioCtx.currentTime + i * 0.1);
+    osc.stop(audioCtx.currentTime + i * 0.1 + 0.4);
+  });
+}
+
+function openTrophyCase() {
+  const container = document.getElementById('modal-container');
+  let html = '<div class="modal-overlay" onclick="if(event.target===this)closeModal()">';
+  html += '<div class="modal-content" style="max-width:440px;max-height:80vh;overflow-y:auto;">';
+  html += `<h2>🏆 Trophy Case</h2>`;
+  html += `<p style="text-align:center;color:#a89070;font-size:11px;margin-bottom:12px;">${state.achievements.length} / ${ACHIEVEMENTS.length} unlocked</p>`;
+
+  for (const ach of ACHIEVEMENTS) {
+    const unlocked = state.achievements.includes(ach.id);
+    if (unlocked) {
+      html += `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin:4px 0;background:#2a1a0a;border-radius:6px;border:1px solid #5a3e28;">
+        <span style="font-size:20px;">${ach.icon}</span>
+        <div><div style="color:#f5d68a;font-size:12px;font-weight:bold;">${ach.name}</div>
+        <div style="color:#a89070;font-size:10px;">${ach.hint}</div></div>
+      </div>`;
+    } else {
+      html += `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin:4px 0;background:#1a1008;border-radius:6px;border:1px solid #3d2b1a;opacity:0.6;">
+        <span style="font-size:20px;">🔒</span>
+        <div><div style="color:#5a4a3a;font-size:12px;font-weight:bold;">???</div>
+        <div style="color:#5a4a3a;font-size:10px;">${ach.hint}</div></div>
+      </div>`;
+    }
+  }
+
+  html += '<button class="close-btn" onclick="closeModal()">Close</button>';
+  html += '</div></div>';
+  container.innerHTML = html;
+}
 const FURNITURE = [
   { id: 'matchbox-bed', name: 'Matchbox Bed', icon: '🛏', price: 10,
     desc: 'A cozy matchbox. Smells like sulfur and dreams.', w: 2, h: 1,
@@ -1457,7 +1587,8 @@ function saveGame() {
       placedItems: state.placedItems, currentRoom: state.currentRoom,
       miceState: state.miceState, birthdayEventSeen: state.birthdayEventSeen,
       letterRead: state.letterRead, lootCrumbsUsed: state.lootCrumbsUsed,
-      totalCoinsEarned: state.totalCoinsEarned, activeGoal: state.activeGoal
+      totalCoinsEarned: state.totalCoinsEarned, activeGoal: state.activeGoal,
+      achievements: state.achievements, stats: state.stats
     }));
   } catch (e) {}
 }
@@ -1485,6 +1616,8 @@ function loadGame() {
       state.lootCrumbsUsed = d.lootCrumbsUsed ?? 0;
       state.totalCoinsEarned = d.totalCoinsEarned ?? 0;
       state.activeGoal = d.activeGoal ?? null;
+      state.achievements = d.achievements ?? [];
+      if (d.stats) Object.assign(state.stats, d.stats);
       if (d.miceState) {
         Object.assign(state.miceState.pip, d.miceState.pip || d.miceState.shadow || {});
         Object.assign(state.miceState.chai, d.miceState.chai || d.miceState.cloud || {});
@@ -3599,6 +3732,8 @@ function handlePlacementClick(gx, gy) {
   showToast(`Placed ${item.icon} ${item.name}!`);
   cancelPlacement();
   addHappiness(3);
+  state.stats.itemsPlaced++;
+  checkAchievements();
   saveGame();
   refreshShopFlyout();
   refreshItemTray();
@@ -3908,6 +4043,7 @@ function endDrag(sx, sy) {
       sfxPlace();
       showToast(`Placed ${item.icon} ${item.name}!`);
       addHappiness(3);
+      state.stats.itemsPlaced++;
       reactToNewFurniture(item);
     }
     saveGame();
@@ -4520,6 +4656,9 @@ function endCheeseChase() {
   state.totalCoinsEarned += earned;
   addHappiness(5);
   updateCoinDisplay();
+  state.stats.gamesPlayed.chase++;
+  if (Math.floor(cc.distance / 10) >= 500) unlockAchievement('speed-runner');
+  checkAchievements();
   saveGame();
   cheeseChaseActive = false;
   startMusic();
@@ -4605,6 +4744,9 @@ function renderDoomscroll() {
     updateCoinDisplay();
     spawnCoinEffect(earned);
     sfxCoinCollect();
+    state.stats.gamesPlayed.doomscroll++;
+    if (ds.score >= 15 && ds.strikes === 0) unlockAchievement('doomscroll-detox');
+    checkAchievements();
     saveGame();
 
     container.innerHTML = `<div class="modal-overlay">
@@ -5071,6 +5213,9 @@ function endWhackACat() {
   state.totalCoinsEarned += earned;
   addHappiness(6);
   updateCoinDisplay();
+  state.stats.gamesPlayed.whack++;
+  if (wac.catsWhacked >= 30) unlockAchievement('cat-bonker');
+  checkAchievements();
   saveGame();
   whackACatActive = false;
   startMusic();
@@ -5724,6 +5869,9 @@ function endMouseMaze() {
   state.totalCoinsEarned += earned;
   addHappiness(6);
   updateCoinDisplay();
+  state.stats.gamesPlayed.maze++;
+  if (mz.level >= 3 && mz.levelComplete) unlockAchievement('pac-pro');
+  checkAchievements();
   saveGame();
   mouseMazeActive = false;
   startMusic();
@@ -5954,10 +6102,14 @@ function addHappiness(amount) {
 }
 
 let _lastHungerState = false;
+let _achCheckTimer = 0;
 function updateHappiness(dt) {
   state.miceState.pip.happiness = Math.max(10, state.miceState.pip.happiness - HAPPINESS_DECAY_RATE * dt);
   state.miceState.chai.happiness = Math.max(10, state.miceState.chai.happiness - HAPPINESS_DECAY_RATE * dt);
   updateHappinessDisplay();
+  // Periodic achievement check (every 5s)
+  _achCheckTimer -= dt;
+  if (_achCheckTimer <= 0) { _achCheckTimer = 5000; checkAchievements(); }
   // Update goal display when hunger state changes
   const anyHungry = state.miceState.pip.happiness < 35 || state.miceState.chai.happiness < 35;
   if (anyHungry !== _lastHungerState) {
@@ -6021,7 +6173,9 @@ function updateGoals(dt) {
       sfxGoalComplete();
       showToast(`✅ Goal complete! ${state.activeGoal.text} — +🧀${bonus} +❤️!`);
       state.activeGoal = null;
+      state.stats.goalsCompleted++;
       updateGoalDisplay();
+      checkAchievements();
       saveGame();
       goalCooldown = 25000 + Math.random() * 20000;
 
@@ -7224,6 +7378,7 @@ function pickNewAction(mouse, personality) {
       mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
     }
     if (mouse.room === state.currentRoom) {
+      state.stats.mischiefsWitnessed++;
       const pipMischief = [
         '*knocks thing off shelf*', 'oops 😈', 'wasn\'t me', 'chaos is a ladder',
         '*pushes to edge*', 'no thoughts just crimes', '*yeets item*',
