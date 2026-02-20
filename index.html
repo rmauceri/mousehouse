@@ -2415,22 +2415,47 @@ const ROOMS = [
 // Right-edge-relative elements shift; left-anchored elements stay put.
 function updateRoomBounds() {
   const W = GAME_W;
-  // Bedroom (room 0)
+  // Bedroom (room 0) — loft right-anchored, widens naturally
   ROOMS[0].platforms[0].xMax = W - 10;   // main-floor
   ROOMS[0].platforms[1].xMax = W - 20;   // loft
-  // Kitchen (room 1)
+  // Extra shelf on wider rooms for visual balance
+  ROOMS[0].shelves = W > 500
+    ? [{ x: 20, y: ROOM_Y + 90, w: 70 }, { x: 140, y: ROOM_Y + 120, w: 55 }]
+    : [{ x: 20, y: ROOM_Y + 90, w: 70 }];
+  // Kitchen (room 1) — counter scales proportionally, window right-anchored
   ROOMS[1].platforms[0].xMax = W - 10;   // main-floor
+  ROOMS[1].platforms[1].xMax = Math.min(300, Math.round(W * 0.45)); // counter
+  ROOMS[1].ramps[0].x1 = ROOMS[1].platforms[1].xMax;               // ramp follows counter
+  ROOMS[1].ramps[0].x2 = ROOMS[1].platforms[1].xMax + 35;
   ROOMS[1].window = { x: W - 140, y: ROOM_Y + 12, w: 72, h: 52 };
-  ROOMS[1].shelves = [{ x: W - 110, y: ROOM_Y + 100, w: 80 }];
-  // Living Room (room 2)
+  ROOMS[1].shelves = W > 500
+    ? [{ x: W - 110, y: ROOM_Y + 100, w: 80 }, { x: Math.round(W * 0.4), y: ROOM_Y + 80, w: 60 }]
+    : [{ x: W - 110, y: ROOM_Y + 100, w: 80 }];
+  // Living Room (room 2) — box-shelf scales proportionally, stays centered
   ROOMS[2].platforms[0].xMax = W - 10;   // main-floor
-  ROOMS[2].shelves = [{ x: W - 95, y: ROOM_Y + 85, w: 65 }];
-  // Exercise Room (room 3)
+  ROOMS[2].platforms[1].xMin = Math.round(W * 0.25);  // box-shelf
+  ROOMS[2].platforms[1].xMax = Math.round(W * 0.6);   // box-shelf
+  ROOMS[2].ramps[0].x1 = ROOMS[2].platforms[1].xMin - 20; // ramp to box-shelf
+  ROOMS[2].ramps[0].x2 = ROOMS[2].platforms[1].xMin + 15;
+  ROOMS[2].shelves = W > 500
+    ? [{ x: W - 95, y: ROOM_Y + 85, w: 65 }, { x: 20, y: ROOM_Y + 110, w: 60 }]
+    : [{ x: W - 95, y: ROOM_Y + 85, w: 65 }];
+  // Exercise Room (room 3) — perch right-anchored, widens for more space
   ROOMS[3].platforms[0].xMax = W - 10;   // main-floor
-  ROOMS[3].platforms[1].xMin = W - 140;  // perch
+  ROOMS[3].platforms[1].xMin = W - 160;  // perch (wider than before: was W-140)
   ROOMS[3].platforms[1].xMax = W - 20;   // perch
-  ROOMS[3].ramps[0].x1 = W - 162;       // ladder to perch
-  ROOMS[3].ramps[0].x2 = W - 130;
+  ROOMS[3].ramps[0].x1 = W - 182;       // ladder to perch
+  ROOMS[3].ramps[0].x2 = W - 150;
+  ROOMS[3].shelves = W > 500
+    ? [{ x: 130, y: ROOM_Y + 95, w: 75 }, { x: 20, y: ROOM_Y + 130, w: 55 }, { x: Math.round(W * 0.4), y: ROOM_Y + 110, w: 60 }]
+    : [{ x: 130, y: ROOM_Y + 95, w: 75 }, { x: 20, y: ROOM_Y + 130, w: 55 }];
+  // Re-center exercise wheel on current grid
+  try {
+    if (state && state.placedItems) {
+      const wheel = state.placedItems.find(p => p.itemId === 'exercise-wheel');
+      if (wheel) wheel.gridX = Math.floor(GRID_COLS / 2) - 1;
+    }
+  } catch(e) {}
   // Update mini-game offsets if active
   try {
     if (mz && mz.cols) mz.ox = Math.floor((W - mz.cols * mz.cellSize) / 2);
