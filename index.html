@@ -3837,7 +3837,7 @@ function drawFurnitureItem(item, gx, gy, placedRef) {
         const offsetX = miceInHammock.length === 2 ? (idx === 0 ? -10 : 10) : 0;
         const mx = x + 26 + offsetX;
         const my = sagY - 6;
-        drawMouse(mx, my, cfg, idx === 0 ? 1 : -1, 0, 'sleeping');
+        drawMouse(mx, my, cfg, idx === 0 ? 1 : -1, 0, 'sleeping', false, state.miceState[key]);
       });
       ctx.restore();
     }
@@ -7266,6 +7266,40 @@ function drawMouse(x, y, cfg, dir, frame, action, startled, mouseState) {
     ctx.font = '13px monospace';
     ctx.fillText('Z', cx + 32, cy - 14 + zOff * 1.6);
     ctx.textAlign = 'left';
+
+    // Dream thought bubble
+    if (mouseState && mouseState._dreamContent && mouseState._dreamFade > 0) {
+      const dAlpha = Math.min(1, mouseState._dreamFade / 600) * 0.9;
+      const dFloat = Math.sin(t * 0.8) * 2;
+      ctx.globalAlpha = dAlpha;
+      // Thought trail (small circles leading to cloud)
+      ctx.fillStyle = 'rgba(230,225,255,0.85)';
+      ctx.beginPath(); ctx.arc(cx + 24, cy - 10, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(cx + 28, cy - 16, 3, 0, Math.PI * 2); ctx.fill();
+      // Cloud bubble
+      const bx = cx + 36, by = cy - 30 + dFloat;
+      ctx.fillStyle = 'rgba(240,235,255,0.92)';
+      ctx.beginPath();
+      ctx.arc(bx, by, 10, 0, Math.PI * 2); ctx.fill();
+      ctx.arc(bx - 8, by + 2, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.arc(bx + 8, by + 2, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.arc(bx - 4, by - 5, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.arc(bx + 5, by - 5, 6, 0, Math.PI * 2); ctx.fill();
+      // Border
+      ctx.strokeStyle = 'rgba(180,170,220,0.5)';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.arc(bx, by, 10, 0, Math.PI * 2); ctx.stroke();
+      ctx.arc(bx - 8, by + 2, 7, 0, Math.PI * 2); ctx.stroke();
+      ctx.arc(bx + 8, by + 2, 7, 0, Math.PI * 2); ctx.stroke();
+      // Dream emoji content
+      ctx.font = '8px serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#000';
+      ctx.fillText(mouseState._dreamContent, bx, by + 3);
+      ctx.textAlign = 'left';
+      ctx.globalAlpha = 1.0;
+    }
   } else if (action === 'zoomies') {
     // Fast running mouse with motion blur!
     const zBob = Math.sin(t * 14) * 2;
@@ -7714,6 +7748,17 @@ function updateMouse(mouse, dt, personality) {
       if (!mouse._snoreTimer) mouse._snoreTimer = 2000 + Math.random() * 1500;
       mouse._snoreTimer -= dt;
       if (mouse._snoreTimer <= 0) { sfxSnore(); mouse._snoreTimer = 2500 + Math.random() * 2000; }
+      // Dream bubbles
+      if (!mouse._dreamTimer) { mouse._dreamTimer = 1500 + Math.random() * 1500; }
+      mouse._dreamTimer -= dt;
+      if (mouse._dreamTimer <= 0) {
+        mouse._dreamContent = pickDream();
+        mouse._dreamFade = 3500;
+        mouse._dreamTimer = 4000 + Math.random() * 2000;
+        const mk = mouse === state.miceState.pip ? 'pip' : 'chai';
+        speechBubbles = speechBubbles.filter(b => b.mouseKey !== mk);
+      }
+      if (mouse._dreamFade > 0) mouse._dreamFade -= dt;
     }
     const critHungry = (mouse.happiness ?? 80) <= 15;
     if (mouse.actionTimer <= 0 || !state.placedItems.includes(mouse.onFurniture) || critHungry) {
@@ -7779,6 +7824,17 @@ function updateMouse(mouse, dt, personality) {
       if (!mouse._snoreTimer) mouse._snoreTimer = 2000 + Math.random() * 1500;
       mouse._snoreTimer -= dt;
       if (mouse._snoreTimer <= 0) { sfxSnore(); mouse._snoreTimer = 2500 + Math.random() * 2000; }
+      // Dream bubbles
+      if (!mouse._dreamTimer) { mouse._dreamTimer = 1500 + Math.random() * 1500; }
+      mouse._dreamTimer -= dt;
+      if (mouse._dreamTimer <= 0) {
+        mouse._dreamContent = pickDream();
+        mouse._dreamFade = 3500;
+        mouse._dreamTimer = 4000 + Math.random() * 2000;
+        const mk = mouse === state.miceState.pip ? 'pip' : 'chai';
+        speechBubbles = speechBubbles.filter(b => b.mouseKey !== mk);
+      }
+      if (mouse._dreamFade > 0) mouse._dreamFade -= dt;
     } else if (mouse.action === 'grooming') {
       if (!mouse._groomTimer) mouse._groomTimer = 1500 + Math.random() * 1000;
       mouse._groomTimer -= dt;
@@ -7989,6 +8045,9 @@ function pickNewAction(mouse, personality) {
   mouse._snoreTimer = null;
   mouse._groomTimer = null;
   mouse._chewTimer = null;
+  mouse._dreamTimer = null;
+  mouse._dreamContent = null;
+  mouse._dreamFade = 0;
   const roll = Math.random();
   const room = ROOMS[mouse.room];
 
@@ -8128,7 +8187,7 @@ function pickNewAction(mouse, personality) {
     mouse.targetX = targetPos.x + Math.random() * 10;
     mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
     mouse.actionTimer = 3000 + Math.random() * 4000;
-    if (pick.behavior === 'sleeping') mouse.actionTimer = 4000 + Math.random() * 4000;
+    if (pick.behavior === 'sleeping') mouse.actionTimer = 6000 + Math.random() * 6000;
     if (pick.behavior === 'zoomies') mouse.actionTimer = 2000 + Math.random() * 2000;
     if (pick.behavior === 'wheeling') mouse.actionTimer = 4000 + Math.random() * 5000;
     if (pick.behavior === 'hiding') mouse.actionTimer = 3000 + Math.random() * 3000;
@@ -8433,6 +8492,8 @@ let speechCooldown = 5000 + Math.random() * 5000; // 5-10 sec
 function triggerSpeech(mouseKey) {
   const mouse = state.miceState[mouseKey];
   if (mouse.room !== state.currentRoom) return;
+  // Sleeping mice dream instead of talking
+  if (mouse.action === 'sleeping') return;
   let quotes;
   if (mouse.action === 'wheeling') {
     quotes = WHEEL_QUOTES;
@@ -8447,7 +8508,6 @@ function triggerSpeech(mouseKey) {
     if (roomIdx === 2) contextual.push('living room energy', 'tv time?', 'prime hangout spot');
     if (roomIdx === 3) contextual.push('leg day 💪', 'gym arc', 'do I look buff?');
     // Action-specific
-    if (mouse.action === 'sleeping') contextual.push('five more minutes...', 'zzz...', 'don\'t wake me');
     if (mouse.action === 'zoomies') contextual.push('CAN\'T STOP 💨', 'SPEEED', 'I\'m fast as heck boi');
     if (mouse.action === 'grooming') contextual.push('glow up era ✨', 'self care sunday', 'mirror mirror');
     // Happiness-dependent
@@ -8776,8 +8836,8 @@ function updateMouseInteractions(dt) {
       c.action = 'walking'; c.targetX = napX + 10; c.dir = -1; c.actionTimer = 3000;
       setTimeout(() => {
         if (s.room === c.room) {
-          s.action = 'sleeping'; s.actionTimer = 4000 + Math.random() * 2000;
-          c.action = 'sleeping'; c.actionTimer = 4000 + Math.random() * 2000;
+          s.action = 'sleeping'; s.actionTimer = 6000 + Math.random() * 4000;
+          c.action = 'sleeping'; c.actionTimer = 6000 + Math.random() * 4000;
           if (s.room === state.currentRoom) {
             spawnFloatingEffect((s.x + c.x) / 2 + 14, getMouseFloorY(s) - 15, '😴');
           }
@@ -8909,6 +8969,36 @@ function updateMouseInteractions(dt) {
     }
   }
 }
+// ============================================================
+// MOUSE DREAM BUBBLES
+// ============================================================
+const DREAM_THEMES = [
+  '🧀🏔️',   // cheese mountain
+  '🐱😱',   // nightmare about cats
+  '🏃‍♂️🧀💨', // chasing cheese
+  '🌙✨🐭',  // mouse in the stars
+  '🧀🧀🧀',  // so much cheese
+  '🎡🎠🎪',  // amusement park
+  '🐱🔥😤',  // fighting a cat
+  '🛁🫧🐭',  // bath time dreams
+  '👑🐭🏰',  // mouse royalty
+  '🧶🐭💤',  // yarn ball nap
+  '🌈🦋🌸',  // pretty meadow
+  '🍕🍩🧁',  // junk food heaven
+  '🐶😱💨',  // chased by dog
+  '🚀🌕🐭',  // mouse on the moon
+  '🎸🎤🐭',  // rock star mouse
+  '🧀❌😢',  // no cheese nightmare
+  '🐭👻😰',  // spooky dream
+  '🏖️🌊🐚',  // beach vacation
+  '🎮🕹️🏆',  // gaming champion
+  '🐭💪🏋️',  // swole mouse
+];
+
+function pickDream() {
+  return DREAM_THEMES[Math.floor(Math.random() * DREAM_THEMES.length)];
+}
+
 // ============================================================
 // MICRO-EVENTS
 // ============================================================
