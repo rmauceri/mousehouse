@@ -2027,7 +2027,6 @@ function openPhotoAlbum() {
     html += '</div>';
   }
 
-  html += '<button class="close-btn" onclick="closeModal()" style="margin-top:14px;">Close</button>';
   html += '</div></div>';
   container.innerHTML = html;
 }
@@ -2046,8 +2045,7 @@ function viewPhoto(idx) {
   html += `<p style="color:#a89070;font-size:11px;margin:4px 0;">\u{1f4cd} ${photo.room}${photo.filter ? ' \u00b7 ' + photo.filter : ''}</p>`;
   html += `<p style="color:#7a6a5a;font-size:10px;margin:2px 0;">\u{1f42d} Pip: ${photo.pipAction} \u00b7 Chai: ${photo.chaiAction}${photo.photobomb ? ' \u00b7 \u{1f63c} PHOTOBOMBED!' : ''}</p>`;
   html += `<p style="color:#5a4a3a;font-size:9px;margin:2px 0;">${timeStr}</p>`;
-  html += `<div style="display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap;">`;
-  html += `<button class="close-btn" onclick="openPhotoAlbum()">\u2190 Back</button>`;
+  html += `<div style="display:flex;gap:8px;justify-content:center;margin-top:12px;">`;
   html += `<button class="close-btn" onclick="copyAlbumPhotoToClipboard(${idx})">\u{1f4cb} Copy</button>`;
   html += `<button id="del-photo-btn" class="close-btn" style="background:#5a2020;" onclick="confirmDeletePhoto(this,${idx})">\u{1f5d1}\ufe0f Delete</button>`;
   html += `</div>`;
