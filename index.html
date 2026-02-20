@@ -119,14 +119,14 @@ body { display: flex; flex-direction: column; }
 #placement-bar { display: none !important; }
 
 /* ---- Shop Flyout Panel ---- */
-#shop-flyout, #games-flyout {
+#shop-flyout, #games-flyout, #album-flyout, #trophy-flyout {
   position: fixed; top: 0; right: 0; width: 300px; height: 100%;
   background: rgba(30,20,10,0.95); border-left: 2px solid #a07040;
   z-index: 30; transform: translateX(100%); transition: transform 0.3s ease;
   display: flex; flex-direction: column; font-family: 'Courier New', monospace;
   overflow: hidden;
 }
-#shop-flyout.open, #games-flyout.open { transform: translateX(0); }
+#shop-flyout.open, #games-flyout.open, #album-flyout.open, #trophy-flyout.open { transform: translateX(0); }
 #shop-flyout .flyout-header {
   padding: 10px 14px; border-bottom: 2px solid #a07040;
   display: flex; justify-content: space-between; align-items: center;
@@ -198,6 +198,25 @@ body { display: flex; flex-direction: column; }
 #games-flyout .game-item:hover { border-color: #f5d68a; background: #3d2b1a; }
 #games-flyout .game-item .gi-title { color: #f5d68a; font-size: 14px; font-weight: bold; }
 #games-flyout .game-item .gi-desc { color: #a89070; font-size: 10px; margin-top: 4px; }
+
+/* ---- Album Flyout ---- */
+#album-flyout .flyout-header, #trophy-flyout .flyout-header {
+  padding: 10px 14px; border-bottom: 2px solid #a07040;
+  display: flex; justify-content: space-between; align-items: center;
+  flex-shrink: 0;
+}
+#album-flyout .flyout-header h2, #trophy-flyout .flyout-header h2 { color: #f5d68a; font-size: 16px; margin: 0; }
+#album-flyout .flyout-close, #trophy-flyout .flyout-close {
+  background: none; border: none; color: #f5d68a; font-size: 20px;
+  cursor: pointer; padding: 2px 6px; line-height: 1;
+}
+#album-flyout .flyout-subtitle, #trophy-flyout .flyout-subtitle {
+  text-align: center; color: #a89070; font-size: 11px; padding: 6px 14px;
+  border-bottom: 1px solid rgba(160,112,64,0.3); flex-shrink: 0;
+}
+#album-flyout .flyout-body, #trophy-flyout .flyout-body {
+  flex: 1; overflow-y: auto; padding: 10px;
+}
 
 /* ---- Item Tray (bottom palette) ---- */
 #tray-toggle {
@@ -397,7 +416,7 @@ body { display: flex; flex-direction: column; }
   #hud-row2 { display: block; min-height: 22px; }
 
   /* Flyouts: 80% width on mobile, leaving backdrop strip for light-dismiss */
-  #shop-flyout, #games-flyout { width: 80%; }
+  #shop-flyout, #games-flyout, #album-flyout, #trophy-flyout { width: 80%; }
 
   /* Item tray: bottom sheet grid instead of horizontal strip */
   #item-tray {
@@ -458,7 +477,7 @@ body { display: flex; flex-direction: column; }
   #hud-nav-row { display: none !important; }
   #hud-row2 { display: none !important; }
   /* Flyouts & modals */
-  #shop-flyout, #games-flyout { width: 300px; }
+  #shop-flyout, #games-flyout, #album-flyout, #trophy-flyout { width: 300px; }
   /* Tray: constrain height in landscape */
   #item-tray {
     max-height: 30vh;
@@ -599,6 +618,24 @@ body { display: flex; flex-direction: column; }
       <div class="gi-desc">Bonk the cats, protect the cheese!</div>
     </div>
   </div>
+</div>
+
+<div id="album-flyout">
+  <div class="flyout-header">
+    <h2>📸 Photo Album</h2>
+    <button class="flyout-close" id="album-flyout-close">✖</button>
+  </div>
+  <div class="flyout-subtitle" id="album-subtitle"></div>
+  <div class="flyout-body" id="album-body"></div>
+</div>
+
+<div id="trophy-flyout">
+  <div class="flyout-header">
+    <h2>🏆 Trophy Case</h2>
+    <button class="flyout-close" id="trophy-flyout-close">✖</button>
+  </div>
+  <div class="flyout-subtitle" id="trophy-subtitle"></div>
+  <div class="flyout-body" id="trophy-body"></div>
 </div>
 
 <div id="tray-toggle" title="Toggle item tray"><span style="display:inline-block;transform:rotate(-90deg)">»</span></div>
@@ -1647,14 +1684,19 @@ function sfxAchievement() {
   });
 }
 
-function openTrophyCase() {
-  const container = document.getElementById('modal-container');
-  let html = '<div class="modal-overlay" onclick="if(event.target===this)closeModal()">';
-  html += '<div class="modal-content" style="max-width:640px;max-height:85vh;overflow-y:auto;">';
-  html += `<h2 style="font-size:20px;">🏆 Trophy Case</h2>`;
-  html += `<p style="text-align:center;color:#a89070;font-size:12px;margin-bottom:14px;">${state.achievements.length} / ${ACHIEVEMENTS.length} unlocked</p>`;
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">';
+let trophyOpen = false;
 
+function openTrophyCase() {
+  if (trophyOpen) { closeTrophyFlyout(); return; }
+  trophyOpen = true;
+  if (state.shopOpen) closeShopFlyout();
+  if (gamesOpen) closeGamesFlyout();
+  if (albumOpen) closeAlbumFlyout();
+
+  document.getElementById('trophy-subtitle').textContent =
+    `${state.achievements.length} / ${ACHIEVEMENTS.length} unlocked`;
+
+  let html = '<div style="display:grid;grid-template-columns:1fr;gap:6px;">';
   for (const ach of ACHIEVEMENTS) {
     const unlocked = state.achievements.includes(ach.id);
     if (unlocked) {
@@ -1671,12 +1713,21 @@ function openTrophyCase() {
       </div>`;
     }
   }
-
   html += '</div>';
-  html += '<button class="close-btn" onclick="closeModal()" style="margin-top:14px;">Close</button>';
-  html += '</div></div>';
-  container.innerHTML = html;
+
+  document.getElementById('trophy-body').innerHTML = html;
+  document.getElementById('trophy-flyout').classList.add('open');
+  showBackdrop();
+  document.getElementById('tray-toggle').classList.add('disabled');
 }
+
+function closeTrophyFlyout() {
+  trophyOpen = false;
+  document.getElementById('trophy-flyout').classList.remove('open');
+  if (!state.shopOpen && !gamesOpen && !albumOpen) document.getElementById('tray-toggle').classList.remove('disabled');
+  if (!trayOpen && !state.shopOpen && !gamesOpen && !albumOpen) hideBackdrop();
+}
+document.getElementById('trophy-flyout-close').addEventListener('click', closeTrophyFlyout);
 
 // ============================================================
 // MOUSE SELFIES 📸
@@ -2015,17 +2066,23 @@ function sfxSelfie() {
   osc.stop(audioCtx.currentTime + 0.08);
 }
 
-function openPhotoAlbum() {
-  const container = document.getElementById('modal-container');
-  let html = '<div class="modal-overlay" onclick="if(event.target===this)closeModal()">';
-  html += '<div class="modal-content" style="max-width:640px;max-height:85vh;overflow-y:auto;">';
-  html += '<h2 style="font-size:20px;">\u{1f4f8} Photo Album</h2>';
-  html += `<p style="text-align:center;color:#a89070;font-size:12px;margin-bottom:14px;">${state.photos.length} / ${SELFIE_MAX} photos</p>`;
+let albumOpen = false;
 
+function openPhotoAlbum() {
+  if (albumOpen) { closeAlbumFlyout(); return; }
+  albumOpen = true;
+  if (state.shopOpen) closeShopFlyout();
+  if (gamesOpen) closeGamesFlyout();
+  if (trophyOpen) closeTrophyFlyout();
+
+  document.getElementById('album-subtitle').textContent =
+    `${state.photos.length} / ${SELFIE_MAX} photos`;
+
+  let html = '';
   if (state.photos.length === 0) {
-    html += '<p style="text-align:center;color:#7a6a5a;font-size:13px;padding:20px 0;">No photos yet! Tap \u{1f4f8} to take a selfie.</p>';
+    html += '<p style="text-align:center;color:#7a6a5a;font-size:13px;padding:20px 0;">No photos yet! Tap 📸 to take a selfie.</p>';
   } else {
-    html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">';
+    html += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">';
     state.photos.forEach((photo, i) => {
       const date = new Date(photo.timestamp);
       const timeStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' + date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
@@ -2033,15 +2090,49 @@ function openPhotoAlbum() {
         <img src="${photo.data}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block;" alt="Selfie">
         <div style="padding:4px 6px;">
           <div style="color:#f5d68a;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${photo.caption}</div>
-          <div style="color:#7a6a5a;font-size:8px;">${photo.room} \u00b7 ${timeStr}</div>
+          <div style="color:#7a6a5a;font-size:8px;">${photo.room} · ${timeStr}</div>
         </div>
       </div>`;
     });
     html += '</div>';
   }
 
-  html += '</div></div>';
-  container.innerHTML = html;
+  document.getElementById('album-body').innerHTML = html;
+  document.getElementById('album-flyout').classList.add('open');
+  showBackdrop();
+  document.getElementById('tray-toggle').classList.add('disabled');
+}
+
+function closeAlbumFlyout() {
+  albumOpen = false;
+  document.getElementById('album-flyout').classList.remove('open');
+  if (!state.shopOpen && !gamesOpen && !trophyOpen) document.getElementById('tray-toggle').classList.remove('disabled');
+  if (!trayOpen && !state.shopOpen && !gamesOpen && !trophyOpen) hideBackdrop();
+}
+document.getElementById('album-flyout-close').addEventListener('click', closeAlbumFlyout);
+
+function refreshAlbumBody() {
+  document.getElementById('album-subtitle').textContent =
+    `${state.photos.length} / ${SELFIE_MAX} photos`;
+  let html = '';
+  if (state.photos.length === 0) {
+    html += '<p style="text-align:center;color:#7a6a5a;font-size:13px;padding:20px 0;">No photos yet! Tap 📸 to take a selfie.</p>';
+  } else {
+    html += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">';
+    state.photos.forEach((photo, i) => {
+      const date = new Date(photo.timestamp);
+      const timeStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' + date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+      html += `<div style="cursor:pointer;border-radius:6px;overflow:hidden;border:2px solid #3d2b1a;background:#1a1008;transition:border-color 0.2s;" onclick="viewPhoto(${i})" onmouseover="this.style.borderColor='#f5d68a'" onmouseout="this.style.borderColor='#3d2b1a'">
+        <img src="${photo.data}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block;" alt="Selfie">
+        <div style="padding:4px 6px;">
+          <div style="color:#f5d68a;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${photo.caption}</div>
+          <div style="color:#7a6a5a;font-size:8px;">${photo.room} · ${timeStr}</div>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+  document.getElementById('album-body').innerHTML = html;
 }
 
 function viewPhoto(idx) {
@@ -2051,7 +2142,7 @@ function viewPhoto(idx) {
   const timeStr = date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) + ' ' + date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
   const container = document.getElementById('modal-container');
 
-  let html = '<div class="modal-overlay" onclick="if(event.target===this)openPhotoAlbum()">';
+  let html = '<div class="modal-overlay" onclick="if(event.target===this)closeModal()">';
   html += '<div class="modal-content" style="max-width:480px;text-align:center;">';
   html += `<h2 style="font-size:16px;">\u{1f4f8} ${photo.caption}</h2>`;
   html += `<img src="${photo.data}" style="width:100%;max-width:320px;aspect-ratio:1;object-fit:cover;border-radius:8px;border:3px solid #5a3e28;margin:10px auto;display:block;" alt="Selfie">`;
@@ -2072,7 +2163,8 @@ function confirmDeletePhoto(btn, idx) {
     clearTimeout(_deletePhotoTimer);
     state.photos.splice(idx, 1);
     saveGame();
-    openPhotoAlbum();
+    closeModal();
+    refreshAlbumBody();
     return;
   }
   btn.dataset.armed = 'true';
@@ -4591,7 +4683,7 @@ function openTray() {
   requestAnimationFrame(() => {
     btn.style.bottom = tray.offsetHeight + 'px';
   });
-  if (!state.shopOpen && !gamesOpen) showBackdrop();
+  if (!state.shopOpen && !gamesOpen && !albumOpen && !trophyOpen) showBackdrop();
 }
 
 function closeTray() {
@@ -4604,12 +4696,12 @@ function closeTray() {
   btn.querySelector('span').style.transform = 'rotate(-90deg)';
   btn.style.bottom = '';
   cancelPlacement();
-  if (!state.shopOpen && !gamesOpen) hideBackdrop();
+  if (!state.shopOpen && !gamesOpen && !albumOpen && !trophyOpen) hideBackdrop();
 }
 
 function toggleTray() {
   if (cheeseChaseActive || whackACatActive || mouseMazeActive || dsActive) return;
-  if (state.shopOpen || gamesOpen) return;
+  if (state.shopOpen || gamesOpen || albumOpen || trophyOpen) return;
   if (trayOpen) {
     closeTray();
   } else {
@@ -4641,6 +4733,8 @@ function hideBackdrop() { document.getElementById('flyout-backdrop').classList.r
 document.getElementById('flyout-backdrop').addEventListener('click', () => {
   if (state.shopOpen) closeShopFlyout();
   if (gamesOpen) closeGamesFlyout();
+  if (albumOpen) closeAlbumFlyout();
+  if (trophyOpen) closeTrophyFlyout();
   if (trayOpen) closeTray();
 });
 
@@ -4649,6 +4743,8 @@ function openShop() {
   state.shopOpen = true;
   const flyout = document.getElementById('shop-flyout');
   if (gamesOpen) closeGamesFlyout();
+  if (albumOpen) closeAlbumFlyout();
+  if (trophyOpen) closeTrophyFlyout();
   refreshShopFlyout();
   refreshItemTray();
   flyout.classList.add('open');
@@ -4660,8 +4756,8 @@ function closeShopFlyout() {
   state.shopOpen = false;
   document.getElementById('shop-flyout').classList.remove('open');
   cancelPlacement();
-  if (!gamesOpen) document.getElementById('tray-toggle').classList.remove('disabled');
-  if (!trayOpen && !gamesOpen) hideBackdrop();
+  if (!gamesOpen && !albumOpen && !trophyOpen) document.getElementById('tray-toggle').classList.remove('disabled');
+  if (!trayOpen && !gamesOpen && !albumOpen && !trophyOpen) hideBackdrop();
 }
 
 function refreshShopFlyout() {
@@ -5005,8 +5101,10 @@ function exitToTitle() {
   document.getElementById('tray-toggle').style.display = 'none';
   document.getElementById('title-screen').style.display = 'flex';
   if (state.shopOpen) closeShopFlyout();
+  if (gamesOpen) closeGamesFlyout();
+  if (albumOpen) closeAlbumFlyout();
+  if (trophyOpen) closeTrophyFlyout();
   if (trayOpen) closeTray();
-  document.getElementById('games-flyout').classList.remove('open');
   const om = document.getElementById('overflow-menu');
   if (om) om.classList.remove('open');
   hideBackdrop();
@@ -5044,6 +5142,8 @@ function openMinigames() {
   if (gamesOpen) { closeGamesFlyout(); return; }
   gamesOpen = true;
   if (state.shopOpen) closeShopFlyout();
+  if (albumOpen) closeAlbumFlyout();
+  if (trophyOpen) closeTrophyFlyout();
   document.getElementById('games-flyout').classList.add('open');
   showBackdrop();
   document.getElementById('tray-toggle').classList.add('disabled');
@@ -5052,8 +5152,8 @@ function openMinigames() {
 function closeGamesFlyout() {
   gamesOpen = false;
   document.getElementById('games-flyout').classList.remove('open');
-  if (!state.shopOpen) document.getElementById('tray-toggle').classList.remove('disabled');
-  if (!trayOpen && !state.shopOpen) hideBackdrop();
+  if (!state.shopOpen && !albumOpen && !trophyOpen) document.getElementById('tray-toggle').classList.remove('disabled');
+  if (!trayOpen && !state.shopOpen && !albumOpen && !trophyOpen) hideBackdrop();
 }
 
 // ============================================================
