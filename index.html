@@ -4568,6 +4568,7 @@ function closeTray() {
 }
 
 function toggleTray() {
+  if (cheeseChaseActive || whackACatActive || mouseMazeActive || dsActive) return;
   if (trayOpen) {
     closeTray();
   } else {
@@ -5021,6 +5022,8 @@ let ccInputY = null;
 function startCheeseChase() {
   closeModal();
   closeGamesFlyout();
+  if (trayOpen) closeTray();
+  document.getElementById('tray-toggle').style.display = 'none';
   cheeseChaseActive = true;
   ccInputY = null;
   stopMusic();
@@ -5471,6 +5474,7 @@ function endCheeseChase() {
   checkAchievements();
   saveGame();
   cheeseChaseActive = false;
+  document.getElementById('tray-toggle').style.display = 'flex';
   startMusic();
   sfxCoinCollect();
   spawnCoinEffect(earned, GAME_W / 2, GAME_H / 2 - 20);
@@ -5526,6 +5530,8 @@ let ds = {};
 function startDoomscroll() {
   closeModal();
   closeGamesFlyout();
+  if (trayOpen) closeTray();
+  document.getElementById('tray-toggle').style.display = 'none';
   dsActive = true;
   stopMusic();
   startLofiMusic();
@@ -5572,7 +5578,7 @@ function renderDoomscroll() {
             ds.strikes >= 3 ? 'Touch grass immediately. 🌱' :
             'Not bad, but maybe log off for a bit.'}
         </p>
-        <button class="close-btn" onclick="dsActive=false;stopGameMusic();startMusic();closeModal()">Nice</button>
+        <button class="close-btn" onclick="dsActive=false;stopGameMusic();startMusic();document.getElementById('tray-toggle').style.display='flex';closeModal()">Nice</button>
       </div>
     </div>`;
     return;
@@ -5645,6 +5651,8 @@ let wac = {};
 function startWhackACat() {
   closeModal();
   closeGamesFlyout();
+  if (trayOpen) closeTray();
+  document.getElementById('tray-toggle').style.display = 'none';
   whackACatActive = true;
   stopMusic();
   startWhackMusic();
@@ -6028,6 +6036,7 @@ function endWhackACat() {
   checkAchievements();
   saveGame();
   whackACatActive = false;
+  document.getElementById('tray-toggle').style.display = 'flex';
   startMusic();
   sfxCoinCollect();
   spawnCoinEffect(earned, GAME_W / 2, GAME_H / 2 - 20);
@@ -6098,6 +6107,8 @@ function generateMaze(cols, rows) {
 function startMouseMaze() {
   closeModal();
   closeGamesFlyout();
+  if (trayOpen) closeTray();
+  document.getElementById('tray-toggle').style.display = 'none';
   mouseMazeActive = true;
   stopMusic();
   startMazeMusic();
@@ -6688,6 +6699,7 @@ function endMouseMaze() {
   checkAchievements();
   saveGame();
   mouseMazeActive = false;
+  document.getElementById('tray-toggle').style.display = 'flex';
   startMusic();
   sfxCoinCollect();
   spawnCoinEffect(earned, GAME_W / 2, GAME_H / 2 - 20);
