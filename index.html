@@ -696,7 +696,7 @@ body { display: flex; flex-direction: column; }
     </ul>
     <button class="close-about" onclick="closeTitleAbout()">Got it! 🐭</button>
     <div style="text-align:center;margin-top:10px;">
-      <a href="#" onclick="event.preventDefault();if(confirm('Reset all progress? This cannot be undone!')){localStorage.removeItem('mouseHouseSave');location.reload();}" style="color:#7a6a5a;font-size:11px;text-decoration:underline;cursor:pointer;">Reset Game</a>
+      <a href="#" id="reset-game-link" onclick="event.preventDefault();confirmResetGame(this);" style="color:#7a6a5a;font-size:11px;text-decoration:underline;cursor:pointer;">Reset Game</a>
     </div>
   </div>
 </div>
@@ -9703,6 +9703,31 @@ function toggleTitleAbout() {
 }
 function closeTitleAbout() {
   document.getElementById('title-about-overlay').classList.remove('visible');
+  // Reset the confirm state when closing about
+  const link = document.getElementById('reset-game-link');
+  if (link && link.dataset.armed) {
+    link.dataset.armed = '';
+    link.textContent = 'Reset Game';
+    link.style.color = '#7a6a5a';
+  }
+}
+
+let _resetGameTimer = null;
+function confirmResetGame(el) {
+  if (el.dataset.armed === 'true') {
+    clearTimeout(_resetGameTimer);
+    localStorage.removeItem('mouseHouseSave');
+    location.reload();
+    return;
+  }
+  el.dataset.armed = 'true';
+  el.textContent = 'Tap again to confirm reset';
+  el.style.color = '#cc4444';
+  _resetGameTimer = setTimeout(() => {
+    el.dataset.armed = '';
+    el.textContent = 'Reset Game';
+    el.style.color = '#7a6a5a';
+  }, 3000);
 }
 
 // Start title music on first interaction (to satisfy autoplay policy)
