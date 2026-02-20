@@ -9620,7 +9620,7 @@ document.getElementById('title-screen').addEventListener('click', e => {
   if (e.target.closest('.title-buttons')) return;
   startGame();
 });
-document.getElementById('title-screen').addEventListener('touchstart', e => {
+document.getElementById('title-screen').addEventListener('touchend', e => {
   if (document.getElementById('title-about-overlay').classList.contains('visible')) return;
   if (e.target.closest('.title-buttons')) return;
   e.preventDefault();
