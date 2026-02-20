@@ -9758,24 +9758,22 @@ function playTitleNote() {
     osc1.type = 'triangle';
     osc1.frequency.value = freq;
     g1.gain.setValueAtTime(0, now);
-    g1.gain.linearRampToValueAtTime(0.045, now + 0.03);
+    g1.gain.linearRampToValueAtTime(0.04, now + 0.03);
     g1.gain.setTargetAtTime(0, now + durSec * 0.55, durSec * 0.15);
     osc1.connect(g1); g1.connect(titleAudioCtx.destination);
     osc1.start(now); osc1.stop(now + durSec + 0.12);
 
-    // Layer 2: Harmony — fifth below on every 3rd note (sine, soft)
-    if (titleNoteIdx % 3 === 0) {
-      const harmRatio = titleNoteIdx % 6 === 0 ? 0.667 : 0.8;
-      const osc2 = titleAudioCtx.createOscillator();
-      const g2 = titleAudioCtx.createGain();
-      osc2.type = 'sine';
-      osc2.frequency.value = freq * harmRatio;
-      g2.gain.setValueAtTime(0, now);
-      g2.gain.linearRampToValueAtTime(0.025, now + 0.03);
-      g2.gain.setTargetAtTime(0, now + durSec * 0.45, durSec * 0.15);
-      osc2.connect(g2); g2.connect(titleAudioCtx.destination);
-      osc2.start(now); osc2.stop(now + durSec + 0.12);
-    }
+    // Layer 2: Continuous harmony — fifth or third below (sine, warm pad)
+    const harmRatio = titleNoteIdx % 2 === 0 ? 0.667 : 0.8;
+    const osc2 = titleAudioCtx.createOscillator();
+    const g2 = titleAudioCtx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.value = freq * harmRatio;
+    g2.gain.setValueAtTime(0, now);
+    g2.gain.linearRampToValueAtTime(0.03, now + 0.04);
+    g2.gain.setTargetAtTime(0, now + durSec * 0.6, durSec * 0.18);
+    osc2.connect(g2); g2.connect(titleAudioCtx.destination);
+    osc2.start(now); osc2.stop(now + durSec + 0.15);
 
     // Layer 3: Bass — octave below on downbeats (sine, warm)
     if (titleNoteIdx % 4 === 1) {
