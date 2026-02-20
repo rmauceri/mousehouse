@@ -2191,15 +2191,17 @@ function recalcLayout() {
   GRID_COLS = Math.floor((ROOM_W - 16) / GRID_SIZE);
   SNAP_COLS = GRID_COLS * 2;
   if (typeof ROOMS !== 'undefined') updateRoomBounds();
-  // Update mini-game offsets if active
-  if (typeof mz !== 'undefined' && mz && mz.cols) {
-    mz.ox = Math.floor((GAME_W - mz.cols * mz.cellSize) / 2);
-  }
-  if (typeof wac !== 'undefined' && wac && wac.holes) {
-    const cols = 3, rows = 3;
-    const gapX = GAME_W / (cols + 1);
-    wac.holes.forEach((h, i) => { h.x = gapX * ((i % cols) + 1); });
-  }
+  // Update mini-game offsets if active (safe after game init)
+  try {
+    if (mz && mz.cols) {
+      mz.ox = Math.floor((GAME_W - mz.cols * mz.cellSize) / 2);
+    }
+    if (wac && wac.holes) {
+      const cols = 3;
+      const gapX = GAME_W / (cols + 1);
+      wac.holes.forEach((h, i) => { h.x = gapX * ((i % cols) + 1); });
+    }
+  } catch(e) { /* mz/wac not yet declared */ }
 }
 
 let scale = 1, offsetX = 0, offsetY = 0;
@@ -2443,7 +2445,7 @@ function updateRoomBounds() {
 }
 
 // Apply room bounds for current GAME_W (handles landscape load)
-recalcLayout();
+updateRoomBounds();
 
 // Ring layout helpers: rooms connect in a circle 0↔1↔2↔3↔0
 function roomLeft(i)  { return (i - 1 + ROOMS.length) % ROOMS.length; }
