@@ -9842,46 +9842,35 @@ function confirmResetGame(el) {
 let titleAudioStarted = false;
 function tryStartTitleAudio() {
   if (titleAudioStarted || titleMuted) return;
-  titleAudioStarted = true;
   initTitleAudio();
-  // Check if AudioContext is allowed (not suspended by autoplay policy)
-  if (titleAudioCtx.state === 'suspended') {
-    titleAudioStarted = false; // will retry on interaction
-    return;
-  }
+  if (titleAudioCtx.state === 'suspended') return; // will retry on interaction
+  titleAudioStarted = true;
   startTitleMusic();
 }
-// Attempt autoplay immediately
 tryStartTitleAudio();
-// Retry on first interaction if autoplay was blocked
-document.getElementById('title-screen').addEventListener('mousedown', () => {
-  if (!titleAudioStarted && !titleMuted) {
-    initTitleAudio();
-    titleAudioCtx.resume().then(() => { titleAudioStarted = true; startTitleMusic(); }).catch(() => {});
-  }
-}, { once: false });
-document.getElementById('title-screen').addEventListener('touchstart', () => {
-  if (!titleAudioStarted && !titleMuted) {
-    initTitleAudio();
-    titleAudioCtx.resume().then(() => { titleAudioStarted = true; startTitleMusic(); }).catch(() => {});
-  }
-}, { passive: true });
+
+// On first interaction: start audio if needed, only enter game if audio already playing
+function ensureTitleAudio() {
+  if (titleAudioStarted || titleMuted) return true; // audio already going
+  initTitleAudio();
+  titleAudioCtx.resume().then(() => {
+    titleAudioStarted = true;
+    startTitleMusic();
+  }).catch(() => {});
+  return false; // consumed this interaction for audio
+}
 
 document.getElementById('title-screen').addEventListener('click', e => {
-  // Don't start game if about overlay is showing or clicking buttons
   if (document.getElementById('title-about-overlay').classList.contains('visible')) return;
   if (e.target.closest('.title-buttons')) return;
+  if (!ensureTitleAudio()) return; // first tap starts music, doesn't enter game
   startGame();
 });
 document.getElementById('title-screen').addEventListener('touchend', e => {
   if (document.getElementById('title-about-overlay').classList.contains('visible')) return;
   if (e.target.closest('.title-buttons')) return;
   e.preventDefault();
-  // Ensure audio started on touch
-  if (!titleAudioStarted && !titleMuted) {
-    initTitleAudio();
-    titleAudioCtx.resume().then(() => { titleAudioStarted = true; startTitleMusic(); }).catch(() => {});
-  }
+  if (!ensureTitleAudio()) return; // first tap starts music, doesn't enter game
   startGame();
 }, { passive: false });
 
