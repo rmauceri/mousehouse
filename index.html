@@ -285,12 +285,12 @@ body { display: flex; flex-direction: column; }
   z-index: 0;
 }
 #title-screen::before {
-  left: 2%; border-width: 0 130px 60vh 130px;
+  left: calc(50% - 200px); border-width: 0 130px 60vh 130px;
   border-color: transparent transparent rgba(255,240,200,0.5) transparent;
   transform: rotate(-8deg); transform-origin: top center;
 }
 #title-screen::after {
-  right: 2%; border-width: 0 130px 60vh 130px;
+  right: calc(50% - 200px); border-width: 0 130px 60vh 130px;
   border-color: transparent transparent rgba(255,240,200,0.5) transparent;
   transform: rotate(8deg); transform-origin: top center;
 }
