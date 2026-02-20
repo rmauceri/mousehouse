@@ -1877,23 +1877,21 @@ function openSelfiePreview(draft) {
   const container = document.getElementById('modal-container');
   const fi = _selfiePreviewFilterIdx;
 
-  let html = '<div class="modal-overlay">';
-  html += '<div class="modal-content" style="max-width:420px;text-align:center;">';
-  html += `<h2 style="font-size:16px;">\u{1f4f8} ${draft.caption}</h2>`;
-  html += `<img id="selfie-preview-img" src="${draft.rawData}" style="width:100%;max-width:280px;aspect-ratio:1;object-fit:cover;border-radius:8px;border:3px solid ${SELFIE_FILTERS[fi].border};margin:8px auto;display:block;" alt="Preview">`;
-  // Filter picker
-  html += `<div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin:8px 0;">`;
+  let html = '<div class="modal-overlay" onclick="if(event.target===this){_selfieDraft=null;closeModal()}">';
+  html += '<div class="modal-content" style="max-width:320px;text-align:center;padding:10px 14px;">';
+  html += `<p style="font-size:13px;margin:0 0 6px;color:#f5d68a;">\u{1f4f8} ${draft.caption}</p>`;
+  html += `<img id="selfie-preview-img" src="${draft.rawData}" style="width:140px;height:140px;object-fit:cover;border-radius:6px;border:3px solid ${SELFIE_FILTERS[fi].border};display:block;margin:0 auto;" alt="Preview">`;
+  // Filter picker — compact
+  html += `<div style="display:flex;flex-wrap:wrap;gap:3px;justify-content:center;margin:6px 0;">`;
   SELFIE_FILTERS.forEach((f, i) => {
     const sel = i === fi;
-    html += `<button onclick="_selfiePreviewFilterIdx=${i};openSelfiePreview(_selfieDraft)" style="font-size:10px;padding:3px 7px;border-radius:10px;border:2px solid ${sel ? '#f5d68a' : '#3d2b1a'};background:${sel ? '#3d2b1a' : '#1a1008'};color:${sel ? '#f5d68a' : '#8a7a6a'};cursor:pointer;">${f.name}</button>`;
+    html += `<button onclick="_selfiePreviewFilterIdx=${i};openSelfiePreview(_selfieDraft)" style="font-size:9px;padding:2px 5px;border-radius:8px;border:1.5px solid ${sel ? '#f5d68a' : '#3d2b1a'};background:${sel ? '#3d2b1a' : '#1a1008'};color:${sel ? '#f5d68a' : '#8a7a6a'};cursor:pointer;">${f.name}</button>`;
   });
   html += `</div>`;
-  html += `<p style="color:#7a6a5a;font-size:10px;margin:4px 0;">\u{1f4cd} ${draft.room} \u00b7 \u{1f42d} Pip: ${draft.pipAction} \u00b7 Chai: ${draft.chaiAction}${draft.photobomb ? ' \u00b7 \u{1f63c} PHOTOBOMBED!' : ''}</p>`;
   // Action buttons
-  html += `<div style="display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap;">`;
-  html += `<button class="close-btn" style="background:#2a5a2a;" onclick="saveSelfie()">\u{1f4be} Save</button>`;
-  html += `<button class="close-btn" onclick="copySelfieToClipboard()">\u{1f4cb} Copy</button>`;
-  html += `<button class="close-btn" style="background:#5a2020;" onclick="_selfieDraft=null;closeModal()">\u{1f5d1}\ufe0f Discard</button>`;
+  html += `<div style="display:flex;gap:6px;justify-content:center;margin-top:6px;">`;
+  html += `<button class="close-btn" style="background:#2a5a2a;font-size:12px;padding:5px 14px;" onclick="saveSelfie()">\u{1f4be} Save</button>`;
+  html += `<button class="close-btn" style="font-size:12px;padding:5px 14px;" onclick="copySelfieToClipboard()">\u{1f4cb} Copy</button>`;
   html += `</div>`;
   html += '</div></div>';
 
