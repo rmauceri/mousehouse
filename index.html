@@ -370,7 +370,7 @@ body { display: flex; flex-direction: column; }
 #overflow-menu button:hover { border-color: #f5d68a; background: #3d2b1a; }
 
 /* ---- Mobile layout (portrait phones) ---- */
-@media (max-width: 480px) {
+@media (max-width: 600px) {
   /* HUD flows above canvas instead of overlaying */
   #hud { position: relative; order: -1; }
 
@@ -2200,7 +2200,7 @@ let scale = 1, offsetX = 0, offsetY = 0;
 function resizeCanvas() {
   const w = window.innerWidth;
   const h = window.innerHeight;
-  const isMobile = w <= 480;
+  const isMobile = w <= 600;
   const isLandscape = h <= 440 && w > h;
   const hudEl = document.getElementById('hud');
 
@@ -4418,7 +4418,7 @@ function startPlacement(itemId) {
   }
   highlightTrayItem(itemId);
   // On mobile, close shop flyout so canvas is visible for placement
-  const isMobile = window.innerWidth <= 480 || (window.innerHeight <= 440 && window.innerWidth > window.innerHeight);
+  const isMobile = window.innerWidth <= 600 || (window.innerHeight <= 440 && window.innerWidth > window.innerHeight);
   if (isMobile && state.shopOpen) {
     // Close flyout without canceling the placement we just started
     state.shopOpen = false;
@@ -9628,7 +9628,7 @@ function startGame() {
   if (state.gameStarted) return;
   state.gameStarted = true;
   // Request fullscreen on mobile (user gesture from tapping start screen)
-  const isMobile = window.innerWidth <= 480 || (window.innerHeight <= 440 && window.innerWidth > window.innerHeight)
+  const isMobile = window.innerWidth <= 600 || (window.innerHeight <= 440 && window.innerWidth > window.innerHeight)
     || ('ontouchstart' in window && window.innerWidth <= 1024);
   if (isMobile && !document.fullscreenElement && !document.webkitFullscreenElement) {
     const el = document.documentElement;
@@ -9741,7 +9741,7 @@ function gameLoop(now) {
       // Draw room name + stats on canvas
       {
         ctx.save();
-        const isMob = window.innerWidth <= 480;
+        const isMob = window.innerWidth <= 600;
         const isLand = window.innerHeight <= 440 && window.innerWidth > window.innerHeight;
         const room = ROOMS[state.currentRoom];
         ctx.font = 'bold 12px monospace';
