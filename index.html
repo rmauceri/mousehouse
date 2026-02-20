@@ -5166,6 +5166,8 @@ function exitToTitle() {
   const om = document.getElementById('overflow-menu');
   if (om) om.classList.remove('open');
   hideBackdrop();
+  // Restart title music
+  if (!titleMuted && titleAudioStarted) startTitleMusic();
 }
 document.getElementById('btn-exit').addEventListener('click', exitToTitle);
 
