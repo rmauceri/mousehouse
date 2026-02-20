@@ -638,8 +638,8 @@ body { display: flex; flex-direction: column; }
     </ul>
     <h3>🪙 How to Play</h3>
     <ul>
-      <li>Earn coins by petting mice, playing mini-games, and completing goals</li>
-      <li>Shop at <b>aMouseZon</b> (🛒) to buy furniture and food</li>
+      <li>Earn coins by playing mini-games, completing goals, and unlocking achievements</li>
+      <li>Spend coins to pet mice for happiness, or shop at <b>aMouseZon</b> (🛒) for furniture and food</li>
       <li>Drag items from the tray to place them; click placed items to reposition</li>
       <li>Switch rooms with the tabs or swipe left/right</li>
       <li>Play mini-games from the 🎮 button — use keyboard or touch</li>
@@ -1602,13 +1602,17 @@ function unlockAchievement(id) {
   const ach = ACHIEVEMENTS.find(a => a.id === id);
   if (!ach) return;
   state.achievements.push(id);
-  showAchievementToast(ach);
+  // Bonus coins for unlocking achievement
+  const bonus = 5;
+  state.coins += bonus;
+  updateCoinDisplay();
+  showAchievementToast(ach, bonus);
   checkAchievements(); // trigger meta checks
   saveGame();
 }
 
-function showAchievementToast(ach) {
-  showToast(`🏆 Achievement: ${ach.icon} ${ach.name}`);
+function showAchievementToast(ach, bonus) {
+  showToast(`🏆 Achievement: ${ach.icon} ${ach.name}${bonus ? ' +' + bonus + '🧀' : ''}`);
   sfxAchievement();
 }
 
@@ -8644,6 +8648,15 @@ function tryPetMouse(gx, gy) {
     if (gx > mx - 5 && gx < mx + 30 && gy > my - 10 && gy < my + 25) {
       // Pet this mouse!
       sfxPet();
+      // Petting costs 1 coin; if broke, reduced happiness gain
+      const petCost = 1;
+      let hapBoost = 5;
+      if (state.coins >= petCost) {
+        state.coins -= petCost;
+        updateCoinDisplay();
+      } else {
+        hapBoost = 2;
+      }
       for (let i = 0; i < 5; i++) {
         setTimeout(() => {
           spawnFloatingEffect(
@@ -8666,7 +8679,7 @@ function tryPetMouse(gx, gy) {
       // Briefly pause their action (they enjoy it), then spring into action
       m.state.action = 'idle';
       m.state.actionTimer = 800;
-      m.state.happiness = Math.min(100, (m.state.happiness ?? 80) + 5);
+      m.state.happiness = Math.min(100, (m.state.happiness ?? 80) + hapBoost);
       // After the pet reaction, motivate an active behavior
       const mouseRef = m.state;
       const pers = m.key === 'pip' ? 'chaotic' : 'chill';
