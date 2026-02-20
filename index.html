@@ -1880,21 +1880,21 @@ function openSelfiePreview(draft) {
   let html = '<div class="modal-overlay" onclick="if(event.target===this){_selfieDraft=null;closeModal()}">';
   html += '<div class="modal-content" style="max-width:380px;padding:10px 14px;">';
   html += `<p style="font-size:13px;margin:0 0 6px;color:#f5d68a;text-align:center;">\u{1f4f8} ${draft.caption}</p>`;
-  // Side-by-side: preview left, filters+buttons right
-  html += `<div style="display:flex;gap:10px;align-items:flex-start;">`;
-  html += `<img id="selfie-preview-img" src="${draft.rawData}" style="width:180px;height:180px;object-fit:cover;border-radius:6px;border:3px solid ${SELFIE_FILTERS[fi].border};flex-shrink:0;" alt="Preview">`;
-  // Right column: filters + actions
-  html += `<div style="display:flex;flex-direction:column;gap:4px;min-width:0;">`;
+  // Side-by-side: preview left, filters right
+  html += `<div style="display:flex;gap:8px;align-items:flex-start;">`;
+  html += `<img id="selfie-preview-img" src="${draft.rawData}" style="width:210px;height:210px;object-fit:cover;border-radius:6px;border:3px solid ${SELFIE_FILTERS[fi].border};flex-shrink:0;" alt="Preview">`;
+  // Right column: filters only
+  html += `<div style="display:flex;flex-direction:column;gap:3px;min-width:0;">`;
   SELFIE_FILTERS.forEach((f, i) => {
     const sel = i === fi;
     html += `<button onclick="_selfiePreviewFilterIdx=${i};openSelfiePreview(_selfieDraft)" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1.5px solid ${sel ? '#f5d68a' : '#3d2b1a'};background:${sel ? '#3d2b1a' : '#1a1008'};color:${sel ? '#f5d68a' : '#8a7a6a'};cursor:pointer;text-align:left;white-space:nowrap;">${sel ? '▸ ' : ''}${f.name}</button>`;
   });
-  // Action buttons under filters
-  html += `<div style="display:flex;gap:4px;margin-top:4px;">`;
-  html += `<button class="close-btn" style="background:#2a5a2a;font-size:11px;padding:4px 10px;flex:1;" onclick="saveSelfie()">\u{1f4be} Save</button>`;
-  html += `<button id="selfie-copy-btn" class="close-btn" style="font-size:11px;padding:4px 10px;flex:1;" onclick="copySelfieToClipboard()">\u{1f4cb} Copy</button>`;
-  html += `</div>`;
   html += `</div></div>`; // end right column + flex row
+  // Action buttons — full width under preview+filters
+  html += `<div style="display:flex;gap:6px;margin-top:8px;">`;
+  html += `<button class="close-btn" style="background:#2a5a2a;font-size:12px;padding:5px 0;flex:1;" onclick="saveSelfie()">\u{1f4be} Save</button>`;
+  html += `<button id="selfie-copy-btn" class="close-btn" style="font-size:12px;padding:5px 0;flex:1;" onclick="copySelfieToClipboard()">\u{1f4cb} Copy</button>`;
+  html += `</div>`;
   html += '</div></div>';
 
   window._selfieDraft = draft;
@@ -1935,7 +1935,6 @@ function copySelfieToClipboard() {
   const draft = window._selfieDraft;
   if (!draft) return;
   const btn = document.getElementById('selfie-copy-btn');
-  if (btn) { btn.textContent = '⏳...'; btn.disabled = true; }
   const fi = _selfiePreviewFilterIdx;
   applyFilterToCanvas(draft.rawData, fi, draft.caption).then(url => {
     const img = new Image();
@@ -1944,13 +1943,13 @@ function copySelfieToClipboard() {
       sc.width = SELFIE_W; sc.height = SELFIE_H;
       sc.getContext('2d').drawImage(img, 0, 0);
       sc.toBlob(blob => {
-        if (!blob) {
-          if (btn) { btn.textContent = '\u274c Failed'; btn.disabled = false; }
-          return;
-        }
+        if (!blob) { showToast('\u274c Copy failed'); return; }
         navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(
-          () => { if (btn) { btn.textContent = '\u2705 Copied!'; setTimeout(() => { btn.textContent = '\u{1f4cb} Copy'; btn.disabled = false; }, 1500); } },
-          () => { if (btn) { btn.textContent = '\u274c N/A'; btn.disabled = false; } }
+          () => {
+            sfxCoinCollect();
+            if (btn) { btn.style.background = '#2a5a2a'; setTimeout(() => { btn.style.background = ''; }, 400); }
+          },
+          () => showToast('\u274c Clipboard not available')
         );
       }, 'image/png');
     };
