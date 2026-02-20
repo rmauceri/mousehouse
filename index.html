@@ -275,7 +275,7 @@ body { display: flex; flex-direction: column; }
   background: radial-gradient(ellipse at 50% 45%, #3d2b1a 0%, #2b1d0e 50%, #1a0f05 100%);
   display: flex; flex-direction: column;
   justify-content: center; align-items: center; z-index: 200;
-  cursor: pointer; overflow: hidden;
+  overflow: hidden;
 }
 /* Stage spotlights from top corners */
 #title-screen::before, #title-screen::after {
@@ -324,6 +324,7 @@ body { display: flex; flex-direction: column; }
   background: rgba(245,214,138,0.1); border: 1px solid rgba(245,214,138,0.3);
   padding: 8px 28px; border-radius: 20px;
   text-shadow: 0 0 10px rgba(245,214,138,0.4);
+  cursor: pointer;
   animation: title-fade-in 0.8s ease-out 1.1s forwards, cta-glow 2s ease-in-out 2s infinite;
   opacity: 0;
 }
@@ -711,7 +712,7 @@ body { display: flex; flex-direction: column; }
       <div class="tagline" id="chai-tagline"></div>
     </div>
   </div>
-  <div class="start-text">~ tap or click to start ~</div>
+  <div class="start-text" id="start-btn">Start Mousing</div>
   <div class="title-buttons">
     <button id="title-about-btn" onclick="event.stopPropagation(); toggleTitleAbout()" title="About">📖</button>
     <button id="title-mute-btn" onclick="event.stopPropagation(); toggleTitleMute()" title="Sound">🔊</button>
@@ -9872,17 +9873,22 @@ function ensureTitleAudio() {
   return false; // consumed this interaction for audio
 }
 
-document.getElementById('title-screen').addEventListener('click', e => {
+// Start audio on any interaction with the title screen
+document.getElementById('title-screen').addEventListener('click', () => { ensureTitleAudio(); });
+document.getElementById('title-screen').addEventListener('touchend', () => { ensureTitleAudio(); }, { passive: true });
+
+// Start game only from the start button
+document.getElementById('start-btn').addEventListener('click', e => {
+  e.stopPropagation();
   if (document.getElementById('title-about-overlay').classList.contains('visible')) return;
-  if (e.target.closest('.title-buttons')) return;
-  if (!ensureTitleAudio()) return; // first tap starts music, doesn't enter game
+  ensureTitleAudio();
   startGame();
 });
-document.getElementById('title-screen').addEventListener('touchend', e => {
-  if (document.getElementById('title-about-overlay').classList.contains('visible')) return;
-  if (e.target.closest('.title-buttons')) return;
+document.getElementById('start-btn').addEventListener('touchend', e => {
+  e.stopPropagation();
   e.preventDefault();
-  if (!ensureTitleAudio()) return; // first tap starts music, doesn't enter game
+  if (document.getElementById('title-about-overlay').classList.contains('visible')) return;
+  ensureTitleAudio();
   startGame();
 }, { passive: false });
 
