@@ -209,6 +209,7 @@ body { display: flex; flex-direction: column; }
   transition: background 0.15s;
 }
 #tray-toggle:hover { background: #3d2b1a; }
+#tray-toggle.disabled { opacity: 0.35; pointer-events: none; }
 #tray-toggle.open { bottom: 72px; }
 #item-tray {
   position: fixed; bottom: 0; left: 0; width: 100%; height: 72px;
@@ -4652,12 +4653,14 @@ function openShop() {
   refreshItemTray();
   flyout.classList.add('open');
   showBackdrop();
+  document.getElementById('tray-toggle').classList.add('disabled');
 }
 
 function closeShopFlyout() {
   state.shopOpen = false;
   document.getElementById('shop-flyout').classList.remove('open');
   cancelPlacement();
+  if (!gamesOpen) document.getElementById('tray-toggle').classList.remove('disabled');
   if (!trayOpen && !gamesOpen) hideBackdrop();
 }
 
@@ -5043,11 +5046,13 @@ function openMinigames() {
   if (state.shopOpen) closeShopFlyout();
   document.getElementById('games-flyout').classList.add('open');
   showBackdrop();
+  document.getElementById('tray-toggle').classList.add('disabled');
 }
 
 function closeGamesFlyout() {
   gamesOpen = false;
   document.getElementById('games-flyout').classList.remove('open');
+  if (!state.shopOpen) document.getElementById('tray-toggle').classList.remove('disabled');
   if (!trayOpen && !state.shopOpen) hideBackdrop();
 }
 
