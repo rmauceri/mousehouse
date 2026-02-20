@@ -2190,18 +2190,7 @@ function recalcLayout() {
   ROOM_W = GAME_W;
   GRID_COLS = Math.floor((ROOM_W - 16) / GRID_SIZE);
   SNAP_COLS = GRID_COLS * 2;
-  if (typeof ROOMS !== 'undefined') updateRoomBounds();
-  // Update mini-game offsets if active (safe after game init)
-  try {
-    if (mz && mz.cols) {
-      mz.ox = Math.floor((GAME_W - mz.cols * mz.cellSize) / 2);
-    }
-    if (wac && wac.holes) {
-      const cols = 3;
-      const gapX = GAME_W / (cols + 1);
-      wac.holes.forEach((h, i) => { h.x = gapX * ((i % cols) + 1); });
-    }
-  } catch(e) { /* mz/wac not yet declared */ }
+  try { updateRoomBounds(); } catch(e) { /* ROOMS/mz/wac not yet declared */ }
 }
 
 let scale = 1, offsetX = 0, offsetY = 0;
@@ -2442,6 +2431,14 @@ function updateRoomBounds() {
   ROOMS[3].platforms[1].xMax = W - 20;   // perch
   ROOMS[3].ramps[0].x1 = W - 162;       // ladder to perch
   ROOMS[3].ramps[0].x2 = W - 130;
+  // Update mini-game offsets if active
+  try {
+    if (mz && mz.cols) mz.ox = Math.floor((W - mz.cols * mz.cellSize) / 2);
+    if (wac && wac.holes) {
+      const gapX = W / 4;
+      wac.holes.forEach((h, i) => { h.x = gapX * ((i % 3) + 1); });
+    }
+  } catch(e) {}
 }
 
 // Apply room bounds for current GAME_W (handles landscape load)
