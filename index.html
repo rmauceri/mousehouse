@@ -1817,19 +1817,27 @@ const SELFIE_REACTIONS = {
   chai: ['wait I wasn\'t ready', 'do I look ok? 🥺', 'one more one more', 'aesthetic 📸', '*subtle pose*', 'tag me', 'my whiskers look weird', 'this is THE one']
 };
 
+let _birthdaySelfieMode = false;
+
 function takeMouseSelfie() {
   if (cheeseChaseActive || mouseMazeActive || whackACatActive) return;
 
   const pip = state.miceState.pip;
   const chai = state.miceState.chai;
 
-  // Pick caption based on current actions
-  const actions = [pip.action, chai.action];
-  let captionPool = SELFIE_CAPTIONS.default;
-  for (const a of actions) {
-    if (SELFIE_CAPTIONS[a]) { captionPool = SELFIE_CAPTIONS[a]; break; }
+  // Pick caption based on current actions (birthday override)
+  let caption;
+  if (_birthdaySelfieMode) {
+    caption = `🎂 Happy Birthday ${CONFIG.twins.name1} & ${CONFIG.twins.name2}! 🎉`;
+    _birthdaySelfieMode = false;
+  } else {
+    const actions = [pip.action, chai.action];
+    let captionPool = SELFIE_CAPTIONS.default;
+    for (const a of actions) {
+      if (SELFIE_CAPTIONS[a]) { captionPool = SELFIE_CAPTIONS[a]; break; }
+    }
+    caption = captionPool[Math.floor(Math.random() * captionPool.length)];
   }
-  const caption = captionPool[Math.floor(Math.random() * captionPool.length)];
 
   // Photobomb chance (5%)
   const photobomb = Math.random() < 0.05;
@@ -7020,12 +7028,14 @@ function triggerBirthdayEvent() {
 
 // Shared celebration sequence (used by first-run and easter egg)
 function runBirthdayCelebration() {
-  // Move mice to living room in zoomies mode
-  state.miceState.pip.room = 2;
+  const cakeRoom = state.currentRoom;
+
+  // Move mice to current room in zoomies mode
+  state.miceState.pip.room = cakeRoom;
   state.miceState.pip.x = 150;
   state.miceState.pip.action = 'zoomies';
   state.miceState.pip.actionTimer = 5000;
-  state.miceState.chai.room = 2;
+  state.miceState.chai.room = cakeRoom;
   state.miceState.chai.x = 280;
   state.miceState.chai.action = 'zoomies';
   state.miceState.chai.actionTimer = 5000;
@@ -7054,6 +7064,86 @@ function runBirthdayCelebration() {
 
   // Festive bunting timer (draws for ~8 seconds)
   _birthdayBuntingTimer = 8000;
+
+  // After zoomies end, walk mice to cake for posed selfie
+  setTimeout(() => {
+    _birthdaySelfieSequence(cakeRoom);
+  }, 5200);
+}
+
+// Birthday selfie: mice walk to cake, say Happy/Birthday, auto-selfie
+function _birthdaySelfieSequence(cakeRoom) {
+  const pip = state.miceState.pip;
+  const chai = state.miceState.chai;
+
+  // Find the birthday cake in this room
+  const cakePlaced = state.placedItems.find(
+    p => p.itemId === 'birthday-cake' && p.room === cakeRoom
+  );
+  if (!cakePlaced) return;
+
+  const cakePos = gridToGame(cakePlaced.gridX, cakePlaced.gridY);
+  const cakeCenterX = cakePos.x + 12; // cake is 24px wide
+
+  // Position mice on either side of the cake
+  const pipTargetX = cakeCenterX - 38; // Pip on the left
+  const chaiTargetX = cakeCenterX + 18; // Chai on the right
+
+  // Walk to positions
+  pip.room = cakeRoom;
+  pip.action = 'walking';
+  pip.targetX = pipTargetX;
+  pip.dir = pipTargetX > pip.x ? 1 : -1;
+  pip.actionTimer = 3000;
+  pip.level = 'main-floor';
+  pip.pendingClimb = null;
+  pip.pendingRoomChange = null;
+
+  chai.room = cakeRoom;
+  chai.action = 'walking';
+  chai.targetX = chaiTargetX;
+  chai.dir = chaiTargetX > chai.x ? 1 : -1;
+  chai.actionTimer = 3000;
+  chai.level = 'main-floor';
+  chai.pendingClimb = null;
+  chai.pendingRoomChange = null;
+
+  // After arriving, pose idle facing the cake and speak
+  setTimeout(() => {
+    pip.action = 'idle';
+    pip.actionTimer = 5000;
+    pip.dir = 1; // face right toward cake
+    pip.x = pipTargetX;
+
+    chai.action = 'idle';
+    chai.actionTimer = 5000;
+    chai.dir = -1; // face left toward cake
+    chai.x = chaiTargetX;
+
+    // Pip says "Happy"
+    speechBubbles = speechBubbles.filter(b => b.mouseKey !== 'pip');
+    speechBubbles.push({
+      x: pip.x + 14, y: getMouseFloorY(pip) - 10,
+      text: 'Happy 🎂', timer: 3000, maxTimer: 3000, mouseKey: 'pip'
+    });
+
+    // Chai says "Birthday!" after a beat
+    setTimeout(() => {
+      speechBubbles = speechBubbles.filter(b => b.mouseKey !== 'chai');
+      speechBubbles.push({
+        x: chai.x + 14, y: getMouseFloorY(chai) - 10,
+        text: 'Birthday! 🎉', timer: 3000, maxTimer: 3000, mouseKey: 'chai'
+      });
+
+      // Auto-selfie after both speech bubbles are visible
+      setTimeout(() => {
+        if (state.currentRoom === cakeRoom) {
+          _birthdaySelfieMode = true;
+          takeMouseSelfie();
+        }
+      }, 600);
+    }, 600);
+  }, 1800);
 }
 
 // Birthday visual state
