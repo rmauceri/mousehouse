@@ -7573,14 +7573,16 @@ function drawMouse(x, y, cfg, dir, frame, action, startled, mouseState) {
     const zBob = Math.sin(t * 14) * 2;
     const zFrame = Math.floor(t * 12) % 2;
 
-    // Motion lines behind
-    ctx.strokeStyle = 'rgba(200,180,140,0.2)';
-    ctx.lineWidth = 0.8;
-    for (let i = 0; i < 3; i++) {
-      ctx.beginPath();
-      ctx.moveTo(cx - 6 - i * 7, cy + 8 + i * 3 + zBob);
-      ctx.lineTo(cx - 14 - i * 7, cy + 8 + i * 3 + zBob);
-      ctx.stroke();
+    // Motion lines behind (skip on title screen canvases)
+    if (ctx.canvas.width > 200) {
+      ctx.strokeStyle = 'rgba(200,180,140,0.2)';
+      ctx.lineWidth = 0.8;
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        ctx.moveTo(cx - 6 - i * 7, cy + 8 + i * 3 + zBob);
+        ctx.lineTo(cx - 14 - i * 7, cy + 8 + i * 3 + zBob);
+        ctx.stroke();
+      }
     }
 
     // Shadow (stretched)
