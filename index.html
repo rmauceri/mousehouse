@@ -280,27 +280,27 @@ body { display: flex; flex-direction: column; }
 /* Stage spotlights from top corners */
 #title-screen::before, #title-screen::after {
   content: ''; position: absolute; top: 0; width: 0; height: 0;
-  border-style: solid; pointer-events: none; opacity: 0.08;
-  filter: blur(18px);
+  border-style: solid; pointer-events: none; opacity: 0.18;
+  filter: blur(14px);
   z-index: 0;
 }
 #title-screen::before {
-  left: 8%; border-width: 0 100px 70vh 100px;
-  border-color: transparent transparent rgba(255,240,200,0.35) transparent;
+  left: 8%; border-width: 0 120px 75vh 120px;
+  border-color: transparent transparent rgba(255,240,200,0.5) transparent;
   transform: rotate(-6deg); transform-origin: top center;
 }
 #title-screen::after {
-  right: 8%; border-width: 0 100px 70vh 100px;
-  border-color: transparent transparent rgba(255,240,200,0.35) transparent;
+  right: 8%; border-width: 0 120px 75vh 120px;
+  border-color: transparent transparent rgba(255,240,200,0.5) transparent;
   transform: rotate(6deg); transform-origin: top center;
 }
 /* Floor glow pools where spotlights land */
 .title-spotlight-floor {
   position: absolute; bottom: 22%; left: 50%; transform: translateX(-50%);
-  width: 70%; height: 60px;
-  background: radial-gradient(ellipse at 50% 50%, rgba(255,240,200,0.10) 0%, rgba(255,220,160,0.04) 50%, transparent 100%);
+  width: 75%; height: 80px;
+  background: radial-gradient(ellipse at 50% 50%, rgba(255,240,200,0.18) 0%, rgba(255,220,160,0.08) 50%, transparent 100%);
   pointer-events: none; z-index: 0;
-  filter: blur(10px);
+  filter: blur(8px);
 }
 /* Ensure content sits above spotlights */
 #title-screen h1, #title-screen .adventure-subtitle,
