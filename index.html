@@ -7574,12 +7574,12 @@ function drawMouse(x, y, cfg, dir, frame, action, startled, mouseState) {
     const zFrame = Math.floor(t * 12) % 2;
 
     // Motion lines behind
-    ctx.strokeStyle = 'rgba(200,180,140,0.3)';
-    ctx.lineWidth = 1;
-    for (let i = 0; i < 4; i++) {
+    ctx.strokeStyle = 'rgba(200,180,140,0.2)';
+    ctx.lineWidth = 0.8;
+    for (let i = 0; i < 3; i++) {
       ctx.beginPath();
-      ctx.moveTo(cx - 4 - i * 6, cy + 6 + i * 3 + zBob);
-      ctx.lineTo(cx - 12 - i * 6, cy + 6 + i * 3 + zBob);
+      ctx.moveTo(cx - 6 - i * 7, cy + 8 + i * 3 + zBob);
+      ctx.lineTo(cx - 14 - i * 7, cy + 8 + i * 3 + zBob);
       ctx.stroke();
     }
 
@@ -7669,6 +7669,18 @@ function drawMouse(x, y, cfg, dir, frame, action, startled, mouseState) {
     ctx.beginPath();
     ctx.ellipse(cx + 27, cy + 6 + zBob, 2, 1.5, 0, 0, Math.PI * 2);
     ctx.fill();
+
+    // Whiskers
+    ctx.strokeStyle = 'rgba(180,160,140,0.5)';
+    ctx.lineWidth = 0.7;
+    ctx.beginPath();
+    ctx.moveTo(cx + 28, cy + 3 + zBob);
+    ctx.lineTo(cx + 35, cy + 1 + zBob);
+    ctx.moveTo(cx + 28, cy + 5 + zBob);
+    ctx.lineTo(cx + 35, cy + 6 + zBob);
+    ctx.moveTo(cx + 28, cy + 4 + zBob);
+    ctx.lineTo(cx + 36, cy + 3.5 + zBob);
+    ctx.stroke();
 
   } else {
     // Standing / walking / idle / furniture-interaction mouse
