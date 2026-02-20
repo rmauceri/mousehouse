@@ -272,44 +272,69 @@ body { display: flex; flex-direction: column; }
 /* ---- Title screen ---- */
 #title-screen {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background: #2b1d0e; display: flex; flex-direction: column;
+  background: radial-gradient(ellipse at 50% 45%, #3d2b1a 0%, #2b1d0e 50%, #1a0f05 100%);
+  display: flex; flex-direction: column;
   justify-content: center; align-items: center; z-index: 200;
   cursor: pointer; overflow: hidden;
 }
 #title-screen h1 {
   color: #f5d68a; font-size: 52px; margin-bottom: 0; letter-spacing: 2px;
   text-shadow: 3px 3px 0 #1a0f05, 0 0 30px rgba(245,214,138,0.4);
+  opacity: 0; animation: title-fade-in 0.8s ease-out 0.2s forwards;
 }
 #title-screen .adventure-subtitle {
   color: #c8a870; font-size: 16px; margin-bottom: 8px;
   text-shadow: 0 0 12px rgba(200,168,112,0.4);
+  opacity: 0; animation: title-fade-in 0.8s ease-out 0.5s forwards;
 }
 #title-screen .start-text {
   color: #f5d68a; font-size: 16px;
-  animation: pulse 1.5s ease-in-out infinite;
   margin-top: 12px;
+  background: rgba(245,214,138,0.1); border: 1px solid rgba(245,214,138,0.3);
+  padding: 8px 28px; border-radius: 20px;
+  text-shadow: 0 0 10px rgba(245,214,138,0.4);
+  animation: title-fade-in 0.8s ease-out 1.1s forwards, cta-glow 2s ease-in-out 2s infinite;
+  opacity: 0;
 }
 #title-screen .mice-display {
   display: flex; gap: 40px; align-items: flex-end; margin-bottom: 8px;
+  opacity: 0; animation: title-fade-in 0.8s ease-out 0.8s forwards;
 }
 #title-screen .mouse-art {
   display: flex; flex-direction: column; align-items: center; gap: 2px;
   overflow: hidden;
 }
 #title-screen .mouse-art .name {
-  color: #d0b888; font-size: 13px; font-weight: bold;
+  color: #f5d68a; font-size: 15px; font-weight: bold;
+  text-shadow: 0 0 8px rgba(245,214,138,0.5);
+  letter-spacing: 1px;
+}
+#title-screen .mouse-art .tagline {
+  color: #a89070; font-size: 11px; height: 16px;
+  transition: opacity 0.4s;
 }
 #title-screen canvas { border-radius: 8px; }
 #title-screen .title-buttons {
-  display: flex; gap: 12px; margin-top: 14px;
+  position: absolute; bottom: 16px; right: 16px;
+  display: flex; gap: 8px;
+  opacity: 0; animation: title-fade-in 0.6s ease-out 1.4s forwards;
 }
 #title-screen .title-buttons button {
-  background: rgba(245,214,138,0.15); border: 1px solid #6b5030;
-  color: #f5d68a; font-size: 13px; padding: 6px 16px; border-radius: 6px;
+  background: rgba(245,214,138,0.1); border: 1px solid rgba(107,80,48,0.6);
+  color: #a89070; font-size: 16px; padding: 6px 10px; border-radius: 8px;
   cursor: pointer; font-family: monospace; transition: all 0.2s;
+  width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
 }
 #title-screen .title-buttons button:hover {
-  background: rgba(245,214,138,0.3); border-color: #f5d68a;
+  background: rgba(245,214,138,0.25); border-color: #f5d68a; color: #f5d68a;
+}
+@keyframes title-fade-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes cta-glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(245,214,138,0.1); opacity: 1; }
+  50% { box-shadow: 0 0 16px rgba(245,214,138,0.3); opacity: 0.7; }
 }
 #title-about-overlay {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -344,10 +369,6 @@ body { display: flex; flex-direction: column; }
   10% { opacity: 0.6; }
   90% { opacity: 0.6; }
   100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
-}
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
 }
 
 /* ---- Doomscroll posts ---- */
@@ -649,15 +670,19 @@ body { display: flex; flex-direction: column; }
   <div class="mice-display">
     <div class="mouse-art">
       <canvas id="title-pip" width="200" height="160"></canvas>
+      <div class="name">Pip</div>
+      <div class="tagline" id="pip-tagline"></div>
     </div>
     <div class="mouse-art">
       <canvas id="title-chai" width="200" height="160"></canvas>
+      <div class="name">Chai</div>
+      <div class="tagline" id="chai-tagline"></div>
     </div>
   </div>
   <div class="start-text">~ tap or click to start ~</div>
   <div class="title-buttons">
-    <button id="title-about-btn" onclick="event.stopPropagation(); toggleTitleAbout()">📖 About</button>
-    <button id="title-mute-btn" onclick="event.stopPropagation(); toggleTitleMute()">🔊 Sound</button>
+    <button id="title-about-btn" onclick="event.stopPropagation(); toggleTitleAbout()" title="About">📖</button>
+    <button id="title-mute-btn" onclick="event.stopPropagation(); toggleTitleMute()" title="Sound">🔊</button>
   </div>
 </div>
 
@@ -9546,12 +9571,47 @@ document.addEventListener('keyup', e => {
   const savedCtx = ctx;
   let titleAnimId = null;
 
-  function animateTitleMice() {
+  // Personality-fitting action sequences
+  const pipActions = ['zoomies', 'mischief', 'walking', 'eating', 'zoomies', 'grooming', 'doomscrolling', 'walking'];
+  const chaiActions = ['yoga', 'idle', 'grooming', 'sleeping', 'walking', 'idle', 'eating', 'yoga'];
+  let pipActionIdx = 0, chaiActionIdx = 0;
+  let actionSwitchTimer = 0;
+  const ACTION_DURATION = 3000; // ms per action
+
+  // Rotating taglines
+  const pipTaglines = ['chaos mode: ON 😈', 'no thoughts just vibes', 'snack enthusiast 🧀', 'professional zoomie-er', 'caught in 4k', 'slay 💅'];
+  const chaiTaglines = ['cozy vibes only ✨', 'professional napper', 'zen mode activated 🧘', 'soft & unbothered', 'inner peace achieved', 'self care era 💅'];
+  let pipTagIdx = 0, chaiTagIdx = 0;
+  const pipTagEl = document.getElementById('pip-tagline');
+  const chaiTagEl = document.getElementById('chai-tagline');
+  if (pipTagEl) pipTagEl.textContent = pipTaglines[0];
+  if (chaiTagEl) chaiTagEl.textContent = chaiTaglines[0];
+
+  setInterval(() => {
+    pipTagIdx = (pipTagIdx + 1) % pipTaglines.length;
+    chaiTagIdx = (chaiTagIdx + 1) % chaiTaglines.length;
+    if (pipTagEl) { pipTagEl.style.opacity = '0'; setTimeout(() => { pipTagEl.textContent = pipTaglines[pipTagIdx]; pipTagEl.style.opacity = '1'; }, 400); }
+    if (chaiTagEl) { chaiTagEl.style.opacity = '0'; setTimeout(() => { chaiTagEl.textContent = chaiTaglines[chaiTagIdx]; chaiTagEl.style.opacity = '1'; }, 400); }
+  }, 4000);
+
+  let lastTitleTime = performance.now();
+
+  function animateTitleMice(now) {
+    const dt = now - lastTitleTime;
+    lastTitleTime = now;
+    actionSwitchTimer += dt;
+    if (actionSwitchTimer >= ACTION_DURATION) {
+      actionSwitchTimer = 0;
+      pipActionIdx = (pipActionIdx + 1) % pipActions.length;
+      chaiActionIdx = (chaiActionIdx + 1) % chaiActions.length;
+    }
+
     const t = Date.now() / 1000;
     const frame = Math.floor(t * 3) % 4;
+    const pipAction = pipActions[pipActionIdx];
+    const chaiAction = chaiActions[chaiActionIdx];
 
-    // Pip — walking, facing right
-    const pipAction = Math.sin(t * 0.4) > 0.3 ? 'zoomies' : (Math.sin(t * 0.7) > 0.6 ? 'grooming' : 'walking');
+    // Pip — facing right
     pipCtx.save();
     pipCtx.setTransform(1, 0, 0, 1, 0, 0);
     pipCtx.clearRect(0, 0, 200, 160);
@@ -9582,8 +9642,7 @@ document.addEventListener('keyup', e => {
     ctx = savedCtx;
     pipCtx.restore();
 
-    // Chai — idle/grooming, facing left
-    const chaiAction = Math.sin(t * 0.3 + 1) > 0.4 ? 'idle' : (Math.sin(t * 0.5 + 2) > 0.5 ? 'grooming' : 'walking');
+    // Chai — facing left
     chaiCtx.save();
     chaiCtx.setTransform(1, 0, 0, 1, 0, 0);
     chaiCtx.clearRect(0, 0, 200, 160);
@@ -9618,7 +9677,7 @@ document.addEventListener('keyup', e => {
       titleAnimId = requestAnimationFrame(animateTitleMice);
     }
   }
-  animateTitleMice();
+  animateTitleMice(performance.now());
 
   // Spawn floating particles
   const titleEl = document.getElementById('title-screen');
@@ -9688,7 +9747,7 @@ function playTitleNote() {
 function toggleTitleMute() {
   titleMuted = !titleMuted;
   const btn = document.getElementById('title-mute-btn');
-  btn.textContent = titleMuted ? '🔇 Sound' : '🔊 Sound';
+  btn.textContent = titleMuted ? '🔇' : '🔊';
   if (titleMuted) {
     stopTitleMusic();
   } else {
