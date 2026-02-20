@@ -9717,9 +9717,18 @@ function initTitleAudio() {
 }
 
 const TITLE_MELODY = [
-  [392, 600], [330, 400], [294, 400], [262, 800], [0, 300],
-  [294, 400], [330, 400], [392, 600], [330, 800], [0, 400],
-  [262, 400], [294, 400], [330, 600], [392, 400], [330, 800], [0, 600],
+  // Phrase 1: bouncy ascending run
+  [523, 180], [587, 180], [659, 180], [784, 280], [0, 80],
+  [659, 140], [784, 140], [880, 320], [0, 100],
+  // Phrase 2: playful descending answer
+  [784, 180], [659, 180], [587, 140], [523, 280], [0, 80],
+  [587, 140], [659, 240], [523, 360], [0, 160],
+  // Phrase 3: mischievous trill
+  [659, 120], [698, 120], [659, 120], [587, 180], [523, 180],
+  [587, 140], [659, 140], [784, 320], [0, 100],
+  // Phrase 4: cheeky ending flourish
+  [880, 160], [784, 160], [659, 160], [784, 240], [0, 80],
+  [659, 140], [587, 180], [523, 140], [587, 200], [659, 400], [0, 300],
 ];
 let titleNoteIdx = 0;
 
@@ -9744,12 +9753,13 @@ function playTitleNote() {
     const g = titleAudioCtx.createGain();
     osc.type = 'triangle';
     osc.frequency.value = freq;
+    const durSec = dur / 1000;
     g.gain.setValueAtTime(0, titleAudioCtx.currentTime);
-    g.gain.linearRampToValueAtTime(0.05, titleAudioCtx.currentTime + 0.05);
-    g.gain.setTargetAtTime(0, titleAudioCtx.currentTime + (dur / 1000) * 0.5, (dur / 1000) * 0.2);
+    g.gain.linearRampToValueAtTime(0.06, titleAudioCtx.currentTime + 0.03);
+    g.gain.setTargetAtTime(0, titleAudioCtx.currentTime + durSec * 0.6, durSec * 0.15);
     osc.connect(g); g.connect(titleAudioCtx.destination);
     osc.start(titleAudioCtx.currentTime);
-    osc.stop(titleAudioCtx.currentTime + dur / 1000 + 0.15);
+    osc.stop(titleAudioCtx.currentTime + durSec + 0.1);
   }
   titleMusicTimeout = setTimeout(playTitleNote, dur);
 }
