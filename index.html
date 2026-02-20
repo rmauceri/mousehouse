@@ -4662,6 +4662,13 @@ function handlePlacementClick(gx, gy) {
   refreshShopFlyout();
   refreshItemTray();
   reactToNewFurniture(item);
+
+  // Easter egg: placing a birthday cake re-triggers the celebration
+  if (item.id === 'birthday-cake' && state.birthdayEventSeen) {
+    state.currentRoom = placedEntry.room;
+    buildRoomTabs();
+    runBirthdayCelebration();
+  }
 }
 
 function reactToNewFurniture(item) {
@@ -6994,37 +7001,13 @@ function triggerBirthdayEvent() {
   updateCoinDisplay();
 
   // Both mice to living room for the party
-  state.miceState.pip.room = 2;
-  state.miceState.pip.x = 150;
-  state.miceState.pip.action = 'idle';
-  state.miceState.pip.actionTimer = 6000;
-  state.miceState.chai.room = 2;
-  state.miceState.chai.x = 280;
-  state.miceState.chai.action = 'idle';
-  state.miceState.chai.actionTimer = 6000;
-
-  // Switch to living room
   state.currentRoom = 2;
   buildRoomTabs();
 
+  runBirthdayCelebration();
+
   addHappiness(20);
   saveGame();
-
-  // Celebration sequence
-  setTimeout(() => {
-    sfxFanfare();
-    showToast(`🎂 Happy Birthday ${CONFIG.twins.name1} & ${CONFIG.twins.name2}! 🎉`);
-    // Confetti burst
-    for (let i = 0; i < 20; i++) {
-      setTimeout(() => {
-        spawnFloatingEffect(
-          80 + Math.random() * (GAME_W - 160),
-          ROOM_Y + 50 + Math.random() * 100,
-          ['🎉','🎊','🎂','🧀','💛','⭐','🎈','✨'][Math.floor(Math.random() * 8)]
-        );
-      }, i * 80);
-    }
-  }, 500);
 
   setTimeout(() => {
     showToast('🧀 +100 bonus coins! The mice threw a party!');
@@ -7033,6 +7016,84 @@ function triggerBirthdayEvent() {
   setTimeout(() => {
     showToast('💌 Check the letter button for a special message!');
   }, 7500);
+}
+
+// Shared celebration sequence (used by first-run and easter egg)
+function runBirthdayCelebration() {
+  // Move mice to living room in zoomies mode
+  state.miceState.pip.room = 2;
+  state.miceState.pip.x = 150;
+  state.miceState.pip.action = 'zoomies';
+  state.miceState.pip.actionTimer = 5000;
+  state.miceState.chai.room = 2;
+  state.miceState.chai.x = 280;
+  state.miceState.chai.action = 'zoomies';
+  state.miceState.chai.actionTimer = 5000;
+
+  // Golden flash
+  _birthdayFlash = 1.0;
+
+  // Staggered celebration sequence
+  setTimeout(() => {
+    sfxFanfare();
+    showToast(`🎂 Happy Birthday ${CONFIG.twins.name1} & ${CONFIG.twins.name2}! 🎉`);
+  }, 300);
+
+  // Dense confetti cascade
+  setTimeout(() => {
+    for (let i = 0; i < 45; i++) {
+      setTimeout(() => {
+        spawnFloatingEffect(
+          60 + Math.random() * (GAME_W - 120),
+          ROOM_Y + 30 + Math.random() * 120,
+          ['🎉','🎊','🎂','🧀','💛','⭐','🎈','✨','🎀','💕','🥳','🎶'][Math.floor(Math.random() * 12)]
+        );
+      }, i * 70);
+    }
+  }, 500);
+
+  // Festive bunting timer (draws for ~8 seconds)
+  _birthdayBuntingTimer = 8000;
+}
+
+// Birthday visual state
+let _birthdayFlash = 0;
+let _birthdayBuntingTimer = 0;
+
+function drawBirthdayBunting(alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  const colors = ['#FF1493','#FFD700','#00CED1','#FF6347','#7B68EE','#32CD32'];
+  const flagCount = Math.ceil(GAME_W / 30);
+  const sagAmount = 14;
+  const topY = ROOM_Y + 8;
+
+  // Draw the string
+  ctx.strokeStyle = '#a07040';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(10, topY);
+  for (let i = 0; i <= flagCount; i++) {
+    const x = 10 + (GAME_W - 20) * (i / flagCount);
+    const sag = Math.sin(i / flagCount * Math.PI) * sagAmount;
+    ctx.lineTo(x, topY + sag);
+  }
+  ctx.stroke();
+
+  // Draw triangle flags
+  for (let i = 0; i < flagCount; i++) {
+    const x = 10 + (GAME_W - 20) * ((i + 0.5) / flagCount);
+    const sag = Math.sin((i + 0.5) / flagCount * Math.PI) * sagAmount;
+    const flagY = topY + sag;
+    ctx.fillStyle = colors[i % colors.length];
+    ctx.beginPath();
+    ctx.moveTo(x - 6, flagY);
+    ctx.lineTo(x + 6, flagY);
+    ctx.lineTo(x, flagY + 14);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
 }
 
 // ============================================================
@@ -9956,6 +10017,8 @@ function gameLoop(now) {
       updateHappiness(dt);
       updateGoals(dt);
       updateExerciseWheel(dt);
+      if (_birthdayFlash > 0) _birthdayFlash = Math.max(0, _birthdayFlash - dt / 800);
+      if (_birthdayBuntingTimer > 0) _birthdayBuntingTimer -= dt;
 
       ctx.clearRect(0, 0, GAME_W, GAME_H);
 
@@ -10000,6 +10063,19 @@ function gameLoop(now) {
 
       drawSpeechBubbles();
       drawFloatingEffects();
+
+      // Birthday golden flash overlay
+      if (_birthdayFlash > 0) {
+        ctx.fillStyle = `rgba(255,220,100,${_birthdayFlash * 0.35})`;
+        ctx.fillRect(0, 0, GAME_W, GAME_H);
+      }
+
+      // Birthday bunting decoration
+      if (_birthdayBuntingTimer > 0 && state.currentRoom === 2) {
+        const buntAlpha = Math.min(1, _birthdayBuntingTimer / 1000);
+        drawBirthdayBunting(buntAlpha);
+      }
+
       drawEdgeArrows();
       drawMouseStatus();
 
