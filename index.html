@@ -2169,20 +2169,38 @@ const FURNITURE = [
 // ============================================================
 const canvas = document.getElementById('gameCanvas');
 let ctx = canvas.getContext('2d');
-const GAME_W = 480;
+let GAME_W = 480;
 const GAME_H = 360;
+const BASE_GAME_W = 480; // default/portrait width
 const GRID_SIZE = 24;
 const SNAP_SIZE = 12; // finer placement grid (half-cell)
 const ROOM_Y = 40;
 const ROOM_H = 280;
-const ROOM_W = GAME_W;
+let ROOM_W = GAME_W;
 const FLOOR_H = 40;
-const GRID_COLS = Math.floor((ROOM_W - 16) / GRID_SIZE);
+let GRID_COLS = Math.floor((ROOM_W - 16) / GRID_SIZE);
 const GRID_ROWS = Math.floor((ROOM_H - FLOOR_H - 30) / GRID_SIZE);
-const SNAP_COLS = GRID_COLS * 2; // snap grid columns
+let SNAP_COLS = GRID_COLS * 2; // snap grid columns
 const SNAP_ROWS = GRID_ROWS * 2; // snap grid rows
 const GRID_OFFSET_X = 8;
 const GRID_OFFSET_Y = ROOM_Y + 30;
+
+// Recalculate derived layout values when GAME_W changes
+function recalcLayout() {
+  ROOM_W = GAME_W;
+  GRID_COLS = Math.floor((ROOM_W - 16) / GRID_SIZE);
+  SNAP_COLS = GRID_COLS * 2;
+  updateRoomBounds();
+  // Update mini-game offsets if active
+  if (typeof mz !== 'undefined' && mz && mz.cols) {
+    mz.ox = Math.floor((GAME_W - mz.cols * mz.cellSize) / 2);
+  }
+  if (typeof wac !== 'undefined' && wac && wac.holes) {
+    const cols = 3, rows = 3;
+    const gapX = GAME_W / (cols + 1);
+    wac.holes.forEach((h, i) => { h.x = gapX * ((i % cols) + 1); });
+  }
+}
 
 let scale = 1, offsetX = 0, offsetY = 0;
 
@@ -2197,6 +2215,10 @@ function resizeCanvas() {
     // Landscape: HUD is a fixed 36px + 2px border strip on the left
     const hudW = (hudEl && hudEl.style.display !== 'none') ? 38 : 0;
     const availW = w - hudW;
+    // Expand GAME_W to match screen aspect ratio, capped at 640
+    const idealW = Math.round(GAME_H * availW / h);
+    const newW = Math.max(BASE_GAME_W, Math.min(640, idealW));
+    if (newW !== GAME_W) { GAME_W = newW; recalcLayout(); }
     scale = Math.min(availW / GAME_W, h / GAME_H);
     canvas.style.width = (GAME_W * scale) + 'px';
     canvas.style.height = (GAME_H * scale) + 'px';
@@ -2205,6 +2227,8 @@ function resizeCanvas() {
     offsetX = hudW;
     offsetY = 0;
   } else {
+    // Portrait / desktop: reset to base width
+    if (GAME_W !== BASE_GAME_W) { GAME_W = BASE_GAME_W; recalcLayout(); }
     // Portrait / desktop: HUD on top
     const hudH = (isMobile && hudEl && hudEl.style.display !== 'none') ? hudEl.offsetHeight : 0;
     const availH = h - hudH;
@@ -2395,6 +2419,28 @@ const ROOMS = [
     ]
   }
 ];
+
+// Update room bounds when GAME_W changes (wider canvas in landscape)
+// Right-edge-relative elements shift; left-anchored elements stay put.
+function updateRoomBounds() {
+  const W = GAME_W;
+  // Bedroom (room 0)
+  ROOMS[0].platforms[0].xMax = W - 10;   // main-floor
+  ROOMS[0].platforms[1].xMax = W - 20;   // loft
+  // Kitchen (room 1)
+  ROOMS[1].platforms[0].xMax = W - 10;   // main-floor
+  ROOMS[1].window = { x: W - 140, y: ROOM_Y + 12, w: 72, h: 52 };
+  ROOMS[1].shelves = [{ x: W - 110, y: ROOM_Y + 100, w: 80 }];
+  // Living Room (room 2)
+  ROOMS[2].platforms[0].xMax = W - 10;   // main-floor
+  ROOMS[2].shelves = [{ x: W - 95, y: ROOM_Y + 85, w: 65 }];
+  // Exercise Room (room 3)
+  ROOMS[3].platforms[0].xMax = W - 10;   // main-floor
+  ROOMS[3].platforms[1].xMin = W - 140;  // perch
+  ROOMS[3].platforms[1].xMax = W - 20;   // perch
+  ROOMS[3].ramps[0].x1 = W - 162;       // ladder to perch
+  ROOMS[3].ramps[0].x2 = W - 130;
+}
 
 // Ring layout helpers: rooms connect in a circle 0↔1↔2↔3↔0
 function roomLeft(i)  { return (i - 1 + ROOMS.length) % ROOMS.length; }
@@ -5004,7 +5050,8 @@ function startCheeseChase() {
   for (let i = 0; i < 25; i++) {
     cc.bgStars.push({ x: Math.random() * GAME_W, y: Math.random() * GAME_H, s: 1 + Math.random() });
   }
-  for (let i = 0; i < 14; i++) {
+  const floorTiles = Math.ceil(GAME_W / 40) + 1;
+  for (let i = 0; i < floorTiles; i++) {
     cc.bgFloor.push({ x: i * 40, w: 38 + Math.random() * 4 });
   }
 }
@@ -5137,7 +5184,7 @@ function updateCheeseChase(dt) {
   cc.nearMisses = cc.nearMisses.filter(n => n.timer > 0);
 
   // Scroll floor boards
-  cc.bgFloor.forEach(f => { f.x -= spd * 0.8; if (f.x < -45) f.x += 14 * 40; });
+  cc.bgFloor.forEach(f => { f.x -= spd * 0.8; if (f.x < -45) f.x += Math.max(14, Math.ceil(GAME_W / 40) + 1) * 40; });
 }
 
 function spawnCCObstacle() {
@@ -6389,7 +6436,9 @@ function drawMouseMaze() {
   ctx.fillText('EXIT', GAME_W - 24, 16);
   ctx.textAlign = 'left';
 
-  const { grid, cols, rows, cellSize, ox, oy } = mz;
+  const { grid, cols, rows, cellSize, oy } = mz;
+  // Recalculate ox for current GAME_W (handles orientation changes mid-game)
+  const ox = Math.floor((GAME_W - cols * cellSize) / 2);
 
   // Maze floor
   ctx.fillStyle = '#120828';
