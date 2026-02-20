@@ -4608,6 +4608,7 @@ function closeTray() {
 
 function toggleTray() {
   if (cheeseChaseActive || whackACatActive || mouseMazeActive || dsActive) return;
+  if (state.shopOpen || gamesOpen) return;
   if (trayOpen) {
     closeTray();
   } else {
