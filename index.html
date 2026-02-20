@@ -9749,17 +9749,41 @@ function playTitleNote() {
   const [freq, dur] = TITLE_MELODY[titleNoteIdx % TITLE_MELODY.length];
   titleNoteIdx++;
   if (freq > 0) {
-    const osc = titleAudioCtx.createOscillator();
-    const g = titleAudioCtx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.value = freq;
+    const now = titleAudioCtx.currentTime;
     const durSec = dur / 1000;
-    g.gain.setValueAtTime(0, titleAudioCtx.currentTime);
-    g.gain.linearRampToValueAtTime(0.06, titleAudioCtx.currentTime + 0.03);
-    g.gain.setTargetAtTime(0, titleAudioCtx.currentTime + durSec * 0.6, durSec * 0.15);
-    osc.connect(g); g.connect(titleAudioCtx.destination);
-    osc.start(titleAudioCtx.currentTime);
-    osc.stop(titleAudioCtx.currentTime + durSec + 0.1);
+
+    // Layer 1: Melody (triangle, bright)
+    const osc1 = titleAudioCtx.createOscillator();
+    const g1 = titleAudioCtx.createGain();
+    osc1.type = 'triangle';
+    osc1.frequency.value = freq;
+    g1.gain.setValueAtTime(0, now);
+    g1.gain.linearRampToValueAtTime(0.05, now + 0.02);
+    g1.gain.setTargetAtTime(0, now + durSec * 0.5, durSec * 0.15);
+    osc1.connect(g1); g1.connect(titleAudioCtx.destination);
+    osc1.start(now); osc1.stop(now + durSec + 0.1);
+
+    // Layer 2: Harmony — major third above (sine, softer)
+    const osc2 = titleAudioCtx.createOscillator();
+    const g2 = titleAudioCtx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.value = freq * 1.26; // ~major third
+    g2.gain.setValueAtTime(0, now);
+    g2.gain.linearRampToValueAtTime(0.025, now + 0.03);
+    g2.gain.setTargetAtTime(0, now + durSec * 0.4, durSec * 0.12);
+    osc2.connect(g2); g2.connect(titleAudioCtx.destination);
+    osc2.start(now); osc2.stop(now + durSec + 0.1);
+
+    // Layer 3: Bass — octave below (square, punchy & quiet)
+    const osc3 = titleAudioCtx.createOscillator();
+    const g3 = titleAudioCtx.createGain();
+    osc3.type = 'square';
+    osc3.frequency.value = freq * 0.5;
+    g3.gain.setValueAtTime(0, now);
+    g3.gain.linearRampToValueAtTime(0.015, now + 0.01);
+    g3.gain.setTargetAtTime(0, now + durSec * 0.3, durSec * 0.1);
+    osc3.connect(g3); g3.connect(titleAudioCtx.destination);
+    osc3.start(now); osc3.stop(now + durSec + 0.1);
   }
   titleMusicTimeout = setTimeout(playTitleNote, dur);
 }
