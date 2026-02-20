@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
 <title>🐭 Mouse House</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -900,6 +903,112 @@ function sfxUIClick() {
   playTone(800, 0.03, 'square', 0.06);
 }
 
+// --- Mouse vocalizations ---
+// Cooldown tracker to prevent sound spam
+let _mouseSfxCooldown = 0;
+function mouseSfxReady() {
+  const now = performance.now();
+  if (now - _mouseSfxCooldown < 800) return false;
+  _mouseSfxCooldown = now;
+  return true;
+}
+
+function sfxMunch() {
+  // Content munching chirps — short percussive clicks with a happy uptick
+  if (!audioCtx || !mouseSfxReady()) return;
+  const f = 1600 + Math.random() * 300;
+  playTone(f, 0.03, 'square', 0.08);
+  setTimeout(() => playTone(f * 1.05, 0.03, 'square', 0.07), 80);
+  setTimeout(() => playTone(f * 1.1, 0.04, 'sine', 0.06), 160);
+}
+
+function sfxSnore() {
+  // Tiny mouse snore — low soft rumble with a gentle rise and fall
+  if (!audioCtx || !mouseSfxReady()) return;
+  const f = 180 + Math.random() * 40;
+  playTone(f, 0.25, 'sine', 0.04);
+  setTimeout(() => playTone(f * 1.15, 0.2, 'sine', 0.03), 250);
+}
+
+function sfxZoomieSqueak() {
+  // Excited rapid squeaks — fast ascending chirps
+  if (!audioCtx || !mouseSfxReady()) return;
+  const base = 2000 + Math.random() * 400;
+  for (let i = 0; i < 3; i++) {
+    setTimeout(() => playTone(base + i * 200, 0.04, 'sine', 0.09), i * 50);
+  }
+}
+
+function sfxGroom() {
+  // Calm grooming — soft scratchy licking sounds
+  if (!audioCtx || !mouseSfxReady()) return;
+  playNoise(0.04, 0.05);
+  setTimeout(() => {
+    const f = 1200 + Math.random() * 200;
+    playTone(f, 0.03, 'sine', 0.05);
+  }, 50);
+}
+
+function sfxChitter() {
+  // Mouse "talking" — rapid tiny chattering
+  if (!audioCtx || !mouseSfxReady()) return;
+  const base = 1400 + Math.random() * 600;
+  const count = 3 + Math.floor(Math.random() * 3);
+  for (let i = 0; i < count; i++) {
+    const f = base + (Math.random() - 0.5) * 400;
+    setTimeout(() => playTone(f, 0.025, 'sine', 0.06), i * 40);
+  }
+}
+
+function sfxHide() {
+  // Sneaky muffled squeak — low and quiet
+  if (!audioCtx || !mouseSfxReady()) return;
+  playTone(900 + Math.random() * 200, 0.06, 'sine', 0.04);
+  setTimeout(() => playNoise(0.03, 0.03), 70);
+}
+
+function sfxChew() {
+  // Crunchy nibbling — percussive with texture
+  if (!audioCtx || !mouseSfxReady()) return;
+  playNoise(0.03, 0.08);
+  setTimeout(() => playNoise(0.03, 0.06), 90);
+  setTimeout(() => playTone(600 + Math.random() * 200, 0.03, 'square', 0.04), 60);
+}
+
+function sfxSwing() {
+  // Playful gleeful chirp — rising happy tone
+  if (!audioCtx || !mouseSfxReady()) return;
+  const f = 1200 + Math.random() * 300;
+  playTone(f, 0.06, 'triangle', 0.08);
+  setTimeout(() => playTone(f * 1.25, 0.08, 'sine', 0.07), 70);
+  setTimeout(() => playTone(f * 1.5, 0.06, 'sine', 0.05), 140);
+}
+
+function sfxHungryWhimper() {
+  // Plaintive descending whimper — sad falling tone
+  if (!audioCtx || !mouseSfxReady()) return;
+  const f = 1600 + Math.random() * 200;
+  playTone(f, 0.1, 'sine', 0.1);
+  setTimeout(() => playTone(f * 0.8, 0.12, 'sine', 0.08), 100);
+  setTimeout(() => playTone(f * 0.6, 0.15, 'sine', 0.05), 220);
+}
+
+function sfxNuzzle() {
+  // Affectionate trill — warm rapid ascending
+  if (!audioCtx || !mouseSfxReady()) return;
+  const base = 1000 + Math.random() * 200;
+  for (let i = 0; i < 5; i++) {
+    setTimeout(() => playTone(base + i * 120, 0.04, 'sine', 0.07), i * 35);
+  }
+}
+
+function sfxStartled() {
+  // Sharp surprised squeak — sudden high spike
+  if (!audioCtx || !mouseSfxReady()) return;
+  playTone(2400 + Math.random() * 400, 0.06, 'sine', 0.14);
+  setTimeout(() => playTone(1800, 0.04, 'sine', 0.06), 70);
+}
+
 // --- Background music (gentle pentatonic loop) ---
 // Multiple melodic phrases that cycle for variety
 const MUSIC_PHRASES = [
@@ -1408,7 +1517,7 @@ let state = {
   totalCoinsEarned: 0,
   placementMode: null,
   removeMode: false,
-  dragState: { active: false, itemId: null, screenX: 0, screenY: 0, fromPlaced: false, fromPlacedIdx: -1 },
+  dragState: { active: false, itemId: null, screenX: 0, screenY: 0, fromPlaced: false, fromPlacedIdx: -1, isTouch: false },
   shopOpen: false,
   gameStarted: false,
   activeGoal: null,
@@ -2143,6 +2252,7 @@ function showToast(msg) {
 // ============================================================
 function saveGame() {
   try {
+    state.lastActiveTime = Date.now();
     localStorage.setItem('mouseHouseSave', JSON.stringify({
       coins: state.coins, ownedItems: state.ownedItems,
       placedItems: state.placedItems, currentRoom: state.currentRoom,
@@ -2150,7 +2260,7 @@ function saveGame() {
       letterRead: state.letterRead, lootCrumbsUsed: state.lootCrumbsUsed,
       totalCoinsEarned: state.totalCoinsEarned, activeGoal: state.activeGoal,
       achievements: state.achievements, stats: state.stats,
-      photos: state.photos
+      photos: state.photos, lastActiveTime: state.lastActiveTime
     }));
   } catch (e) {}
 }
@@ -2189,6 +2299,12 @@ function loadGame() {
           state.miceState[k].onFurniture = null;
           state.miceState[k].pendingFurniture = null;
         });
+      }
+      // Welcome back detection
+      state.lastActiveTime = d.lastActiveTime ?? 0;
+      if (state.lastActiveTime && Date.now() - state.lastActiveTime > 120000) {
+        state._welcomeBack = true;
+        state._absenceMinutes = Math.floor((Date.now() - state.lastActiveTime) / 60000);
       }
     }
   } catch (e) {}
@@ -2381,14 +2497,14 @@ function drawRoomScene(roomIndex, offsetX) {
   if (pip.room === roomIndex && pip.action !== 'wheeling' && !pip.onFurniture) {
     const fy = getMouseFloorY(pip);
     if (pip.action === 'flung') drawFlungMouse(pip, CONFIG.mice.pip);
-    else drawMouse(pip.x, fy, CONFIG.mice.pip, pip.dir, pip.frame, pip.action, pip._startled);
+    else drawMouse(pip.x, fy, CONFIG.mice.pip, pip.dir, pip.frame, pip.action, pip._startled, pip);
     drawPartyHat(pip.action === 'flung' ? pip.flingX : pip.x,
                  pip.action === 'flung' ? pip.flingY : fy, pip.action, pip.dir, CONFIG.mice.pip, roomIndex);
   }
   if (chai.room === roomIndex && chai.action !== 'wheeling' && !chai.onFurniture) {
     const fy = getMouseFloorY(chai);
     if (chai.action === 'flung') drawFlungMouse(chai, CONFIG.mice.chai);
-    else drawMouse(chai.x, fy, CONFIG.mice.chai, chai.dir, chai.frame, chai.action, chai._startled);
+    else drawMouse(chai.x, fy, CONFIG.mice.chai, chai.dir, chai.frame, chai.action, chai._startled, chai);
     drawPartyHat(chai.action === 'flung' ? chai.flingX : chai.x,
                  chai.action === 'flung' ? chai.flingY : fy, chai.action, chai.dir, CONFIG.mice.chai, roomIndex);
   }
@@ -2873,6 +2989,9 @@ function drawRoom(roomIndex) {
     }
   }
 
+  // -- Draw micro-event bug --
+  drawMicroEventBug(roomIndex);
+
   // -- Draw placed furniture for this room --
   const roomItems = state.placedItems.filter(p => p.room === roomIndex);
   roomItems.forEach(placed => {
@@ -2962,7 +3081,7 @@ function drawRoom(roomIndex) {
     const ds = state.dragState;
     const dragItem = FURNITURE.find(f => f.id === ds.itemId);
     if (dragItem) {
-      const gPos = screenToGame(ds.screenX, ds.screenY);
+      const gPos = screenToGame(ds.screenX, ds.screenY + dragOffsetY());
       // Center the item on cursor
       const centerOffX = (dragItem.w * GRID_SIZE) / 2;
       const centerOffY = (dragItem.h * GRID_SIZE) / 2;
@@ -4231,7 +4350,7 @@ function startPlacement(itemId) {
 function cancelPlacement() {
   state.placementMode = null;
   state.removeMode = false;
-  state.dragState = { active: false, itemId: null, screenX: 0, screenY: 0, fromPlaced: false, fromPlacedIdx: -1 };
+  state.dragState = { active: false, itemId: null, screenX: 0, screenY: 0, fromPlaced: false, fromPlacedIdx: -1, isTouch: false };
   document.getElementById('trash-zone').classList.remove('visible', 'hover');
   // Auto-close tray if it was auto-opened for placement
   if (autoTrayOpened && trayOpen) {
@@ -4539,20 +4658,27 @@ function highlightTrayItem(itemId) {
 // ============================================================
 // DRAG & DROP PLACEMENT SYSTEM
 // ============================================================
-function startDrag(itemId, sx, sy, fromPlaced, fromPlacedIdx) {
+const TOUCH_DRAG_OFFSET_Y = -60; // px — shift drop target above fingertip on touch
+
+function startDrag(itemId, sx, sy, fromPlaced, fromPlacedIdx, isTouch) {
   state.dragState = {
     active: true, itemId, screenX: sx, screenY: sy,
-    fromPlaced: !!fromPlaced, fromPlacedIdx: fromPlacedIdx ?? -1
+    fromPlaced: !!fromPlaced, fromPlacedIdx: fromPlacedIdx ?? -1,
+    isTouch: !!isTouch
   };
   state.placementMode = itemId;
   document.getElementById('trash-zone').classList.add('visible');
+}
+
+function dragOffsetY() {
+  return state.dragState.isTouch ? TOUCH_DRAG_OFFSET_Y : 0;
 }
 
 function updateDrag(sx, sy) {
   if (!state.dragState.active) return;
   state.dragState.screenX = sx;
   state.dragState.screenY = sy;
-  // Check trash zone hover
+  // Check trash zone hover (use raw position for trash since it's under the finger)
   const trashEl = document.getElementById('trash-zone');
   const trashRect = trashEl.getBoundingClientRect();
   const inTrash = sx >= trashRect.left && sx <= trashRect.right &&
@@ -4586,8 +4712,8 @@ function endDrag(sx, sy) {
     return;
   }
 
-  // Try to place on canvas
-  const pos = screenToGame(sx, sy);
+  // Try to place on canvas (apply touch offset so drop matches ghost preview)
+  const pos = screenToGame(sx, sy + dragOffsetY());
   const item = FURNITURE.find(f => f.id === ds.itemId);
   if (!item) { cancelPlacement(); return; }
   // Use same centering as ghost preview
@@ -4685,7 +4811,7 @@ document.getElementById('flyout-loot-btn').addEventListener('click', () => {
     if (ady > DRAG_THRESHOLD && dy < 0 && ady > dx) {
       // Upward drag (toward canvas) — start item drag
       e.preventDefault();
-      startDrag(pendingTouch.itemId, t.clientX, t.clientY, false, -1);
+      startDrag(pendingTouch.itemId, t.clientX, t.clientY, false, -1, true);
       pendingTouch = null;
     } else if (dx > DRAG_THRESHOLD || (ady > DRAG_THRESHOLD && dy > 0)) {
       // Horizontal swipe or downward scroll — let browser handle
@@ -7067,7 +7193,7 @@ function getRampY(ramp, x, roomIndex) {
   return fromPlat.y + (toPlat.y - fromPlat.y) * t;
 }
 
-function drawMouse(x, y, cfg, dir, frame, action, startled) {
+function drawMouse(x, y, cfg, dir, frame, action, startled, mouseState) {
   const mouseScale = cfg.scale || 1.0;
   const cx = Math.floor(x);
   // Startled: slight vertical jump
@@ -7251,13 +7377,17 @@ function drawMouse(x, y, cfg, dir, frame, action, startled) {
     // Walk cycle: head bobs with slight offset from body
     const walkCycle = action === 'walking' ? Math.sin(t * 10) : 0;
     const bob = action === 'walking' ? walkCycle * 1.8 : breathe;
-    const headBob = action === 'walking' ? Math.sin(t * 10 + 0.5) * 1.2 : breathe * 0.6;
+    // Idle sub-animation offsets
+    const idleSub = mouseState ? mouseState._idleSub : null;
+    const lookAroundX = (action === 'idle' && idleSub === 'lookAround') ? Math.sin(t * 2.5) * 2 : 0;
+    const sniffBob = (action === 'idle' && idleSub === 'sniff') ? Math.sin(t * 12) * 1.5 : 0;
+    const headBob = action === 'walking' ? Math.sin(t * 10 + 0.5) * 1.2 : breathe * 0.6 + sniffBob;
     const lean = action === 'walking' ? Math.sin(t * 10) * 0.04 :
                  action === 'yoga' ? Math.sin(t * 2) * 0.06 : 0;
 
     // Blink timer: eyes close briefly every 3-6 seconds
     const blinkPhase = t % (3 + (cx % 3)); // vary per mouse position
-    const isBlinking = blinkPhase < 0.12;
+    const isBlinking = blinkPhase < 0.12 || (action === 'idle' && idleSub === 'yawn');
 
     // Ear twitch: random brief twitch when idle
     const earTwitchL = (Math.sin(t * 0.6 + cx) > 0.9) ? Math.sin(t * 14) * 0.25 : 0;
@@ -7332,27 +7462,27 @@ function drawMouse(x, y, cfg, dir, frame, action, startled) {
     // Head — offset bob for walking liveliness
     ctx.fillStyle = cfg.bodyColor;
     ctx.beginPath();
-    ctx.ellipse(cx + 19, cy + 5 + headBob, 7, 6, 0.15, 0, Math.PI * 2);
+    ctx.ellipse(cx + 19 + lookAroundX, cy + 5 + headBob, 7, 6, 0.15, 0, Math.PI * 2);
     ctx.fill();
 
     // Ears (big & round!) with twitching
     // Left ear
     ctx.fillStyle = cfg.earColor;
     ctx.beginPath();
-    ctx.ellipse(cx + 15, cy - 4 + headBob, 5, 6, -0.3 + earTwitchL, 0, Math.PI * 2);
+    ctx.ellipse(cx + 15 + lookAroundX, cy - 4 + headBob, 5, 6, -0.3 + earTwitchL, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#ffb8c0';
     ctx.beginPath();
-    ctx.ellipse(cx + 15, cy - 4 + headBob, 3, 4, -0.3 + earTwitchL, 0, Math.PI * 2);
+    ctx.ellipse(cx + 15 + lookAroundX, cy - 4 + headBob, 3, 4, -0.3 + earTwitchL, 0, Math.PI * 2);
     ctx.fill();
     // Right ear
     ctx.fillStyle = cfg.earColor;
     ctx.beginPath();
-    ctx.ellipse(cx + 23, cy - 4 + headBob, 5, 6, 0.3 + earTwitchR, 0, Math.PI * 2);
+    ctx.ellipse(cx + 23 + lookAroundX, cy - 4 + headBob, 5, 6, 0.3 + earTwitchR, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#ffb8c0';
     ctx.beginPath();
-    ctx.ellipse(cx + 23, cy - 4 + headBob, 3, 4, 0.3 + earTwitchR, 0, Math.PI * 2);
+    ctx.ellipse(cx + 23 + lookAroundX, cy - 4 + headBob, 3, 4, 0.3 + earTwitchR, 0, Math.PI * 2);
     ctx.fill();
 
     // Eyes (big & cute) — with blinking
@@ -7361,100 +7491,126 @@ function drawMouse(x, y, cfg, dir, frame, action, startled) {
       ctx.strokeStyle = '#111';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.moveTo(cx + 15, cy + 3 + headBob);
-      ctx.lineTo(cx + 19, cy + 3 + headBob);
+      ctx.moveTo(cx + 15 + lookAroundX, cy + 3 + headBob);
+      ctx.lineTo(cx + 19 + lookAroundX, cy + 3 + headBob);
       ctx.stroke();
       ctx.beginPath();
-      ctx.moveTo(cx + 20, cy + 3 + headBob);
-      ctx.lineTo(cx + 24, cy + 3 + headBob);
+      ctx.moveTo(cx + 20 + lookAroundX, cy + 3 + headBob);
+      ctx.lineTo(cx + 24 + lookAroundX, cy + 3 + headBob);
       ctx.stroke();
     } else if (action === 'doomscrolling' || action === 'watching') {
       // Screen-glow eyes
       ctx.fillStyle = '#66ccff';
       ctx.beginPath();
-      ctx.ellipse(cx + 17, cy + 3 + headBob, 2.2, 2.8, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx + 17 + lookAroundX, cy + 3 + headBob, 2.2, 2.8, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.beginPath();
-      ctx.ellipse(cx + 22, cy + 3 + headBob, 2.2, 2.8, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx + 22 + lookAroundX, cy + 3 + headBob, 2.2, 2.8, 0, 0, Math.PI * 2);
       ctx.fill();
     } else if (action === 'yoga') {
       // Closed peaceful eyes
       ctx.strokeStyle = '#111';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.arc(cx + 17, cy + 3 + headBob, 2, 0.3, Math.PI - 0.3);
+      ctx.arc(cx + 17 + lookAroundX, cy + 3 + headBob, 2, 0.3, Math.PI - 0.3);
       ctx.stroke();
       ctx.beginPath();
-      ctx.arc(cx + 22, cy + 3 + headBob, 2, 0.3, Math.PI - 0.3);
+      ctx.arc(cx + 22 + lookAroundX, cy + 3 + headBob, 2, 0.3, Math.PI - 0.3);
       ctx.stroke();
     } else if (action === 'eating' || action === 'grooming') {
       // Happy squinty eyes
       ctx.strokeStyle = '#111';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.arc(cx + 17, cy + 4 + headBob, 2, Math.PI + 0.3, -0.3);
+      ctx.arc(cx + 17 + lookAroundX, cy + 4 + headBob, 2, Math.PI + 0.3, -0.3);
       ctx.stroke();
       ctx.beginPath();
-      ctx.arc(cx + 22, cy + 4 + headBob, 2, Math.PI + 0.3, -0.3);
+      ctx.arc(cx + 22 + lookAroundX, cy + 4 + headBob, 2, Math.PI + 0.3, -0.3);
       ctx.stroke();
     } else if (startled) {
       // Startled — wide round eyes!
       ctx.fillStyle = '#fff';
       ctx.beginPath();
-      ctx.ellipse(cx + 17, cy + 3 + headBob, 3, 3.5, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx + 17 + lookAroundX, cy + 3 + headBob, 3, 3.5, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.beginPath();
-      ctx.ellipse(cx + 22, cy + 3 + headBob, 3, 3.5, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx + 22 + lookAroundX, cy + 3 + headBob, 3, 3.5, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = '#111';
       ctx.beginPath();
-      ctx.arc(cx + 17, cy + 3 + headBob, 1.8, 0, Math.PI * 2);
+      ctx.arc(cx + 17 + lookAroundX, cy + 3 + headBob, 1.8, 0, Math.PI * 2);
       ctx.fill();
       ctx.beginPath();
-      ctx.arc(cx + 22, cy + 3 + headBob, 1.8, 0, Math.PI * 2);
+      ctx.arc(cx + 22 + lookAroundX, cy + 3 + headBob, 1.8, 0, Math.PI * 2);
       ctx.fill();
     } else {
       ctx.fillStyle = '#111';
       ctx.beginPath();
-      ctx.ellipse(cx + 17, cy + 3 + headBob, 2, 2.5, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx + 17 + lookAroundX, cy + 3 + headBob, 2, 2.5, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.beginPath();
-      ctx.ellipse(cx + 22, cy + 3 + headBob, 2, 2.5, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx + 22 + lookAroundX, cy + 3 + headBob, 2, 2.5, 0, 0, Math.PI * 2);
       ctx.fill();
       // Eye shine
       ctx.fillStyle = '#fff';
       ctx.beginPath();
-      ctx.arc(cx + 17.5, cy + 2 + headBob, 0.8, 0, Math.PI * 2);
+      ctx.arc(cx + 17.5 + lookAroundX, cy + 2 + headBob, 0.8, 0, Math.PI * 2);
       ctx.fill();
       ctx.beginPath();
-      ctx.arc(cx + 22.5, cy + 2 + headBob, 0.8, 0, Math.PI * 2);
+      ctx.arc(cx + 22.5 + lookAroundX, cy + 2 + headBob, 0.8, 0, Math.PI * 2);
       ctx.fill();
     }
 
     // Nose (tiny pink)
     ctx.fillStyle = cfg.noseColor;
     ctx.beginPath();
-    ctx.ellipse(cx + 26, cy + 5 + headBob, 2, 1.5, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx + 26 + lookAroundX, cy + 5 + headBob, 2, 1.5, 0, 0, Math.PI * 2);
     ctx.fill();
 
+    // Yawn: open mouth below nose
+    if (action === 'idle' && idleSub === 'yawn') {
+      ctx.fillStyle = '#ff99aa';
+      ctx.beginPath();
+      ctx.ellipse(cx + 24 + lookAroundX, cy + 8 + headBob, 2.5, 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     // Whiskers
+    const whiskerTwitch = (action === 'idle' && idleSub === 'sniff') ? Math.sin(t * 14) * 2 : 0;
     ctx.strokeStyle = 'rgba(180,160,140,0.5)';
     ctx.lineWidth = 0.7;
     ctx.beginPath();
-    ctx.moveTo(cx + 25, cy + 5 + headBob);
-    ctx.lineTo(cx + 32, cy + 2 + headBob);
-    ctx.moveTo(cx + 25, cy + 6 + headBob);
-    ctx.lineTo(cx + 32, cy + 7 + headBob);
-    ctx.moveTo(cx + 25, cy + 5.5 + headBob);
-    ctx.lineTo(cx + 33, cy + 4.5 + headBob);
+    ctx.moveTo(cx + 25 + lookAroundX, cy + 5 + headBob);
+    ctx.lineTo(cx + 32 + lookAroundX, cy + 2 + headBob + whiskerTwitch);
+    ctx.moveTo(cx + 25 + lookAroundX, cy + 6 + headBob);
+    ctx.lineTo(cx + 32 + lookAroundX, cy + 7 + headBob - whiskerTwitch);
+    ctx.moveTo(cx + 25 + lookAroundX, cy + 5.5 + headBob);
+    ctx.lineTo(cx + 33 + lookAroundX, cy + 4.5 + headBob + whiskerTwitch * 0.5);
     ctx.stroke();
 
     // Tiny smile
     ctx.strokeStyle = 'rgba(100,60,60,0.3)';
     ctx.lineWidth = 0.8;
     ctx.beginPath();
-    ctx.arc(cx + 23, cy + 6 + headBob, 3, 0.2, 1.2);
+    ctx.arc(cx + 23 + lookAroundX, cy + 6 + headBob, 3, 0.2, 1.2);
     ctx.stroke();
+
+    // Scratch: back leg lifts behind ear
+    if (action === 'idle' && idleSub === 'scratch') {
+      const scratchCycle = Math.sin(t * 10) * 2;
+      ctx.fillStyle = cfg.bodyColor;
+      ctx.fillRect(cx + 8, cy - 2 + headBob + scratchCycle, 3, 6);
+      ctx.fillStyle = cfg.bellyColor;
+      ctx.fillRect(cx + 7, cy - 3 + headBob + scratchCycle, 4, 2);
+    }
+
+    // Hiccup visual jolt
+    if (mouseState && mouseState._hiccups > 0 && mouseState._hiccupJolt) {
+      ctx.fillStyle = 'rgba(255,200,200,0.3)';
+      ctx.beginPath();
+      ctx.ellipse(cx + 14, cy + 10 + bob, 12, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     // Grooming: paw raised to face, licking motion
     if (action === 'grooming') {
@@ -7488,6 +7644,45 @@ function drawMouse(x, y, cfg, dir, frame, action, startled) {
 // MOUSE AI
 // ============================================================
 function updateMouse(mouse, dt, personality) {
+  // Welcome back — rush to center and greet player
+  if (state._welcomeBack && mouse.room === state.currentRoom) {
+    mouse.action = 'walking';
+    mouse.level = 'main-floor';
+    mouse.targetX = ROOM_W / 2 + (mouse === state.miceState.pip ? -20 : 20);
+    mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
+    mouse.actionTimer = 3000;
+    mouse.pendingClimb = null;
+    mouse.pendingRoomChange = null;
+    mouse.pendingFurniture = null;
+    mouse.onFurniture = null;
+
+    const mouseKey = mouse === state.miceState.pip ? 'pip' : 'chai';
+    const mins = state._absenceMinutes;
+    let quotes;
+    if (mins > 60) {
+      quotes = ['you ABANDONED us 😭', 'FINALLY', 'we almost called CPS', 'do you even care?!', 'the audacity 😤'];
+    } else if (mins > 10) {
+      quotes = ['you\'re BACK! 🥺', 'we missed you!!', 'where were you?!', 'don\'t leave again 😢', 'FINALLY omg'];
+    } else {
+      quotes = ['oh hi! 👋', 'welcome back!', 'missed u ❤️', 'hey! 🐭', 'you came back! 🥰'];
+    }
+    speechBubbles = speechBubbles.filter(b => b.mouseKey !== mouseKey);
+    speechBubbles.push({
+      x: mouse.x + 14, y: getMouseFloorY(mouse) - 10,
+      text: quotes[Math.floor(Math.random() * quotes.length)],
+      timer: 3000, maxTimer: 3000, mouseKey
+    });
+    sfxChitter();
+  }
+  // Clear after both mice have been processed
+  if (state._welcomeBack) {
+    state._welcomeBackProcessed = (state._welcomeBackProcessed || 0) + 1;
+    if (state._welcomeBackProcessed >= 2) {
+      state._welcomeBack = false;
+      state._welcomeBackProcessed = 0;
+    }
+  }
+
   // Handle flung state separately
   if (mouse.action === 'flung') {
     updateFlungMouse(mouse, dt);
@@ -7514,6 +7709,12 @@ function updateMouse(mouse, dt, personality) {
   // On-furniture mice (hammock, rope) — frozen in place, drawn by furniture renderer
   if (mouse.onFurniture) {
     mouse.actionTimer -= dt;
+    // Periodic snore while sleeping on furniture
+    if (mouse.action === 'sleeping' && mouse.room === state.currentRoom) {
+      if (!mouse._snoreTimer) mouse._snoreTimer = 2000 + Math.random() * 1500;
+      mouse._snoreTimer -= dt;
+      if (mouse._snoreTimer <= 0) { sfxSnore(); mouse._snoreTimer = 2500 + Math.random() * 2000; }
+    }
     const critHungry = (mouse.happiness ?? 80) <= 15;
     if (mouse.actionTimer <= 0 || !state.placedItems.includes(mouse.onFurniture) || critHungry) {
       const pos = mouse.onFurniture ? gridToGame(mouse.onFurniture.gridX, mouse.onFurniture.gridY) : null;
@@ -7555,7 +7756,7 @@ function updateMouse(mouse, dt, personality) {
         mouse.actionTimer = 6000;
       } else {
         mouse.action = 'idle';
-        mouse.actionTimer = 1000 + Math.random() * 1500;
+        mouse.actionTimer = 600 + Math.random() * 1000;
       }
     }
     // Animate frame during climb
@@ -7572,6 +7773,60 @@ function updateMouse(mouse, dt, personality) {
     mouse.animTimer = 0;
   }
 
+  // Periodic sounds for ongoing actions (only when mouse is in current room)
+  if (mouse.room === state.currentRoom) {
+    if (mouse.action === 'sleeping' && !mouse.onFurniture) {
+      if (!mouse._snoreTimer) mouse._snoreTimer = 2000 + Math.random() * 1500;
+      mouse._snoreTimer -= dt;
+      if (mouse._snoreTimer <= 0) { sfxSnore(); mouse._snoreTimer = 2500 + Math.random() * 2000; }
+    } else if (mouse.action === 'grooming') {
+      if (!mouse._groomTimer) mouse._groomTimer = 1500 + Math.random() * 1000;
+      mouse._groomTimer -= dt;
+      if (mouse._groomTimer <= 0) { sfxGroom(); mouse._groomTimer = 1800 + Math.random() * 1200; }
+    } else if (mouse.action === 'chewing') {
+      if (!mouse._chewTimer) mouse._chewTimer = 800 + Math.random() * 600;
+      mouse._chewTimer -= dt;
+      if (mouse._chewTimer <= 0) { sfxChew(); mouse._chewTimer = 1000 + Math.random() * 800; }
+    }
+  }
+
+  // Idle sub-animation cycling
+  if (mouse.action === 'idle') {
+    if (!mouse._idleSubTimer) { mouse._idleSubTimer = 1500 + Math.random() * 1500; mouse._idleSub = 'stand'; }
+    mouse._idleSubTimer -= dt;
+    if (mouse._idleSubTimer <= 0) {
+      mouse._idleSubTimer = 1500 + Math.random() * 1500;
+      const roll = Math.random();
+      if (roll < 0.30) mouse._idleSub = 'stand';
+      else if (roll < 0.475) mouse._idleSub = 'lookAround';
+      else if (roll < 0.65) mouse._idleSub = 'yawn';
+      else if (roll < 0.825) mouse._idleSub = 'sniff';
+      else mouse._idleSub = 'scratch';
+    }
+  } else {
+    mouse._idleSub = null;
+    mouse._idleSubTimer = 0;
+  }
+
+  // Hiccup processing
+  if (mouse._hiccups > 0) {
+    if (!mouse._hiccupTimer) mouse._hiccupTimer = 800;
+    mouse._hiccupTimer -= dt;
+    if (mouse._hiccupTimer <= 0) {
+      mouse._hiccups--;
+      mouse._hiccupTimer = 800;
+      mouse._hiccupJolt = true;
+      setTimeout(() => { mouse._hiccupJolt = false; }, 150);
+      if (mouse.room === state.currentRoom) {
+        sfxSqueak();
+        const mouseKey = mouse === state.miceState.pip ? 'pip' : 'chai';
+        speechBubbles = speechBubbles.filter(b => b.mouseKey !== mouseKey);
+        speechBubbles.push({ x: mouse.x + 14, y: getMouseFloorY(mouse) - 10,
+          text: Math.random() < 0.5 ? '*hic*' : '*hic!*', timer: 700, maxTimer: 700, mouseKey });
+      }
+    }
+  }
+
   // Action timer countdown — skip if walking to a pending transition or walking to food
   // Safety valve: if timer is very negative (stuck > 5s), allow pickNewAction to unstick
   mouse.actionTimer -= dt;
@@ -7579,7 +7834,15 @@ function updateMouse(mouse, dt, personality) {
   // Critical hunger interrupt: bypass timer when starving
   const criticallyHungry = (mouse.happiness ?? 80) <= 15;
   const canInterrupt = mouse.action !== 'climbing' && mouse.action !== 'flung' && mouse.action !== 'wheeling' && !mouse.pendingRoomChange && !mouse.pendingClimb;
-  if (criticallyHungry && canInterrupt && mouse.action !== 'eating') {
+  // Safety valve: if stuck with pending state for >3s past timer, force unstick
+  if (mouse.actionTimer < -3000 && (mouse.pendingRoomChange || mouse.pendingClimb || mouse.pendingFurniture)) {
+    mouse.pendingRoomChange = null;
+    mouse.pendingClimb = null;
+    mouse.pendingFurniture = null;
+    mouse.onFurniture = null;
+    mouse.targetX = undefined;
+    pickNewAction(mouse, personality);
+  } else if (criticallyHungry && canInterrupt && mouse.action !== 'eating') {
     pickNewAction(mouse, personality);
   } else if (mouse.actionTimer <= 0 && !mouse.pendingRoomChange && !mouse.pendingClimb && !mouse.pendingFurniture && (!walkingToFood || mouse.actionTimer < -5000)) {
     pickNewAction(mouse, personality);
@@ -7633,7 +7896,7 @@ function updateMouse(mouse, dt, personality) {
         return;
       }
       mouse.action = 'idle';
-      mouse.actionTimer = 1000 + Math.random() * 1500;
+      mouse.actionTimer = 600 + Math.random() * 1000;
     }
   } else if (mouse.action === 'zoomies') {
     const plat = getMousePlatform(mouse);
@@ -7673,6 +7936,7 @@ function updateMouse(mouse, dt, personality) {
         mouse.happiness = Math.min(100, (mouse.happiness ?? 80) + 15);
         updateHappinessDisplay();
         if (mouse.room === state.currentRoom) {
+          sfxMunch();
           const eatQuotes = ['*nom nom*', 'yum! 😋', 'so good', 'more pls', '*crunch*', 'delish ✨'];
           speechBubbles = speechBubbles.filter(b => b.mouseKey !== mouseKey);
           speechBubbles.push({ x: mouse.x + 14, y: getMouseFloorY(mouse) - 10,
@@ -7717,11 +7981,14 @@ function clampMouseToPlatform(mouse) {
 }
 
 function pickNewAction(mouse, personality) {
-  // Clear any pending transitions from a previous action
+  // Clear any pending transitions and sound timers from a previous action
   mouse.pendingClimb = null;
   mouse.pendingRoomChange = null;
   mouse.pendingFurniture = null;
   mouse.onFurniture = null;
+  mouse._snoreTimer = null;
+  mouse._groomTimer = null;
+  mouse._chewTimer = null;
   const roll = Math.random();
   const room = ROOMS[mouse.room];
 
@@ -7763,6 +8030,7 @@ function pickNewAction(mouse, personality) {
     }
     // Truly no food anywhere — complain
     if (mouse.room === state.currentRoom && Math.random() < 0.3) {
+      sfxHungryWhimper();
       const mouseKey = mouse === state.miceState.pip ? 'pip' : 'chai';
       const noFoodQuotes = ['where\'s the food?! 😰', '*stomach growls*', 'buy us food! 😩', 'empty bowl era 😢'];
       speechBubbles = speechBubbles.filter(b => b.mouseKey !== mouseKey);
@@ -7850,6 +8118,12 @@ function pickNewAction(mouse, personality) {
       }
     }
     mouse.action = pick.behavior;
+    // Play sound when behavior starts (only if mouse is in visible room)
+    if (mouse.room === state.currentRoom) {
+      if (pick.behavior === 'zoomies') sfxZoomieSqueak();
+      else if (pick.behavior === 'hiding') sfxHide();
+      else if (pick.behavior === 'swinging') sfxSwing();
+    }
     const targetPos = gridToGame(pick.placed.gridX, pick.placed.gridY);
     mouse.targetX = targetPos.x + Math.random() * 10;
     mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
@@ -7921,22 +8195,22 @@ function pickNewAction(mouse, personality) {
   if (personality === 'chaotic') {
     // Pip: very active, lots of zoomies and mischief
     weights = [
-      { action: 'idle', w: 8 },
-      { action: 'walking', w: 32 },
+      { action: 'idle', w: 4 },
+      { action: 'walking', w: 34 },
       { action: 'sleeping', w: 6 },
-      { action: 'zoomies', w: 22 },
+      { action: 'zoomies', w: 24 },
       { action: 'grooming', w: 8 },
-      { action: 'mischief', w: 14 }
+      { action: 'mischief', w: 16 }
     ];
   } else {
     // Chai: still hyper but slightly more balanced
     weights = [
-      { action: 'idle', w: 12 },
-      { action: 'walking', w: 28 },
-      { action: 'sleeping', w: 12 },
-      { action: 'zoomies', w: 14 },
+      { action: 'idle', w: 6 },
+      { action: 'walking', w: 30 },
+      { action: 'sleeping', w: 10 },
+      { action: 'zoomies', w: 18 },
       { action: 'grooming', w: 12 },
-      { action: 'mischief', w: 10 }
+      { action: 'mischief', w: 12 }
     ];
   }
 
@@ -8062,7 +8336,7 @@ function pickNewAction(mouse, personality) {
       }
     }
   } else {
-    mouse.actionTimer = 1500 + Math.random() * 2000;
+    mouse.actionTimer = 800 + Math.random() * 1200;
   }
 }
 
@@ -8193,7 +8467,7 @@ function triggerSpeech(mouseKey) {
     y: getMouseFloorY(mouse) - 10,
     text, timer: 3000, maxTimer: 3000, mouseKey
   });
-  sfxSpeechBubble();
+  sfxChitter();
 }
 
 function updateSpeechBubbles(dt) {
@@ -8329,10 +8603,34 @@ function tryPetMouse(gx, gy) {
         text: petQuotes[Math.floor(Math.random() * petQuotes.length)],
         timer: 2500, maxTimer: 2500, mouseKey: m.key
       });
-      // Briefly pause their action (they enjoy it)
+      // Briefly pause their action (they enjoy it), then spring into action
       m.state.action = 'idle';
-      m.state.actionTimer = 2500;
+      m.state.actionTimer = 800;
       m.state.happiness = Math.min(100, (m.state.happiness ?? 80) + 5);
+      // After the pet reaction, motivate an active behavior
+      const mouseRef = m.state;
+      const pers = m.key === 'pip' ? 'chaotic' : 'chill';
+      setTimeout(() => {
+        if (mouseRef.action === 'idle') {
+          const actions = ['walking', 'zoomies', 'mischief', 'walking'];
+          const pick = actions[Math.floor(Math.random() * actions.length)];
+          mouseRef.action = pick;
+          if (pick === 'walking') {
+            const plat = getMousePlatform(mouseRef);
+            const xMin = plat ? plat.xMin + 10 : 20;
+            const xMax = plat ? plat.xMax - 40 : ROOM_W - 70;
+            mouseRef.targetX = xMin + Math.random() * (xMax - xMin);
+            mouseRef.dir = mouseRef.targetX > mouseRef.x ? 1 : -1;
+            mouseRef.actionTimer = 4000;
+          } else if (pick === 'zoomies') {
+            mouseRef.actionTimer = 2000 + Math.random() * 1500;
+            mouseRef.dir = Math.random() < 0.5 ? 1 : -1;
+            if (mouseRef.room === state.currentRoom) sfxZoomieSqueak();
+          } else {
+            mouseRef.actionTimer = 2000 + Math.random() * 2000;
+          }
+        }
+      }, 900);
       return true;
     }
   }
@@ -8357,6 +8655,7 @@ function updateMouseInteractions(dt) {
     if (Math.abs(s.x - c.x) < 25 && !c._startled) {
       c._startled = true;
       c._startleTimer = 600;
+      if (c.room === state.currentRoom) sfxStartled();
       speechBubbles = speechBubbles.filter(b => b.mouseKey !== 'chai');
       speechBubbles.push({ x: c.x + 14, y: getMouseFloorY(c) - 10,
         text: ['❗', 'AH!', 'omg', '😱', 'WHAT', 'excuse me?!', 'RUDE'][Math.floor(Math.random() * 7)],
@@ -8367,6 +8666,7 @@ function updateMouseInteractions(dt) {
     if (Math.abs(c.x - s.x) < 25 && !s._startled) {
       s._startled = true;
       s._startleTimer = 600;
+      if (s.room === state.currentRoom) sfxStartled();
       speechBubbles = speechBubbles.filter(b => b.mouseKey !== 'pip');
       speechBubbles.push({ x: s.x + 14, y: getMouseFloorY(s) - 10,
         text: ['❗', 'AH!', 'bruh', '😱', 'HEY', 'personal space!', 'watch it!'][Math.floor(Math.random() * 7)],
@@ -8389,6 +8689,7 @@ function updateMouseInteractions(dt) {
     c.dir = s.dir;
     c._copyCooldown = 10000;
     if (c.room === state.currentRoom) {
+      sfxChitter();
       speechBubbles = speechBubbles.filter(b => b.mouseKey !== 'chai');
       speechBubbles.push({ x: c.x + 14, y: getMouseFloorY(c) - 10,
         text: ['me too!', '*copies*', 'monkey see monkey do', 'same tbh', 'mood'][Math.floor(Math.random() * 5)],
@@ -8401,6 +8702,7 @@ function updateMouseInteractions(dt) {
     s.dir = c.dir;
     s._copyCooldown = 10000;
     if (s.room === state.currentRoom) {
+      sfxChitter();
       speechBubbles = speechBubbles.filter(b => b.mouseKey !== 'pip');
       speechBubbles.push({ x: s.x + 14, y: getMouseFloorY(s) - 10,
         text: ['wait me too', '*copies*', 'same energy', 'I also choose this', 'vibe check passed'][Math.floor(Math.random() * 5)],
@@ -8423,6 +8725,7 @@ function updateMouseInteractions(dt) {
     s.actionTimer = 4000; c.actionTimer = 4000;
     setTimeout(() => {
       if (s.room === c.room && s.room === state.currentRoom) {
+        sfxNuzzle();
         const boopX = (s.x + c.x) / 2 + 14;
         const boopY = getMouseFloorY(s) - 5;
         for (let i = 0; i < 4; i++) {
@@ -8513,6 +8816,7 @@ function updateMouseInteractions(dt) {
       c.action = 'zoomies'; c.actionTimer = 2500 + Math.random() * 1500;
       s.dir = 1; c.dir = -1;
       if (s.room === state.currentRoom) {
+        sfxZoomieSqueak();
         sfxZoomies();
         speechBubbles = speechBubbles.filter(b => b.mouseKey !== 'pip' && b.mouseKey !== 'chai');
         speechBubbles.push({ x: s.x + 14, y: getMouseFloorY(s) - 10,
@@ -8606,6 +8910,85 @@ function updateMouseInteractions(dt) {
   }
 }
 // ============================================================
+// MICRO-EVENTS
+// ============================================================
+let microEventCooldown = 15000 + Math.random() * 15000;
+const MICRO_EVENTS = ['bug', 'foundCoin', 'hiccups', 'sillyNap'];
+let microEventBug = { active: false, x: 0, y: 0, timer: 0 };
+
+function updateMicroEvents(dt) {
+  // Update active bug animation
+  if (microEventBug.active) {
+    microEventBug.timer -= dt;
+    microEventBug.x += (ROOM_W / 4000) * dt;
+    microEventBug.y += Math.sin(Date.now() / 300) * 0.3;
+    if (microEventBug.timer <= 0) microEventBug.active = false;
+  }
+
+  microEventCooldown -= dt;
+  if (microEventCooldown > 0) return;
+  microEventCooldown = 25000 + Math.random() * 25000;
+
+  // Only fire if game is active, no mini-game, at least one mouse in current room
+  if (cheeseChaseActive || whackACatActive || mouseMazeActive) return;
+  const pip = state.miceState.pip;
+  const chai = state.miceState.chai;
+  const miceInRoom = [];
+  if (pip.room === state.currentRoom) miceInRoom.push(pip);
+  if (chai.room === state.currentRoom) miceInRoom.push(chai);
+  if (miceInRoom.length === 0) return;
+
+  const event = MICRO_EVENTS[Math.floor(Math.random() * MICRO_EVENTS.length)];
+  const mouse = miceInRoom[Math.floor(Math.random() * miceInRoom.length)];
+  const mouseKey = mouse === state.miceState.pip ? 'pip' : 'chai';
+
+  if (event === 'bug') {
+    microEventBug = { active: true, x: 10, y: ROOM_Y + ROOM_H - FLOOR_H - 5, timer: 4000 };
+    const quotes = ['EW!', 'WHAT IS THAT', 'a friend? 🐛', '*investigates*'];
+    speechBubbles = speechBubbles.filter(b => b.mouseKey !== mouseKey);
+    speechBubbles.push({ x: mouse.x + 14, y: getMouseFloorY(mouse) - 10,
+      text: quotes[Math.floor(Math.random() * quotes.length)],
+      timer: 2500, maxTimer: 2500, mouseKey });
+    mouse._startled = true;
+    setTimeout(() => { mouse._startled = false; }, 800);
+    sfxChitter();
+  } else if (event === 'foundCoin') {
+    const coins = 1 + Math.floor(Math.random() * 3);
+    state.coins += coins;
+    updateCoinDisplay();
+    const quotes = ['found a coin! 🪙', 'finders keepers!', 'hidden treasure!'];
+    speechBubbles = speechBubbles.filter(b => b.mouseKey !== mouseKey);
+    speechBubbles.push({ x: mouse.x + 14, y: getMouseFloorY(mouse) - 10,
+      text: quotes[Math.floor(Math.random() * quotes.length)],
+      timer: 2500, maxTimer: 2500, mouseKey });
+    spawnFloatingEffect(mouse.x + 14, getMouseFloorY(mouse) - 5, '🪙');
+    sfxCoinCollect();
+  } else if (event === 'hiccups') {
+    mouse._hiccups = 3 + Math.floor(Math.random() * 3);
+    mouse._hiccupTimer = 0;
+  } else if (event === 'sillyNap') {
+    const furniture = state.placedItems.filter(p => p.room === state.currentRoom);
+    if (furniture.length > 0) {
+      const quotes = ['this looks comfy', 'nap anywhere era', 'if I fits I sits'];
+      speechBubbles = speechBubbles.filter(b => b.mouseKey !== mouseKey);
+      speechBubbles.push({ x: mouse.x + 14, y: getMouseFloorY(mouse) - 10,
+        text: quotes[Math.floor(Math.random() * quotes.length)],
+        timer: 3000, maxTimer: 3000, mouseKey });
+      mouse.action = 'sleeping';
+      mouse.actionTimer = 5000 + Math.random() * 3000;
+    }
+  }
+}
+
+function drawMicroEventBug(roomIndex) {
+  if (!microEventBug.active || roomIndex !== state.currentRoom) return;
+  ctx.save();
+  ctx.font = '12px serif';
+  ctx.fillText('🐛', microEventBug.x, microEventBug.y);
+  ctx.restore();
+}
+
+// ============================================================
 // EDGE NAVIGATION — hover arrows + swipe
 // ============================================================
 const EDGE_ZONE = 40; // px in game coords
@@ -8634,7 +9017,7 @@ function drawEdgeArrows() {
   ctx.restore();
 }
 
-canvas.addEventListener('mousedown', e => handleCanvasInput(e.clientX, e.clientY, e));
+canvas.addEventListener('mousedown', e => handleCanvasInput(e.clientX, e.clientY, e, false));
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
   const t = e.touches[0];
@@ -8643,10 +9026,10 @@ canvas.addEventListener('touchstart', e => {
   if (!cheeseChaseActive && !whackACatActive && !mouseMazeActive) {
     roomSwipeStart = { x: pos.x, y: pos.y, time: Date.now() };
   }
-  handleCanvasInput(t.clientX, t.clientY, e);
+  handleCanvasInput(t.clientX, t.clientY, e, true);
 }, { passive: false });
 
-function handleCanvasInput(sx, sy, originalEvent) {
+function handleCanvasInput(sx, sy, originalEvent, isTouch) {
   const pos = screenToGame(sx, sy);
 
   // Cheese Chase input
@@ -8685,7 +9068,7 @@ function handleCanvasInput(sx, sy, originalEvent) {
     const placed = state.placedItems[placedIdx];
     const item = FURNITURE.find(f => f.id === placed.itemId);
     if (item && !item.exerciseRoom) {
-      startDrag(placed.itemId, sx, sy, true, placedIdx);
+      startDrag(placed.itemId, sx, sy, true, placedIdx, isTouch);
       return;
     }
   }
@@ -9051,6 +9434,13 @@ document.getElementById('title-screen').addEventListener('touchstart', e => {
 function startGame() {
   if (state.gameStarted) return;
   state.gameStarted = true;
+  // Request fullscreen on mobile (user gesture from tapping start screen)
+  const isMobile = window.innerWidth <= 480 || (window.innerHeight <= 440 && window.innerWidth > window.innerHeight)
+    || ('ontouchstart' in window && window.innerWidth <= 1024);
+  if (isMobile && !document.fullscreenElement && !document.webkitFullscreenElement) {
+    const el = document.documentElement;
+    (el.requestFullscreen || el.webkitRequestFullscreen || function(){}).call(el).catch(() => {});
+  }
   stopTitleMusic();
   document.getElementById('title-screen').style.display = 'none';
   document.getElementById('title-about-overlay').classList.remove('visible');
@@ -9104,6 +9494,7 @@ function gameLoop(now) {
       updateSpeechBubbles(dt);
       updateFloatingEffects(dt);
       updateMouseInteractions(dt);
+      updateMicroEvents(dt);
       updateHappiness(dt);
       updateGoals(dt);
       updateExerciseWheel(dt);
@@ -9133,7 +9524,7 @@ function gameLoop(now) {
           if (pip.action === 'flung') {
             drawFlungMouse(pip, CONFIG.mice.pip);
           } else {
-            drawMouse(pip.x, pipFloorY, CONFIG.mice.pip, pip.dir, pip.frame, pip.action, pip._startled);
+            drawMouse(pip.x, pipFloorY, CONFIG.mice.pip, pip.dir, pip.frame, pip.action, pip._startled, pip);
           }
           drawPartyHat(pip.action === 'flung' ? pip.flingX : pip.x,
                        pip.action === 'flung' ? pip.flingY : pipFloorY, pip.action, pip.dir, CONFIG.mice.pip, state.currentRoom);
@@ -9142,7 +9533,7 @@ function gameLoop(now) {
           if (chai.action === 'flung') {
             drawFlungMouse(chai, CONFIG.mice.chai);
           } else {
-            drawMouse(chai.x, chaiFloorY, CONFIG.mice.chai, chai.dir, chai.frame, chai.action, chai._startled);
+            drawMouse(chai.x, chaiFloorY, CONFIG.mice.chai, chai.dir, chai.frame, chai.action, chai._startled, chai);
           }
           drawPartyHat(chai.action === 'flung' ? chai.flingX : chai.x,
                        chai.action === 'flung' ? chai.flingY : chaiFloorY, chai.action, chai.dir, CONFIG.mice.chai, state.currentRoom);
