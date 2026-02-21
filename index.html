@@ -543,30 +543,34 @@ body { display: flex; flex-direction: column; }
 /* ---- D-Pad Controller (mobile maze) ---- */
 #maze-dpad {
   display: none;
-  grid-template-columns: 44px 44px 44px;
-  grid-template-rows: 44px 44px 44px;
-  gap: 3px; justify-content: center; align-content: center;
-  padding: 6px 0;
+  position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+  grid-template-columns: 56px 56px 56px;
+  grid-template-rows: 56px 56px 56px;
+  gap: 4px; justify-content: center; align-content: center;
+  padding: 0; z-index: 150; pointer-events: auto;
+  opacity: 0.75;
 }
 #maze-dpad.visible { display: grid; }
 .dpad-btn {
-  width: 44px; height: 44px; border: 2px solid #a07040;
-  border-radius: 8px; background: rgba(30,20,10,0.9);
-  color: #f5d68a; font-size: 20px; cursor: pointer;
+  width: 56px; height: 56px; border: 2px solid rgba(160,112,64,0.6);
+  border-radius: 12px; background: rgba(20,12,5,0.85);
+  color: #f5d68a; font-size: 24px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   user-select: none; -webkit-user-select: none;
   touch-action: manipulation;
 }
-.dpad-btn:active { background: #3d2b1a; border-color: #f5d68a; }
-.dpad-center { background: transparent; border: none; }
+.dpad-btn:active, .dpad-btn.held { background: rgba(61,43,26,0.95); border-color: #f5d68a; }
+.dpad-center { background: transparent; border: none; pointer-events: none; }
 @media (min-width: 769px) {
   #maze-dpad { display: none !important; }
 }
 @media (max-height: 440px) and (orientation: landscape) {
   #maze-dpad.visible {
-    position: fixed; right: 8px; top: 50%; transform: translateY(-50%);
-    display: grid; padding: 0;
+    position: fixed; right: 8px; bottom: auto; top: 50%; left: auto;
+    transform: translateY(-50%); display: grid; padding: 0;
   }
+  .dpad-btn { width: 48px; height: 48px; font-size: 20px; }
+  #maze-dpad { grid-template-columns: 48px 48px 48px; grid-template-rows: 48px 48px 48px; }
 }
 
 </style>
@@ -6307,7 +6311,7 @@ function generateMaze(cols, rows) {
     }
   }
   // Open many extra walls to create loops (Pac-Man-like open layout)
-  const extraOpenings = Math.floor(cols * rows * 0.45);
+  const extraOpenings = Math.floor(cols * rows * 0.62);
   for (let i = 0; i < extraOpenings; i++) {
     const r = Math.floor(Math.random() * rows);
     const c = Math.floor(Math.random() * cols);
@@ -6341,8 +6345,8 @@ function startMouseMaze() {
 
 function initMazeLevel(level) {
   gameMusicIntensity = (level - 1) / 2;
-  const cols = 8 + level * 2;   // 10, 12, 14
-  const rows = 6 + level;       // 7, 8, 9
+  const cols = 5 + level * 2;   // 7, 9, 11
+  const rows = 4 + level;       // 5, 6, 7
   const grid = generateMaze(cols, rows);
   const cellW = Math.floor((GAME_W - 20) / cols);
   const cellH = Math.floor((GAME_H - 50) / rows);
@@ -6361,13 +6365,22 @@ function initMazeLevel(level) {
     }
   }
 
-  // Place 2-3 power cheese (replace some berries)
-  const numPower = 2 + (level > 2 ? 1 : 0);
+  // Place 3-5 power cheese (replace some berries)
+  const numPower = 2 + level;  // 3, 4, 5
   const powerCandidates = berries.filter(b =>
     !(b.r === 0 && b.c <= 1) && !(b.r <= 1 && b.c === 0));
   powerCandidates.sort(() => Math.random() - 0.5);
   for (let i = 0; i < Math.min(numPower, powerCandidates.length); i++) {
     powerCandidates[i].isPower = true;
+  }
+
+  // Place 1-2 speed fruit (replace some regular berries)
+  const numSpeed = level >= 2 ? 2 : 1;
+  const speedCandidates = berries.filter(b =>
+    !b.isPower && !(b.r === 0 && b.c <= 1) && !(b.r <= 1 && b.c === 0));
+  speedCandidates.sort(() => Math.random() - 0.5);
+  for (let i = 0; i < Math.min(numSpeed, speedCandidates.length); i++) {
+    speedCandidates[i].isSpeed = true;
   }
 
   // Cat starts at bottom-right corner
@@ -6382,9 +6395,10 @@ function initMazeLevel(level) {
     cat: { r: catStartR, c: catStartC, dir: 'left', moveTimer: 0,
            scared: false, scareTimer: 0, eaten: false, respawnTimer: 0,
            startR: catStartR, startC: catStartC },
-    catSpeed: 320 - level * 50,  // ms per move: 270, 220, 170
-    catGraceTimer: 3000,  // 3s before cat starts chasing
+    catSpeed: 350 - level * 40,  // ms per move: 310, 270, 230
+    catGraceTimer: 4000,  // 4s before cat starts chasing
     powerTimer: 0,
+    speedTimer: 0,
     moves: 0,
     startTime: Date.now(),
     elapsed: 0,
@@ -6463,7 +6477,7 @@ function updateMouseMaze(dt) {
 
   mz.moveTimer -= dt;
   if (mz.moveTimer <= 0) {
-    mz.moveTimer = mz.moveInterval;
+    mz.moveTimer = mz.speedTimer > 0 ? mz.moveInterval * 0.55 : mz.moveInterval;
     // Only auto-repeat if a key is held; single press moves once via keydown
     if (activeDir) {
       if (mz.nextDir && canMazeMove(mz.nextDir)) {
@@ -6482,6 +6496,11 @@ function updateMouseMaze(dt) {
     if (mz.powerTimer <= 0) {
       mz.cat.scared = false;
     }
+  }
+
+  // Speed boost timer
+  if (mz.speedTimer > 0) {
+    mz.speedTimer -= dt;
   }
 
   // Cat AI
@@ -6564,12 +6583,21 @@ function doMazeMove(dir) {
         // Power cheese! Cat becomes scared
         mz.totalScore += 5;
         mz.totalBerries++;
-        mz.powerTimer = 6000;
+        mz.powerTimer = 8000;
         mz.cat.scared = true;
         sfxGoalComplete();
         const px = mz.ox + mz.playerC * mz.cellSize + mz.cellSize / 2;
         const py = mz.oy + mz.playerR * mz.cellSize + mz.cellSize / 2;
         spawnFloatingEffect(px, py, '⚡');
+      } else if (b.isSpeed) {
+        // Speed fruit! Temporary speed boost
+        mz.totalScore += 3;
+        mz.totalBerries++;
+        mz.speedTimer = 5000;
+        sfxGoalComplete();
+        const px = mz.ox + mz.playerC * mz.cellSize + mz.cellSize / 2;
+        const py = mz.oy + mz.playerR * mz.cellSize + mz.cellSize / 2;
+        spawnFloatingEffect(px, py, '💨');
       } else {
         mz.totalScore += 1;
         mz.totalBerries++;
@@ -6621,8 +6649,20 @@ function moveCat() {
     cat.r += pick.dr;
     cat.c += pick.dc;
   } else {
-    // Chase: BFS toward player
-    const dir = mazeBFS(mz.grid, cat.r, cat.c, mz.playerR, mz.playerC, mz.rows, mz.cols);
+    // Chase: 70% BFS toward player, 30% random move (imperfect hunter)
+    const cell = mz.grid[cat.r][cat.c];
+    const possibleDirs = [];
+    if (!cell.top) possibleDirs.push('up');
+    if (!cell.bottom) possibleDirs.push('down');
+    if (!cell.left) possibleDirs.push('left');
+    if (!cell.right) possibleDirs.push('right');
+    let dir;
+    if (Math.random() < 0.7) {
+      dir = mazeBFS(mz.grid, cat.r, cat.c, mz.playerR, mz.playerC, mz.rows, mz.cols);
+    }
+    if (!dir && possibleDirs.length > 0) {
+      dir = possibleDirs[Math.floor(Math.random() * possibleDirs.length)];
+    }
     if (dir) {
       if (dir === 'up') cat.r--;
       else if (dir === 'down') cat.r++;
@@ -6725,6 +6765,18 @@ function drawMouseMaze() {
       ctx.beginPath();
       ctx.arc(bx, by, sz + 3, 0, Math.PI * 2);
       ctx.fill();
+    } else if (b.isSpeed) {
+      // Speed fruit — green, bouncing
+      const bounce = Math.abs(Math.sin(t * 3)) * 2;
+      const sz = Math.min(cellSize * 0.3, 6);
+      ctx.fillStyle = 'rgba(80, 255, 120, 0.9)';
+      ctx.beginPath();
+      ctx.arc(bx, by - bounce, sz, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(150, 255, 180, 0.4)';
+      ctx.beginPath();
+      ctx.arc(bx, by - bounce, sz + 2, 0, Math.PI * 2);
+      ctx.fill();
     } else {
       // Blueberry dot
       const sz = Math.min(cellSize * 0.15, 3);
@@ -6820,6 +6872,19 @@ function drawMouseMaze() {
     const py = pyBase + mz.animY;
     const mouseDrawSize = Math.min(cellSize - 4, 28);
     const mScale = mouseDrawSize / 28;
+
+    // Speed boost glow
+    if (mz.speedTimer > 0) {
+      const sFlash = mz.speedTimer < 1500 ? Math.sin(t * 10) > 0 : true;
+      if (sFlash) {
+        const glow = ctx.createRadialGradient(px + cellSize / 2, py + cellSize / 2, 2, px + cellSize / 2, py + cellSize / 2, cellSize * 0.6);
+        glow.addColorStop(0, 'rgba(80,255,120,0.3)');
+        glow.addColorStop(1, 'rgba(80,255,120,0)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(px, py, cellSize, cellSize);
+      }
+    }
+
     ctx.save();
     const mcx = px + cellSize / 2;
     const mcy = py + cellSize / 2;
@@ -6827,7 +6892,8 @@ function drawMouseMaze() {
     ctx.scale(mScale, mScale);
     ctx.translate(-mcx, -mcy);
     const faceDir = (mz.playerDir === 'left') ? -1 : 1;
-    drawMouse(px + (cellSize - 28) / 2, py + (cellSize - 20) / 2 - 2, CONFIG.mice.pip, faceDir, Math.floor(t * 6) % 4, 'walking');
+    const walkSpeed = mz.speedTimer > 0 ? 'zoomies' : 'walking';
+    drawMouse(px + (cellSize - 28) / 2, py + (cellSize - 20) / 2 - 2, CONFIG.mice.pip, faceDir, Math.floor(t * 6) % 4, walkSpeed);
     ctx.restore();
 
     // Chomping effect (brief flash when collecting)
@@ -6978,6 +7044,7 @@ function hideMazeDpad() {
   document.getElementById('maze-dpad').classList.remove('visible');
 }
 document.querySelectorAll('#maze-dpad .dpad-btn').forEach(btn => {
+  let holdInterval = null;
   function fireDpad(e) {
     e.preventDefault();
     e.stopPropagation();
@@ -6989,9 +7056,35 @@ document.querySelectorAll('#maze-dpad .dpad-btn').forEach(btn => {
       doMazeMove(dir);
       mz.moveTimer = mz.moveInterval;
     }
+    if (navigator.vibrate) navigator.vibrate(8);
   }
-  btn.addEventListener('touchstart', fireDpad, { passive: false });
-  btn.addEventListener('mousedown', fireDpad);
+  function startHold(e) {
+    fireDpad(e);
+    btn.classList.add('held');
+    clearInterval(holdInterval);
+    holdInterval = setInterval(() => {
+      if (!mouseMazeActive || !mz || mz.levelComplete || mz.gameOver || mz.deathPause > 0) {
+        stopHold(); return;
+      }
+      const dir = btn.dataset.dir;
+      if (canMazeMove(dir)) {
+        mz.playerDir = dir;
+        doMazeMove(dir);
+        if (navigator.vibrate) navigator.vibrate(5);
+      }
+    }, 100);
+  }
+  function stopHold() {
+    btn.classList.remove('held');
+    clearInterval(holdInterval);
+    holdInterval = null;
+  }
+  btn.addEventListener('touchstart', startHold, { passive: false });
+  btn.addEventListener('mousedown', startHold);
+  btn.addEventListener('touchend', stopHold);
+  btn.addEventListener('touchcancel', stopHold);
+  btn.addEventListener('mouseup', stopHold);
+  btn.addEventListener('mouseleave', stopHold);
 });
 
 // ============================================================
