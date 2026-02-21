@@ -4666,7 +4666,7 @@ function handlePlacementClick(gx, gy) {
 
   const placedEntry = {
     itemId: item.id, room: state.currentRoom,
-    gridX: grid.col, gridY: grid.row
+    gridX: grid.col, gridY: grid.row, _placedAt: Date.now()
   };
   if (item.servings) placedEntry.servings = item.servings;
   state.placedItems.push(placedEntry);
@@ -5001,7 +5001,7 @@ function endDrag(sx, sy) {
       // New placement
       const newEntry = {
         itemId: item.id, room: state.currentRoom,
-        gridX: grid.col, gridY: grid.row
+        gridX: grid.col, gridY: grid.row, _placedAt: Date.now()
       };
       if (item.servings) newEntry.servings = item.servings;
       state.placedItems.push(newEntry);
@@ -7460,16 +7460,20 @@ function updateGoals(dt) {
     }
     const goalItemDef = FURNITURE.find(f => f.id === state.activeGoal.itemId);
     const goalBehavior = goalItemDef && goalItemDef.mouseBehavior;
-    // Accept exact item OR any item with matching mouseBehavior
+    // Accept exact item OR any food item with matching mouseBehavior
+    // (exclude birthday items to prevent auto-completing food goals)
     const matchedPlaced = state.placedItems.find(p => {
       if (p.itemId === state.activeGoal.itemId) return true;
       if (goalBehavior) {
         const pDef = FURNITURE.find(f => f.id === p.itemId);
-        return pDef && pDef.mouseBehavior === goalBehavior;
+        if (!pDef || pDef.mouseBehavior !== goalBehavior) return false;
+        if (pDef.birthday) return false; // don't match birthday cake for food goals
+        return true;
       }
       return false;
     });
-    if (matchedPlaced) {
+    // Only complete if the matched item was placed AFTER the goal was created
+    if (matchedPlaced && (!matchedPlaced._placedAt || matchedPlaced._placedAt >= (state.activeGoal.created || 0))) {
       // Goal completed!
       const bonus = 15;
       const goalMouseKey = state.activeGoal.mouseKey;
