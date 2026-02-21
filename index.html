@@ -5452,6 +5452,7 @@ function endDrag(sx, sy) {
       // Repositioning — update existing entry
       state.placedItems[ds.fromPlacedIdx].gridX = grid.col;
       state.placedItems[ds.fromPlacedIdx].gridY = grid.row;
+      state.placedItems[ds.fromPlacedIdx]._placedAt = Date.now(); // refresh novelty timestamp
       sfxPlace();
       showToast(`Moved ${item.icon} ${item.name}!`);
       reactToFurnitureMove(item);
@@ -9111,11 +9112,12 @@ function pickNewAction(mouse, personality) {
   mouse._dreamFade = 0;
   const roll = Math.random();
   const room = ROOMS[mouse.room];
+  const mouseKey = mouse === state.miceState.pip ? 'pip' : 'chai';
 
-  // Hunger-driven food seeking — checked FIRST so hungry mice always prioritize food
-  const isHungry = (mouse.happiness ?? 80) < 35;
+  // ─── PRIORITY 1: HUNGER ───
+  // When hungry, ALWAYS seek food. Never fall through to general actions.
+  const isHungry = (mouse.happiness ?? 80) < 40;
   if (isHungry) {
-    // Check all rooms for food with servings remaining
     const allFood = state.placedItems.filter(p => {
       const item = FURNITURE.find(f => f.id === p.itemId);
       return item && item.servings && (p.servings === undefined || p.servings > 0);
@@ -9123,16 +9125,14 @@ function pickNewAction(mouse, personality) {
     const foodInRoom = allFood.filter(p => p.room === mouse.room);
 
     if (foodInRoom.length > 0) {
-      // Walk to food — use ramp if on different platform
       const target = foodInRoom[Math.floor(Math.random() * foodInRoom.length)];
       const pos = gridToGame(target.gridX, target.gridY);
       const foodPlatform = getFurniturePlatform(mouse.room, target);
       mouse.action = 'walking';
       mouse.actionTimer = 10000;
-      mouse._pendingEat = { placed: target }; // eat when we arrive
+      mouse._pendingEat = { placed: target };
 
       if (mouse.level !== foodPlatform) {
-        // Need to climb to food's platform first
         const ramp = room.ramps && room.ramps.find(r =>
           (r.from === mouse.level && r.to === foodPlatform) ||
           (r.to === mouse.level && r.from === foodPlatform));
@@ -9142,7 +9142,6 @@ function pickNewAction(mouse, personality) {
           mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
           mouse.pendingClimb = { ramp, targetLevel: foodPlatform, goingUp };
         } else {
-          // No ramp — force to main-floor and walk
           mouse.level = 'main-floor';
           mouse.targetX = pos.x + Math.random() * 10;
           mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
@@ -9151,114 +9150,110 @@ function pickNewAction(mouse, personality) {
         mouse.targetX = pos.x + Math.random() * 10;
         mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
       }
-      return;
+      return; // ALWAYS return — hungry mouse goes to food
     }
-    // No food in this room — walk to exit edge, then step one room toward food
+    // Food in another room — go get it
     const foodElsewhere = allFood.filter(p => p.room !== mouse.room);
     if (foodElsewhere.length > 0) {
       const target = foodElsewhere[Math.floor(Math.random() * foodElsewhere.length)];
       const nextRoom = ringStepToward(mouse.room, target.room);
       const exitDir = nextRoom === roomRight(mouse.room) ? 1 : -1;
-      const exitX = exitDir > 0 ? ROOM_W - 5 : 5;
       mouse.level = 'main-floor';
       mouse.action = 'walking';
-      mouse.targetX = exitX;
+      mouse.targetX = exitDir > 0 ? ROOM_W - 5 : 5;
       mouse.dir = exitDir;
       mouse.actionTimer = 12000;
       mouse.pendingRoomChange = { newRoom: nextRoom, exitDir };
-      return;
+      return; // ALWAYS return
     }
-    // Truly no food anywhere — complain
-    if (mouse.room === state.currentRoom && Math.random() < 0.3) {
+    // No food anywhere — complain and idle (DON'T fall through to general actions)
+    if (mouse.room === state.currentRoom && Math.random() < 0.5) {
       sfxHungryWhimper();
-      const mouseKey = mouse === state.miceState.pip ? 'pip' : 'chai';
-      const noFoodQuotes = ['where\'s the food?! 😰', '*stomach growls*', 'buy us food! 😩', 'empty bowl era 😢'];
+      const noFoodQuotes = ['where\'s the food?! 😰', '*stomach growls*', 'buy us food! 😩', 'empty bowl era 😢', 'starving rn 💀'];
       speechBubbles = speechBubbles.filter(b => b.mouseKey !== mouseKey);
       speechBubbles.push({ x: mouse.x + 14, y: getMouseFloorY(mouse) - 10,
         text: noFoodQuotes[Math.floor(Math.random() * noFoodQuotes.length)],
         timer: 2500, maxTimer: 2500, mouseKey });
     }
-  }
-
-  // Chance to switch rooms — 18%, moves to adjacent room on the ring
-  // Mouse walks to the exit edge, then transitions to the new room
-  if (roll < 0.18) {
-    const otherMouse = mouse === state.miceState.pip ? state.miceState.chai : state.miceState.pip;
-    let newRoom;
-    if (otherMouse.room !== mouse.room && Math.random() < 0.7) {
-      newRoom = ringStepToward(mouse.room, otherMouse.room);
-    } else {
-      newRoom = Math.random() < 0.5 ? roomLeft(mouse.room) : roomRight(mouse.room);
-    }
-    if (newRoom !== mouse.room) {
-      // Determine exit direction: left neighbor = walk left, right neighbor = walk right
-      const exitDir = newRoom === roomRight(mouse.room) ? 1 : -1;
-      // Target the actual room wall edge (beyond platform clamp)
-      const exitX = exitDir > 0 ? ROOM_W - 5 : 5;
-      // Walk to the exit edge, then room switch happens on arrival
-      mouse.level = 'main-floor';
-      mouse.action = 'walking';
-      mouse.targetX = exitX;
-      mouse.dir = exitDir;
-      mouse.actionTimer = 12000;
-      mouse.pendingRoomChange = { newRoom, exitDir };
-      return;
-    }
+    // Hungry idle — short pause, then re-check
     mouse.action = 'idle';
-    mouse.actionTimer = 800 + Math.random() * 1200;
-    return;
+    mouse.actionTimer = 2000 + Math.random() * 2000;
+    return; // ALWAYS return — never fall through when hungry
   }
 
-  // Chance to switch levels (climb ramp) — 30% if room has ramps
-  if (room.ramps && room.ramps.length > 0 && roll < 0.48) {
-    // Find a ramp accessible from current level
-    const availableRamps = room.ramps.filter(r => r.from === mouse.level || r.to === mouse.level);
-    if (availableRamps.length > 0) {
-      const ramp = availableRamps[Math.floor(Math.random() * availableRamps.length)];
-      const goingUp = ramp.from === mouse.level;
-      const targetLevel = goingUp ? ramp.to : ramp.from;
+  // ─── PRIORITY 2: NOVELTY ───
+  // Seek items placed or moved in the last 60 seconds
+  const now = Date.now();
+  const NOVELTY_WINDOW = 60000; // 60 seconds
+  const novelItems = state.placedItems.filter(p =>
+    p._placedAt && (now - p._placedAt) < NOVELTY_WINDOW &&
+    p.room !== undefined
+  );
+  // Only pursue novelty items mouse hasn't already investigated
+  const freshNovel = novelItems.filter(p => {
+    const lastVisit = mouse._noveltyVisited && mouse._noveltyVisited[p.itemId + '_' + p.room + '_' + p.gridX];
+    return !lastVisit || (now - lastVisit) > NOVELTY_WINDOW;
+  });
+  if (freshNovel.length > 0 && Math.random() < 0.7) {
+    const target = freshNovel[Math.floor(Math.random() * freshNovel.length)];
+    const itemDef = FURNITURE.find(f => f.id === target.itemId);
+    const fw = (itemDef ? itemDef.w : 1) * GRID_SIZE;
+    // Mark as visited
+    if (!mouse._noveltyVisited) mouse._noveltyVisited = {};
+    mouse._noveltyVisited[target.itemId + '_' + target.room + '_' + target.gridX] = now;
 
-      // First walk to the ramp entrance, then climb
-      const rampEntryX = goingUp ? ramp.x1 : ramp.x2;
+    if (target.room === mouse.room) {
+      // Same room — walk to item and interact
       mouse.action = 'walking';
-      mouse.targetX = rampEntryX;
-      mouse.dir = rampEntryX > mouse.x ? 1 : -1;
-      mouse.actionTimer = 6000;
-
-      // Set up climb state — will activate when mouse reaches ramp
-      mouse.pendingClimb = { ramp, targetLevel, goingUp };
+      mouse.actionTimer = 8000;
+      const pos = gridToGame(target.gridX, target.gridY);
+      mouse.targetX = pos.x + fw / 2 + (mouseKey === 'pip' ? -8 : 8);
+      mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
+      if (itemDef) {
+        const needsMount = itemDef.mouseBehavior === 'burrowing' || itemDef.mouseBehavior === 'swinging' ||
+          (itemDef.mouseBehavior === 'sleeping' && itemDef.id === 'hammock');
+        if (needsMount) {
+          mouse.pendingFurniture = { behavior: itemDef.mouseBehavior, placed: target, timer: 5000 + Math.random() * 4000 };
+        } else if (itemDef.mouseBehavior === 'eating') {
+          mouse._pendingEat = { placed: target };
+        } else if (itemDef.mouseBehavior) {
+          mouse._pendingReact = { item: itemDef, placed: target };
+        }
+      }
+      return;
+    } else {
+      // Different room — travel to it
+      mouse._curiosityTarget = { room: target.room, item: itemDef };
+      mouse.level = 'main-floor';
+      startCuriosityTravel(mouse);
       return;
     }
   }
 
-  // Check what furniture behaviors are available in this room
+  // ─── PRIORITY 3: FURNITURE INTERACTION (55% chance) ───
   const roomItems = state.placedItems.filter(p => p.room === mouse.room);
   const furnitureBehaviors = [];
   roomItems.forEach(placed => {
     const item = FURNITURE.find(f => f.id === placed.itemId);
-    if (item && item.mouseBehavior && !furnitureBehaviors.includes(item.mouseBehavior)) {
+    if (item && item.mouseBehavior) {
       furnitureBehaviors.push({ behavior: item.mouseBehavior, placed });
     }
   });
 
-  // 40% chance to interact with furniture if any is available
-  if (furnitureBehaviors.length > 0 && Math.random() < 0.4) {
+  if (furnitureBehaviors.length > 0 && Math.random() < 0.55) {
     let pick;
-    // Pip is hungrier — strongly prefers food items
     const foodBehaviors = furnitureBehaviors.filter(fb => fb.behavior === 'eating');
-    if (personality === 'chaotic' && foodBehaviors.length > 0 && Math.random() < 0.6) {
+    if (personality === 'chaotic' && foodBehaviors.length > 0 && Math.random() < 0.5) {
       pick = foodBehaviors[Math.floor(Math.random() * foodBehaviors.length)];
     } else {
-      // Both mice love the exercise wheel — high preference
       const wheelBehaviors = furnitureBehaviors.filter(fb => fb.behavior === 'wheeling');
-      if (wheelBehaviors.length > 0 && Math.random() < 0.5) {
+      if (wheelBehaviors.length > 0 && Math.random() < 0.4) {
         pick = wheelBehaviors[0];
       } else {
         pick = furnitureBehaviors[Math.floor(Math.random() * furnitureBehaviors.length)];
       }
     }
     mouse.action = pick.behavior;
-    // Play sound when behavior starts (only if mouse is in visible room)
     if (mouse.room === state.currentRoom) {
       if (pick.behavior === 'zoomies') sfxZoomieSqueak();
       else if (pick.behavior === 'hiding') sfxHide();
@@ -9276,7 +9271,7 @@ function pickNewAction(mouse, personality) {
     if (pick.behavior === 'chewing') mouse.actionTimer = 2000 + Math.random() * 2000;
     if (pick.behavior === 'swinging') mouse.actionTimer = 4000 + Math.random() * 4000;
     if (pick.behavior === 'burrowing') mouse.actionTimer = 5000 + Math.random() * 5000;
-    // Hammock, climbing rope, and burrowing items: walk to the item first, then mount it
+    // Mount-based items: walk first, then mount on arrival
     if ((pick.behavior === 'sleeping' && pick.placed.itemId === 'hammock') ||
         pick.behavior === 'swinging' || pick.behavior === 'burrowing') {
       const itemDef = FURNITURE.find(f => f.id === pick.placed.itemId);
@@ -9284,10 +9279,8 @@ function pickNewAction(mouse, personality) {
       mouse.pendingFurniture = { behavior: pick.behavior, placed: pick.placed, timer: mouse.actionTimer };
       mouse.action = 'walking';
       mouse.actionTimer = 10000;
-      // Check if mouse needs to climb to the furniture's platform
       const furnPlatform = getFurniturePlatform(mouse.room, pick.placed);
       if (mouse.level !== furnPlatform) {
-        const room = ROOMS[mouse.room];
         const ramp = room.ramps && room.ramps.find(r =>
           (r.from === mouse.level && r.to === furnPlatform) ||
           (r.to === mouse.level && r.from === furnPlatform));
@@ -9323,9 +9316,8 @@ function pickNewAction(mouse, personality) {
         }
       }
     }
-    // Speech for new behaviors
+    // Speech for behaviors
     if (mouse.room === state.currentRoom) {
-      const mouseKey = mouse === state.miceState.pip ? 'pip' : 'chai';
       let quotes = null;
       if (pick.behavior === 'hiding') {
         quotes = mouseKey === 'pip'
@@ -9352,6 +9344,48 @@ function pickNewAction(mouse, personality) {
       }
     }
     return;
+  }
+
+  // ─── PRIORITY 4: PERSONALITY FALLBACK ───
+  // Room change (12%), ramp climb (10%), then weighted personality actions
+
+  // Room change — 12%
+  if (roll < 0.12) {
+    const otherMouse = mouse === state.miceState.pip ? state.miceState.chai : state.miceState.pip;
+    let newRoom;
+    if (otherMouse.room !== mouse.room && Math.random() < 0.7) {
+      newRoom = ringStepToward(mouse.room, otherMouse.room);
+    } else {
+      newRoom = Math.random() < 0.5 ? roomLeft(mouse.room) : roomRight(mouse.room);
+    }
+    if (newRoom !== mouse.room) {
+      const exitDir = newRoom === roomRight(mouse.room) ? 1 : -1;
+      const exitX = exitDir > 0 ? ROOM_W - 5 : 5;
+      mouse.level = 'main-floor';
+      mouse.action = 'walking';
+      mouse.targetX = exitX;
+      mouse.dir = exitDir;
+      mouse.actionTimer = 12000;
+      mouse.pendingRoomChange = { newRoom, exitDir };
+      return;
+    }
+  }
+
+  // Ramp climbing — 10% (only if room has ramps)
+  if (room.ramps && room.ramps.length > 0 && roll < 0.22) {
+    const availableRamps = room.ramps.filter(r => r.from === mouse.level || r.to === mouse.level);
+    if (availableRamps.length > 0) {
+      const ramp = availableRamps[Math.floor(Math.random() * availableRamps.length)];
+      const goingUp = ramp.from === mouse.level;
+      const targetLevel = goingUp ? ramp.to : ramp.from;
+      const rampEntryX = goingUp ? ramp.x1 : ramp.x2;
+      mouse.action = 'walking';
+      mouse.targetX = rampEntryX;
+      mouse.dir = rampEntryX > mouse.x ? 1 : -1;
+      mouse.actionTimer = 6000;
+      mouse.pendingClimb = { ramp, targetLevel, goingUp };
+      return;
+    }
   }
 
   // Personality-weighted action selection — both mice are hyper
