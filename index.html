@@ -4701,6 +4701,7 @@ function reactToNewFurniture(item) {
 
     if (mouse.room === state.currentRoom) {
       // Same room: walk over and try it out
+      mouse._curiosityTarget = null;
       mouse.pendingClimb = null;
       mouse.pendingRoomChange = null;
       mouse.level = 'main-floor';
@@ -4726,18 +4727,85 @@ function reactToNewFurniture(item) {
         }
       }, 2000);
     } else {
-      // Different room: head toward this room to check it out
-      const nextRoom = ringStepToward(mouse.room, state.currentRoom);
-      const exitDir = nextRoom === roomRight(mouse.room) ? 1 : -1;
-      const exitX = exitDir > 0 ? ROOM_W - 5 : 5;
+      // Different room: set curiosity target so mouse travels across multiple rooms
+      mouse._curiosityTarget = { room: state.currentRoom, item };
+      mouse._pendingEat = null;
       mouse.pendingClimb = null;
       mouse.pendingRoomChange = null;
+      mouse.pendingFurniture = null;
       mouse.level = 'main-floor';
-      mouse.action = 'walking';
-      mouse.targetX = exitX;
-      mouse.dir = exitDir;
-      mouse.actionTimer = 12000;
-      mouse.pendingRoomChange = { newRoom: nextRoom, exitDir };
+      startCuriosityTravel(mouse);
+    }
+  });
+}
+
+// Drive a mouse toward its _curiosityTarget room
+function startCuriosityTravel(mouse) {
+  const target = mouse._curiosityTarget;
+  if (!target) return;
+  if (mouse.room === target.room) {
+    // Arrived — walk to a random spot and react
+    mouse._curiosityTarget = null;
+    mouse.action = 'walking';
+    const plat = ROOMS[mouse.room].platforms ? ROOMS[mouse.room].platforms[0] : null;
+    const xMin = plat ? plat.xMin + 10 : 30;
+    const xMax = plat ? plat.xMax - 40 : ROOM_W - 60;
+    mouse.targetX = xMin + Math.random() * (xMax - xMin);
+    mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
+    mouse.actionTimer = 4000;
+    // Curiosity speech after arriving
+    const key = mouse === state.miceState.pip ? 'pip' : 'chai';
+    setTimeout(() => {
+      if (mouse.room === target.room) {
+        const curiosity = ['ooh what\'s this? 👀', 'new thing! 🎉', '*sniff sniff*',
+          'is this for me?!', 'fancy ✨', 'came to check 🔍',
+          'heard something!', 'oooh shiny', '*inspects carefully*'][Math.floor(Math.random() * 9)];
+        speechBubbles = speechBubbles.filter(b => b.mouseKey !== key);
+        speechBubbles.push({
+          x: mouse.x + 14, y: getMouseFloorY(mouse) - 10,
+          text: curiosity, timer: 2500, maxTimer: 2500, mouseKey: key
+        });
+        if (target.item && target.item.mouseBehavior && target.item.mouseBehavior !== 'eating') {
+          mouse.action = target.item.mouseBehavior;
+          mouse.actionTimer = 3000 + Math.random() * 2000;
+        }
+      }
+    }, 2000);
+    return;
+  }
+  const nextRoom = ringStepToward(mouse.room, target.room);
+  const exitDir = nextRoom === roomRight(mouse.room) ? 1 : -1;
+  const exitX = exitDir > 0 ? ROOM_W - 5 : 5;
+  mouse.action = 'walking';
+  mouse.targetX = exitX;
+  mouse.dir = exitDir;
+  mouse.actionTimer = 12000;
+  mouse.pendingRoomChange = { newRoom: nextRoom, exitDir };
+}
+
+// React to furniture repositioning (moving an existing item)
+function reactToFurnitureMove(item) {
+  ['pip', 'chai'].forEach(key => {
+    const mouse = state.miceState[key];
+    if (mouse.action === 'wheeling' || mouse.action === 'flung' || mouse.action === 'climbing' || mouse.onFurniture) return;
+    if (mouse.room === state.currentRoom) {
+      // Same room: glance over curiously
+      const curiosity = ['rearranging? 🤔', 'ooh new spot!', '*watches intently*',
+        'I liked it there tho', 'makeover! ✨', 'why tho'][Math.floor(Math.random() * 6)];
+      speechBubbles = speechBubbles.filter(b => b.mouseKey !== key);
+      speechBubbles.push({
+        x: mouse.x + 14, y: getMouseFloorY(mouse) - 10,
+        text: curiosity, timer: 2000, maxTimer: 2000, mouseKey: key
+      });
+    } else {
+      // Different room: come check it out
+      mouse._curiosityTarget = { room: state.currentRoom, item };
+      mouse._pendingEat = null;
+      mouse.pendingClimb = null;
+      mouse.pendingRoomChange = null;
+      mouse.pendingFurniture = null;
+      mouse.level = 'main-floor';
+      startCuriosityTravel(mouse);
     }
   });
 }
@@ -4997,6 +5065,7 @@ function endDrag(sx, sy) {
       state.placedItems[ds.fromPlacedIdx].gridY = grid.row;
       sfxPlace();
       showToast(`Moved ${item.icon} ${item.name}!`);
+      reactToFurnitureMove(item);
     } else {
       // New placement
       const newEntry = {
@@ -8498,6 +8567,11 @@ function updateMouse(mouse, dt, personality) {
         // Enter from the opposite edge (exit right → enter left, and vice versa)
         mouse.x = prc.exitDir > 0 ? xMin : xMax;
         mouse.dir = prc.exitDir;
+        // If mouse is traveling to check out furniture, keep going
+        if (mouse._curiosityTarget) {
+          startCuriosityTravel(mouse);
+          return;
+        }
         // Walk inward from the entrance
         mouse.action = 'walking';
         mouse.targetX = xMin + Math.random() * (xMax - xMin);
@@ -8605,6 +8679,7 @@ function pickNewAction(mouse, personality) {
   mouse.pendingFurniture = null;
   mouse.onFurniture = null;
   mouse._pendingEat = null;
+  mouse._curiosityTarget = null;
   mouse._snoreTimer = null;
   mouse._groomTimer = null;
   mouse._chewTimer = null;
