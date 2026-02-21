@@ -7458,12 +7458,22 @@ function updateGoals(dt) {
       goalCooldown = 15000 + Math.random() * 10000;
       return;
     }
-    const isPlaced = state.placedItems.some(p => p.itemId === state.activeGoal.itemId);
-    if (isPlaced) {
+    const goalItemDef = FURNITURE.find(f => f.id === state.activeGoal.itemId);
+    const goalBehavior = goalItemDef && goalItemDef.mouseBehavior;
+    // Accept exact item OR any item with matching mouseBehavior
+    const matchedPlaced = state.placedItems.find(p => {
+      if (p.itemId === state.activeGoal.itemId) return true;
+      if (goalBehavior) {
+        const pDef = FURNITURE.find(f => f.id === p.itemId);
+        return pDef && pDef.mouseBehavior === goalBehavior;
+      }
+      return false;
+    });
+    if (matchedPlaced) {
       // Goal completed!
       const bonus = 15;
       const goalMouseKey = state.activeGoal.mouseKey;
-      const goalItemId = state.activeGoal.itemId;
+      const goalItemId = matchedPlaced.itemId; // use the actual placed item
       state.coins += bonus;
       state.totalCoinsEarned += bonus;
       addHappiness(10);
@@ -7563,7 +7573,10 @@ function updateGoals(dt) {
               timer: 3500, maxTimer: 3500, mouseKey: goalMouseKey
             });
             // Start the item's behavior (if it has one)
-            if (goalItem.mouseBehavior && goalItem.mouseBehavior !== 'eating' && !goalMouse.onFurniture) {
+            if (goalItem.mouseBehavior === 'sleeping' && !goalMouse.onFurniture) {
+              goalMouse.action = 'sleeping';
+              goalMouse.actionTimer = 10000 + Math.random() * 5000; // nice long nap
+            } else if (goalItem.mouseBehavior && goalItem.mouseBehavior !== 'eating' && !goalMouse.onFurniture) {
               goalMouse.action = goalItem.mouseBehavior;
               goalMouse.actionTimer = 4000 + Math.random() * 3000;
             } else if (goalItem.mouseBehavior === 'eating') {
