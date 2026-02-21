@@ -7091,9 +7091,9 @@ function _birthdaySelfieSequence(cakeRoom) {
   const cakePos = gridToGame(cakePlaced.gridX, cakePlaced.gridY);
   const cakeCenterX = cakePos.x + 12; // cake is 24px wide
 
-  // Position mice on either side of the cake (Chai left, Pip right for "Happy Birthday" reading order)
-  const chaiTargetX = cakeCenterX - 38; // Chai on the left
-  const pipTargetX = cakeCenterX + 18;  // Pip on the right
+  // Position mice on either side of the cake (Pip left, Chai right)
+  const pipTargetX = cakeCenterX - 38;  // Pip on the left
+  const chaiTargetX = cakeCenterX + 18; // Chai on the right
 
   // Walk to positions
   pip.room = cakeRoom;
@@ -7117,28 +7117,28 @@ function _birthdaySelfieSequence(cakeRoom) {
   // After arriving, pose idle facing the cake and speak
   setTimeout(() => {
     pip.action = 'idle';
-    pip.actionTimer = 8000; // hold still long enough for selfie
-    pip.dir = -1; // face left toward cake
+    pip.actionTimer = 12000; // hold still long enough for selfie
+    pip.dir = 1; // face right toward cake
     pip.x = pipTargetX;
 
     chai.action = 'idle';
-    chai.actionTimer = 8000;
-    chai.dir = 1; // face right toward cake
+    chai.actionTimer = 12000;
+    chai.dir = -1; // face left toward cake
     chai.x = chaiTargetX;
 
-    // Pip says "Happy" (on the right)
+    // Pip says "Happy" (on the left)
     speechBubbles = speechBubbles.filter(b => b.mouseKey !== 'pip');
     speechBubbles.push({
       x: pip.x + 14, y: getMouseFloorY(pip) - 10,
-      text: 'Happy 🎂', timer: 4000, maxTimer: 4000, mouseKey: 'pip'
+      text: 'Happy 🎂', timer: 6000, maxTimer: 6000, mouseKey: 'pip'
     });
 
-    // Chai says "Birthday!" after a beat (on the left)
+    // Chai says "Birthday!" after a beat (on the right)
     setTimeout(() => {
       speechBubbles = speechBubbles.filter(b => b.mouseKey !== 'chai');
       speechBubbles.push({
         x: chai.x + 14, y: getMouseFloorY(chai) - 10,
-        text: 'Birthday! 🎉', timer: 4000, maxTimer: 4000, mouseKey: 'chai'
+        text: 'Birthday! 🎉', timer: 6000, maxTimer: 6000, mouseKey: 'chai'
       });
 
       // Auto-selfie after both speech bubbles are visible
