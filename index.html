@@ -8995,19 +8995,41 @@ function updateSpeechBubbles(dt) {
 }
 
 function drawSpeechBubbles() {
-  speechBubbles.forEach(b => {
-    // Only draw bubbles for mice in the currently viewed room
+  // Pre-compute bubble rects to detect overlaps
+  ctx.font = '9px monospace';
+  const ph = 18;
+  const bubbleRects = [];
+  const visibleBubbles = speechBubbles.filter(b => {
     const mouse = state.miceState[b.mouseKey];
-    if (mouse && mouse.room !== state.currentRoom) return;
+    return !mouse || mouse.room === state.currentRoom;
+  });
 
-    const alpha = Math.min(1, b.timer / 500); // fade out last 500ms
-    ctx.globalAlpha = alpha;
-    ctx.font = '9px monospace';
+  for (const b of visibleBubbles) {
     const tw = ctx.measureText(b.text).width;
     const pw = tw + 12;
-    const ph = 18;
     const px = Math.max(4, Math.min(GAME_W - pw - 4, b.x - pw / 2));
-    const py = b.y - ph - 8;
+    let py = b.y - ph - 8;
+    bubbleRects.push({ b, px, py, pw, ph });
+  }
+
+  // Nudge overlapping bubbles upward
+  for (let i = 1; i < bubbleRects.length; i++) {
+    for (let j = 0; j < i; j++) {
+      const a = bubbleRects[j], c = bubbleRects[i];
+      // Check horizontal overlap
+      if (c.px < a.px + a.pw && c.px + c.pw > a.px) {
+        // Check vertical overlap (with small gap)
+        if (c.py < a.py + a.ph + 4 && c.py + c.ph > a.py - 4) {
+          c.py = a.py - c.ph - 6; // stack above
+        }
+      }
+    }
+  }
+
+  for (const { b, px, py, pw, ph } of bubbleRects) {
+    const alpha = Math.min(1, b.timer / 500);
+    ctx.globalAlpha = alpha;
+    ctx.font = '9px monospace';
 
     // Bubble bg
     ctx.fillStyle = 'rgba(255,250,240,0.92)';
@@ -9035,7 +9057,7 @@ function drawSpeechBubbles() {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
     ctx.globalAlpha = 1.0;
-  });
+  }
 }
 
 function spawnFloatingEffect(x, y, text) {
