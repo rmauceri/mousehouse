@@ -6470,23 +6470,19 @@ function updateMouseMaze(dt) {
   mz.animX += (0 - mz.animX) * 0.35;
   mz.animY += (0 - mz.animY) * 0.35;
 
-  // Continuous movement: check held keys for direction
+  // Continuous movement: auto-repeat while keys held (after initial delay from keydown)
   const held = mz.heldKeys;
   const activeDir = held.up ? 'up' : held.down ? 'down' : held.left ? 'left' : held.right ? 'right' : null;
-  if (activeDir) mz.nextDir = activeDir;
 
   mz.moveTimer -= dt;
-  if (mz.moveTimer <= 0) {
+  if (mz.moveTimer <= 0 && activeDir) {
     mz.moveTimer = mz.speedTimer > 0 ? mz.moveInterval * 0.55 : mz.moveInterval;
-    // Only auto-repeat if a key is held; single press moves once via keydown
-    if (activeDir) {
-      if (mz.nextDir && canMazeMove(mz.nextDir)) {
-        mz.playerDir = mz.nextDir;
-        mz.nextDir = null;
-        doMazeMove(mz.playerDir);
-      } else if (canMazeMove(mz.playerDir)) {
-        doMazeMove(mz.playerDir);
-      }
+    const tryDir = activeDir;
+    if (canMazeMove(tryDir)) {
+      mz.playerDir = tryDir;
+      doMazeMove(tryDir);
+    } else if (canMazeMove(mz.playerDir)) {
+      doMazeMove(mz.playerDir);
     }
   }
 
@@ -9834,15 +9830,14 @@ document.addEventListener('keydown', e => {
                        ArrowLeft:'left', a:'left', ArrowRight:'right', d:'right' })[e.key];
     if (mazeDir) {
       e.preventDefault();
+      if (e.repeat) return; // ignore OS key-repeat; we handle our own
       mz.heldKeys[mazeDir] = true;
-      // Immediate move on first press (no waiting for timer)
+      // Immediate move — always, no timer gate
       if (canMazeMove(mazeDir)) {
         mz.playerDir = mazeDir;
         mz.nextDir = null;
-        if (mz.moveTimer > 20) {
-          doMazeMove(mazeDir);
-          mz.moveTimer = 200; // longer initial delay before auto-repeat
-        }
+        doMazeMove(mazeDir);
+        mz.moveTimer = 180; // initial delay before auto-repeat kicks in
       } else {
         mz.nextDir = mazeDir;
       }
