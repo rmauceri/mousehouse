@@ -5020,6 +5020,8 @@ function handlePlacementClick(gx, gy) {
 function reactToNewFurniture(item) {
   const placed = state.placedItems[state.placedItems.length - 1];
   const targetPos = gridToGame(placed.gridX, placed.gridY);
+  const itemDef = FURNITURE.find(f => f.id === item.id);
+  const fw = (itemDef ? itemDef.w : 1) * GRID_SIZE;
 
   ['pip', 'chai'].forEach(key => {
     const mouse = state.miceState[key];
@@ -5039,25 +5041,36 @@ function reactToNewFurniture(item) {
       mouse._curiosityTarget = null;
       mouse.pendingClimb = null;
       mouse.pendingRoomChange = null;
+      mouse.pendingFurniture = null;
+      mouse._pendingEat = null;
       mouse.level = 'main-floor';
       mouse.action = 'walking';
-      mouse.targetX = targetPos.x + (key === 'pip' ? -10 : 20);
+      mouse.targetX = targetPos.x + fw / 2 + (key === 'pip' ? -10 : 10);
       mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
-      mouse.actionTimer = 6000;
+      mouse.actionTimer = 8000;
+      // Mount-based items: use pendingFurniture so mouse auto-mounts on arrival
+      const needsMount = item.mouseBehavior === 'burrowing' || item.mouseBehavior === 'swinging' ||
+        (item.mouseBehavior === 'sleeping' && item.id === 'hammock');
+      if (needsMount) {
+        mouse.pendingFurniture = { behavior: item.mouseBehavior, placed, timer: 5000 + Math.random() * 4000 };
+      } else if (item.mouseBehavior && item.mouseBehavior !== 'eating') {
+        // Non-mount behaviors: set up as pending action after walking
+        mouse._pendingReact = { item, placed };
+      }
+      // Curiosity speech on arrival
+      const capturedKey = key;
       setTimeout(() => {
         if (mouse.room === state.currentRoom) {
           const curiosity = ['ooh what\'s this? 👀', 'new thing! 🎉', '*sniff sniff*',
             'is this for me?!', 'fancy ✨', 'dibs!', 'must investigate 🔍',
             'MINE', 'oooh shiny', '*inspects carefully*'][Math.floor(Math.random() * 10)];
-          speechBubbles = speechBubbles.filter(b => b.mouseKey !== key);
+          speechBubbles = speechBubbles.filter(b => b.mouseKey !== capturedKey);
           speechBubbles.push({
             x: mouse.x + 14, y: getMouseFloorY(mouse) - 10,
-            text: curiosity, timer: 2500, maxTimer: 2500, mouseKey: key
+            text: curiosity, timer: 2500, maxTimer: 2500, mouseKey: capturedKey
           });
-          // Try out the item's behavior if it has one
-          tryItemBehavior(mouse, item, placed);
         }
-      }, 2000);
+      }, 1500);
     } else {
       // Different room: set curiosity target so mouse travels across multiple rooms
       mouse._curiosityTarget = { room: state.currentRoom, item };
@@ -5091,16 +5104,34 @@ function startCuriosityTravel(mouse) {
   const target = mouse._curiosityTarget;
   if (!target) return;
   if (mouse.room === target.room) {
-    // Arrived — walk to a random spot and react
+    // Arrived — walk toward the item and interact
     mouse._curiosityTarget = null;
+    const itemPlaced = target.item ? state.placedItems.find(p => p.itemId === target.item.id && p.room === mouse.room) : null;
+    const itemDef = target.item;
+    const itemW = (itemDef ? itemDef.w : 1) * GRID_SIZE;
     mouse.action = 'walking';
-    const plat = ROOMS[mouse.room].platforms ? ROOMS[mouse.room].platforms[0] : null;
-    const xMin = plat ? plat.xMin + 10 : 30;
-    const xMax = plat ? plat.xMax - 40 : ROOM_W - 60;
-    mouse.targetX = xMin + Math.random() * (xMax - xMin);
+    if (itemPlaced) {
+      const pos = gridToGame(itemPlaced.gridX, itemPlaced.gridY);
+      mouse.targetX = pos.x + itemW / 2;
+    } else {
+      const plat = ROOMS[mouse.room].platforms ? ROOMS[mouse.room].platforms[0] : null;
+      const xMin = plat ? plat.xMin + 10 : 30;
+      const xMax = plat ? plat.xMax - 40 : ROOM_W - 60;
+      mouse.targetX = xMin + Math.random() * (xMax - xMin);
+    }
     mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
-    mouse.actionTimer = 4000;
-    // Curiosity speech after arriving
+    mouse.actionTimer = 6000;
+    // Set up mount or behavior on arrival
+    if (itemDef && itemPlaced) {
+      const needsMount = itemDef.mouseBehavior === 'burrowing' || itemDef.mouseBehavior === 'swinging' ||
+        (itemDef.mouseBehavior === 'sleeping' && itemDef.id === 'hammock');
+      if (needsMount) {
+        mouse.pendingFurniture = { behavior: itemDef.mouseBehavior, placed: itemPlaced, timer: 5000 + Math.random() * 4000 };
+      } else if (itemDef.mouseBehavior && itemDef.mouseBehavior !== 'eating') {
+        mouse._pendingReact = { item: itemDef, placed: itemPlaced };
+      }
+    }
+    // Curiosity speech
     const key = mouse === state.miceState.pip ? 'pip' : 'chai';
     setTimeout(() => {
       if (mouse.room === target.room) {
@@ -5112,12 +5143,8 @@ function startCuriosityTravel(mouse) {
           x: mouse.x + 14, y: getMouseFloorY(mouse) - 10,
           text: curiosity, timer: 2500, maxTimer: 2500, mouseKey: key
         });
-        if (target.item) {
-          const itemPlaced = state.placedItems.find(p => p.itemId === target.item.id && p.room === mouse.room);
-          tryItemBehavior(mouse, target.item, itemPlaced);
-        }
       }
-    }, 2000);
+    }, 1500);
     return;
   }
   const nextRoom = ringStepToward(mouse.room, target.room);
@@ -5132,11 +5159,26 @@ function startCuriosityTravel(mouse) {
 
 // React to furniture repositioning (moving an existing item)
 function reactToFurnitureMove(item) {
+  const movedPlaced = state.placedItems.find(p => p.itemId === item.id && p.room === state.currentRoom);
   ['pip', 'chai'].forEach(key => {
     const mouse = state.miceState[key];
     if (mouse.action === 'wheeling' || mouse.action === 'flung' || mouse.action === 'climbing' || mouse.onFurniture) return;
     if (mouse.room === state.currentRoom) {
-      // Same room: glance over curiously
+      // Same room: walk over to the moved item
+      if (movedPlaced) {
+        const pos = gridToGame(movedPlaced.gridX, movedPlaced.gridY);
+        const fw = (item.w || 1) * GRID_SIZE;
+        mouse.pendingClimb = null;
+        mouse.pendingRoomChange = null;
+        mouse.pendingFurniture = null;
+        mouse._pendingEat = null;
+        mouse._pendingReact = null;
+        mouse.level = 'main-floor';
+        mouse.action = 'walking';
+        mouse.targetX = pos.x + fw / 2 + (key === 'pip' ? -10 : 10);
+        mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
+        mouse.actionTimer = 6000;
+      }
       const curiosity = ['rearranging? 🤔', 'ooh new spot!', '*watches intently*',
         'I liked it there tho', 'makeover! ✨', 'why tho'][Math.floor(Math.random() * 6)];
       speechBubbles = speechBubbles.filter(b => b.mouseKey !== key);
@@ -8912,6 +8954,16 @@ function updateMouse(mouse, dt, personality) {
         mouse.pendingFurniture = null;
         return;
       }
+      // Check if we have a pending react (non-mount behavior after walking to item)
+      if (mouse._pendingReact) {
+        const pr = mouse._pendingReact;
+        mouse._pendingReact = null;
+        if (pr.item.mouseBehavior && pr.item.mouseBehavior !== 'eating') {
+          mouse.action = pr.item.mouseBehavior;
+          mouse.actionTimer = 3000 + Math.random() * 2000;
+        }
+        return;
+      }
       // Check if we have a pending climb to start
       if (mouse.pendingClimb) {
         const pc = mouse.pendingClimb;
@@ -9046,6 +9098,7 @@ function pickNewAction(mouse, personality) {
   mouse.pendingFurniture = null;
   mouse.onFurniture = null;
   mouse._pendingEat = null;
+  mouse._pendingReact = null;
   mouse._curiosityTarget = null;
   mouse._snoreTimer = null;
   mouse._burrowPeekTimer = null;
