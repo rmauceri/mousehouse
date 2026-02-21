@@ -7006,7 +7006,7 @@ function triggerBirthdayEvent() {
   if (!state.ownedItems.includes('party-banner')) state.ownedItems.push('party-banner');
 
   // Place them in the living room
-  state.placedItems.push({ itemId: 'party-banner', room: 2, gridX: 3, gridY: 0 });
+  state.placedItems.push({ itemId: 'party-banner', room: 2, gridX: 1, gridY: 2 });
   state.placedItems.push({ itemId: 'birthday-cake', room: 2, gridX: 8, gridY: GRID_ROWS - 1 });
 
   // Bonus coins
@@ -10113,7 +10113,7 @@ function gameLoop(now) {
       updateHappiness(dt);
       updateGoals(dt);
       updateExerciseWheel(dt);
-      if (_birthdayFlash > 0) _birthdayFlash = Math.max(0, _birthdayFlash - dt / 800);
+      if (_birthdayFlash > 0) _birthdayFlash = Math.max(0, _birthdayFlash - dt / 3000);
       if (_birthdayBuntingTimer > 0) _birthdayBuntingTimer -= dt;
 
       ctx.clearRect(0, 0, GAME_W, GAME_H);
