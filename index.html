@@ -5055,10 +5055,7 @@ function reactToNewFurniture(item) {
             text: curiosity, timer: 2500, maxTimer: 2500, mouseKey: key
           });
           // Try out the item's behavior if it has one
-          if (item.mouseBehavior && item.mouseBehavior !== 'eating') {
-            mouse.action = item.mouseBehavior;
-            mouse.actionTimer = 3000 + Math.random() * 2000;
-          }
+          tryItemBehavior(mouse, item, placed);
         }
       }, 2000);
     } else {
@@ -5072,6 +5069,21 @@ function reactToNewFurniture(item) {
       startCuriosityTravel(mouse);
     }
   });
+}
+
+// Mount behaviors (burrowing, swinging) need onFurniture; others just set action
+function tryItemBehavior(mouse, item, placed) {
+  if (!item.mouseBehavior || item.mouseBehavior === 'eating') return;
+  const needsMount = item.mouseBehavior === 'burrowing' || item.mouseBehavior === 'swinging' ||
+    (item.mouseBehavior === 'sleeping' && item.id === 'hammock');
+  if (needsMount && placed) {
+    mouse.action = item.mouseBehavior;
+    mouse.onFurniture = placed;
+    mouse.actionTimer = 5000 + Math.random() * 4000;
+  } else {
+    mouse.action = item.mouseBehavior;
+    mouse.actionTimer = 3000 + Math.random() * 2000;
+  }
 }
 
 // Drive a mouse toward its _curiosityTarget room
@@ -5100,9 +5112,9 @@ function startCuriosityTravel(mouse) {
           x: mouse.x + 14, y: getMouseFloorY(mouse) - 10,
           text: curiosity, timer: 2500, maxTimer: 2500, mouseKey: key
         });
-        if (target.item && target.item.mouseBehavior && target.item.mouseBehavior !== 'eating') {
-          mouse.action = target.item.mouseBehavior;
-          mouse.actionTimer = 3000 + Math.random() * 2000;
+        if (target.item) {
+          const itemPlaced = state.placedItems.find(p => p.itemId === target.item.id && p.room === mouse.room);
+          tryItemBehavior(mouse, target.item, itemPlaced);
         }
       }
     }, 2000);
