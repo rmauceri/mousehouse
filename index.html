@@ -6350,7 +6350,7 @@ function initMazeLevel(level) {
   const grid = generateMaze(cols, rows);
   const cellW = Math.floor((GAME_W - 20) / cols);
   const cellH = Math.floor((GAME_H - 50) / rows);
-  const cellSize = Math.min(cellW, cellH, 36);
+  const cellSize = Math.min(cellW, cellH, 56);
   const mazeW = cols * cellSize;
   const mazeH = rows * cellSize;
   const ox = Math.floor((GAME_W - mazeW) / 2);
