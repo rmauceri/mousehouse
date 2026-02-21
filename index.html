@@ -10020,6 +10020,13 @@ function startTitleMusic() {
 function stopTitleMusic() {
   titleMusicPlaying = false;
   if (titleMusicTimeout) clearTimeout(titleMusicTimeout);
+  titleMusicTimeout = null;
+  // Close the title AudioContext to kill any in-flight oscillators
+  if (titleAudioCtx && titleAudioCtx.state !== 'closed') {
+    titleAudioCtx.close().catch(() => {});
+  }
+  titleAudioCtx = null;
+  titleAudioStarted = false;
 }
 
 function playTitleNote() {
@@ -10131,7 +10138,7 @@ function ensureTitleAudio() {
   initTitleAudio();
   titleAudioCtx.resume().then(() => {
     titleAudioStarted = true;
-    startTitleMusic();
+    if (!state.gameStarted) startTitleMusic(); // don't start if game already began
   }).catch(() => {});
   return false; // consumed this interaction for audio
 }
