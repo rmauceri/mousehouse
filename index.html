@@ -1061,6 +1061,15 @@ function sfxHide() {
   setTimeout(() => playNoise(0.03, 0.03), 70);
 }
 
+function sfxBurrow() {
+  // Rustling/digging sound — scratchy noise bursts
+  if (!audioCtx || !mouseSfxReady()) return;
+  playNoise(0.04, 0.06);
+  setTimeout(() => playNoise(0.03, 0.05), 80);
+  setTimeout(() => playTone(500 + Math.random() * 200, 0.04, 'sine', 0.03), 120);
+  setTimeout(() => playNoise(0.02, 0.04), 200);
+}
+
 function sfxChew() {
   // Crunchy nibbling — percussive with texture
   if (!audioCtx || !mouseSfxReady()) return;
@@ -1815,6 +1824,7 @@ const SELFIE_CAPTIONS = {
   wheeling: ['gym selfie 🎡', 'leg day every day', 'cardio queen', 'fitness era'],
   climbing: ['rock climbing 🧗', 'summit selfie', 'living on the edge', 'going up!'],
   hiding: ['you can\'t see me 👀', 'stealth mode', 'introvert hours', 'hiding spot: found'],
+  burrowing: ['you can\'t see me 👀', 'burrow mode activated', 'introvert recharging', 'tunnel vision 🕳️'],
   default: ['we\'re literally icons', 'slay 💅', 'POV: mice being cute', 'living our best life 🐭', 'no notes', 'iconic behavior', 'this is our year']
 };
 
@@ -2316,10 +2326,19 @@ const FURNITURE = [
     color: '#c9956b', mouseBehavior: 'sleeping', wallMount: true },
   { id: 'tp-tunnel', name: 'TP Tube Tunnel', icon: '🧻', price: 8,
     desc: 'Hide and seek champion. Infinite entertainment.', w: 2, h: 1,
-    color: '#e8dcc8', mouseBehavior: 'hiding' },
+    color: '#e8dcc8', mouseBehavior: 'burrowing' },
   { id: 'chew-stick', name: 'Chew Stick', icon: '🪵', price: 6,
     desc: 'Anxiety coping mechanism. Very therapeutic.', w: 1, h: 1,
     color: '#a0764a', mouseBehavior: 'chewing' },
+  { id: 'tissue-fort', name: 'Tissue Box Fort', icon: '🏰', price: 12,
+    desc: 'Fortress of solitude. Kleenex stronghold.', w: 2, h: 2,
+    color: '#b8d4e8', mouseBehavior: 'burrowing' },
+  { id: 'sock-nest', name: 'Sock Nest', icon: '🧦', price: 10,
+    desc: 'One missing sock = one cozy mouse den.', w: 2, h: 1,
+    color: '#a488c4', mouseBehavior: 'burrowing' },
+  { id: 'blanket-nest', name: 'Blanket Nest', icon: '🛏️', price: 14,
+    desc: 'A crumpled fabric scrap. Maximum snuggle.', w: 2, h: 1,
+    color: '#e8b4b4', mouseBehavior: 'burrowing' },
   { id: 'climbing-rope', name: 'Climbing Rope', icon: '🪢', price: 15,
     desc: 'Vertical zoomies. Spider-mouse era.', w: 1, h: 3,
     color: '#c4a050', mouseBehavior: 'swinging', wallMount: true },
@@ -2713,7 +2732,7 @@ function switchRoom(i) {
     const otherKey = key === 'pip' ? 'chai' : 'pip';
     const other = state.miceState[otherKey];
     const isAlone = other.room !== i;
-    const caughtActions = ['mischief', 'eating', 'grooming', 'doomscrolling', 'hiding', 'chewing', 'swinging'];
+    const caughtActions = ['mischief', 'eating', 'grooming', 'doomscrolling', 'hiding', 'chewing', 'swinging', 'burrowing'];
     if (isAlone && caughtActions.includes(mouse.action) && Math.random() < 0.5) {
       // Freeze and look guilty
       const prevAction = mouse.action;
@@ -4110,37 +4129,345 @@ function drawFurnitureItem(item, gx, gy, placedRef) {
   }
 
   case 'tp-tunnel': { // 2x1 48x24
+    const placed = placedRef;
+    const t2 = Date.now() / 1000;
+    // Check for burrowing mice
+    const miceInTunnel = [];
+    ['pip', 'chai'].forEach(key => {
+      const m = state.miceState[key];
+      if (m.onFurniture === placed && m.action === 'burrowing') miceInTunnel.push(key);
+    });
+    const wobble = miceInTunnel.length > 0 ? Math.sin(t2 * 4) * 1.5 : 0;
     // Outer tube
     ctx.fillStyle = item.color;
     ctx.beginPath();
-    ctx.ellipse(x+24, y+13, 22, 10, 0, 0, Math.PI*2);
+    ctx.ellipse(x+24, y+13 + wobble, 22, 10, 0, 0, Math.PI*2);
     ctx.fill();
     // Inner tube (dark opening)
     ctx.fillStyle = '#3a2a1a';
     ctx.beginPath();
-    ctx.ellipse(x+24, y+13, 16, 7, 0, 0, Math.PI*2);
+    ctx.ellipse(x+24, y+13 + wobble, 16, 7, 0, 0, Math.PI*2);
     ctx.fill();
+    // Burrowing mice: eyes peek from opening + tail out the back
+    miceInTunnel.forEach((key, idx) => {
+      const cfg = CONFIG.mice[key];
+      const peeking = state.miceState[key]._burrowPeeking;
+      // Tail sticking out right side
+      ctx.strokeStyle = cfg.bodyColor;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x+44, y+14 + wobble);
+      ctx.quadraticCurveTo(x+50, y+8 + wobble + Math.sin(t2*3+idx)*3, x+47, y+5 + wobble);
+      ctx.stroke();
+      // Eyes peeking from left opening
+      if (peeking) {
+        const eyeY = y + 11 + wobble + idx * 4;
+        ctx.fillStyle = cfg.bodyColor;
+        ctx.beginPath();
+        ctx.arc(x+10, eyeY+1, 4, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#111';
+        ctx.beginPath();
+        ctx.arc(x+8, eyeY, 1.5, 0, Math.PI*2);
+        ctx.arc(x+12, eyeY, 1.5, 0, Math.PI*2);
+        ctx.fill();
+        // Tiny highlight in eyes
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(x+8.5, eyeY-0.5, 0.5, 0, Math.PI*2);
+        ctx.arc(x+12.5, eyeY-0.5, 0.5, 0, Math.PI*2);
+        ctx.fill();
+      }
+    });
     // Cardboard texture lines
     ctx.strokeStyle = 'rgba(160,130,90,0.3)';
     ctx.lineWidth = 0.5;
     for (let ri = 0; ri < 6; ri++) {
       ctx.beginPath();
-      ctx.moveTo(x+6+ri*7, y+4);
-      ctx.lineTo(x+6+ri*7, y+22);
+      ctx.moveTo(x+6+ri*7, y+4 + wobble);
+      ctx.lineTo(x+6+ri*7, y+22 + wobble);
       ctx.stroke();
     }
     // Highlight on top
     ctx.fillStyle = 'rgba(255,255,255,0.15)';
     ctx.beginPath();
-    ctx.ellipse(x+24, y+8, 18, 4, 0, 0, Math.PI);
+    ctx.ellipse(x+24, y+8 + wobble, 18, 4, 0, 0, Math.PI);
     ctx.fill();
     // Torn edges
     ctx.fillStyle = darker;
-    const edgeY = y+13;
+    const edgeY = y+13 + wobble;
     for (let ei = 0; ei < 3; ei++) {
       ctx.fillRect(x+4+ei*4, edgeY+7, 2, 1);
       ctx.fillRect(x+38+ei*4, edgeY+7, 2, 1);
     }
+    break;
+  }
+
+  case 'tissue-fort': { // 2x2 48x48
+    const placed = placedRef;
+    const t2 = Date.now() / 1000;
+    const miceInFort = [];
+    ['pip', 'chai'].forEach(key => {
+      const m = state.miceState[key];
+      if (m.onFurniture === placed && m.action === 'burrowing') miceInFort.push(key);
+    });
+    const wobble = miceInFort.length > 0 ? Math.sin(t2 * 3.5) * 1 : 0;
+    // Box body
+    ctx.fillStyle = item.color;
+    ctx.beginPath();
+    ctx.roundRect(x+3, y+10 + wobble, 42, 34, 3);
+    ctx.fill();
+    // Box opening (top flaps)
+    ctx.fillStyle = '#9bbcd4';
+    ctx.beginPath();
+    ctx.moveTo(x+3, y+10 + wobble);
+    ctx.lineTo(x+14, y+4 + wobble);
+    ctx.lineTo(x+24, y+10 + wobble);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x+24, y+10 + wobble);
+    ctx.lineTo(x+34, y+4 + wobble);
+    ctx.lineTo(x+45, y+10 + wobble);
+    ctx.fill();
+    // Tissue paper poking out top
+    ctx.fillStyle = '#f5f0f0';
+    ctx.beginPath();
+    ctx.moveTo(x+16, y+10 + wobble);
+    ctx.quadraticCurveTo(x+24, y+1 + wobble + Math.sin(t2*2)*2, x+32, y+10 + wobble);
+    ctx.fill();
+    // Dark opening
+    ctx.fillStyle = '#2a3a4a';
+    ctx.beginPath();
+    ctx.roundRect(x+10, y+12 + wobble, 28, 16, 2);
+    ctx.fill();
+    // Burrowing mice: eyes peek from opening
+    miceInFort.forEach((key, idx) => {
+      const cfg = CONFIG.mice[key];
+      const peeking = state.miceState[key]._burrowPeeking;
+      // Tail draping over edge
+      ctx.strokeStyle = cfg.bodyColor;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x+38, y+30 + wobble);
+      ctx.quadraticCurveTo(x+46, y+36 + wobble + Math.sin(t2*2.5+idx)*2, x+44, y+42 + wobble);
+      ctx.stroke();
+      if (peeking) {
+        const eyeY = y + 16 + wobble + idx * 5;
+        const eyeX = x + 20 + idx * 8;
+        ctx.fillStyle = cfg.bodyColor;
+        ctx.beginPath();
+        ctx.arc(eyeX, eyeY+1, 5, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#111';
+        ctx.beginPath();
+        ctx.arc(eyeX-2, eyeY, 1.5, 0, Math.PI*2);
+        ctx.arc(eyeX+2, eyeY, 1.5, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(eyeX-1.5, eyeY-0.5, 0.5, 0, Math.PI*2);
+        ctx.arc(eyeX+2.5, eyeY-0.5, 0.5, 0, Math.PI*2);
+        ctx.fill();
+      }
+    });
+    // Box outline
+    ctx.strokeStyle = darker;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(x+3, y+10 + wobble, 42, 34, 3);
+    ctx.stroke();
+    // Brand-like stripe
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillRect(x+6, y+32 + wobble, 36, 4);
+    break;
+  }
+
+  case 'sock-nest': { // 2x1 48x24
+    const placed = placedRef;
+    const t2 = Date.now() / 1000;
+    const miceInSock = [];
+    ['pip', 'chai'].forEach(key => {
+      const m = state.miceState[key];
+      if (m.onFurniture === placed && m.action === 'burrowing') miceInSock.push(key);
+    });
+    const wiggle = miceInSock.length > 0 ? Math.sin(t2 * 3) * 2 : 0;
+    // Sock body (rolled into a nest shape)
+    ctx.fillStyle = item.color;
+    ctx.beginPath();
+    ctx.moveTo(x+6, y+20);
+    ctx.quadraticCurveTo(x+8, y+6, x+24, y+5);
+    ctx.quadraticCurveTo(x+40, y+6, x+42, y+20);
+    ctx.quadraticCurveTo(x+36, y+22, x+24, y+22);
+    ctx.quadraticCurveTo(x+12, y+22, x+6, y+20);
+    ctx.fill();
+    // Sock opening
+    ctx.fillStyle = '#8a6aaa';
+    ctx.beginPath();
+    ctx.ellipse(x+24, y+10 + wiggle, 14, 7, 0, 0, Math.PI*2);
+    ctx.fill();
+    // Dark interior
+    ctx.fillStyle = '#3a2a4a';
+    ctx.beginPath();
+    ctx.ellipse(x+24, y+11 + wiggle, 10, 5, 0, 0, Math.PI*2);
+    ctx.fill();
+    // Sock stripes
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x+10, y+16); ctx.lineTo(x+14, y+8); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+34, y+16); ctx.lineTo(x+38, y+8); ctx.stroke();
+    // Heel bump
+    ctx.fillStyle = '#8a6aaa';
+    ctx.beginPath();
+    ctx.arc(x+40, y+16, 5, 0, Math.PI*2);
+    ctx.fill();
+    // Burrowing mice
+    miceInSock.forEach((key, idx) => {
+      const cfg = CONFIG.mice[key];
+      const peeking = state.miceState[key]._burrowPeeking;
+      // Lump inside sock when not peeking
+      if (!peeking) {
+        ctx.fillStyle = cfg.bodyColor;
+        ctx.globalAlpha = 0.3;
+        ctx.beginPath();
+        ctx.arc(x+20+idx*8, y+13 + wiggle, 4, 0, Math.PI*2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      // Tail
+      ctx.strokeStyle = cfg.bodyColor;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x+36, y+12 + wiggle);
+      ctx.quadraticCurveTo(x+44, y+6 + Math.sin(t2*2.5+idx)*3, x+46, y+10);
+      ctx.stroke();
+      if (peeking) {
+        const eyeY = y + 8 + wiggle;
+        const eyeX = x + 22 + idx * 6;
+        ctx.fillStyle = cfg.bodyColor;
+        ctx.beginPath();
+        ctx.arc(eyeX, eyeY, 4, 0, Math.PI*2);
+        ctx.fill();
+        // Ears poking up
+        ctx.beginPath();
+        ctx.arc(eyeX-3, eyeY-4, 2, 0, Math.PI*2);
+        ctx.arc(eyeX+3, eyeY-4, 2, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#111';
+        ctx.beginPath();
+        ctx.arc(eyeX-1.5, eyeY-1, 1.2, 0, Math.PI*2);
+        ctx.arc(eyeX+1.5, eyeY-1, 1.2, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(eyeX-1, eyeY-1.5, 0.4, 0, Math.PI*2);
+        ctx.arc(eyeX+2, eyeY-1.5, 0.4, 0, Math.PI*2);
+        ctx.fill();
+      }
+    });
+    // Outline
+    ctx.strokeStyle = darker;
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(x+6, y+20);
+    ctx.quadraticCurveTo(x+8, y+6, x+24, y+5);
+    ctx.quadraticCurveTo(x+40, y+6, x+42, y+20);
+    ctx.stroke();
+    break;
+  }
+
+  case 'blanket-nest': { // 2x1 48x24
+    const placed = placedRef;
+    const t2 = Date.now() / 1000;
+    const miceInBlanket = [];
+    ['pip', 'chai'].forEach(key => {
+      const m = state.miceState[key];
+      if (m.onFurniture === placed && m.action === 'burrowing') miceInBlanket.push(key);
+    });
+    const rumple = miceInBlanket.length > 0 ? Math.sin(t2 * 2.5) * 1.5 : 0;
+    // Blanket base (crumpled fabric)
+    ctx.fillStyle = item.color;
+    ctx.beginPath();
+    ctx.moveTo(x+2, y+20);
+    ctx.quadraticCurveTo(x+8, y+8 + rumple, x+16, y+10);
+    ctx.quadraticCurveTo(x+24, y+6 + rumple*1.5, x+32, y+10);
+    ctx.quadraticCurveTo(x+40, y+8 + rumple, x+46, y+20);
+    ctx.lineTo(x+2, y+20);
+    ctx.fill();
+    // Fabric folds
+    ctx.strokeStyle = 'rgba(180,120,120,0.3)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(x+12, y+18); ctx.quadraticCurveTo(x+16, y+12, x+20, y+18); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+28, y+18); ctx.quadraticCurveTo(x+32, y+13, x+36, y+18); ctx.stroke();
+    // Moving lump when mice are burrowing
+    miceInBlanket.forEach((key, idx) => {
+      const cfg = CONFIG.mice[key];
+      const peeking = state.miceState[key]._burrowPeeking;
+      const lumpX = x + 14 + idx * 16 + Math.sin(t2 * 1.5 + idx * 2) * 4;
+      const lumpY = y + 12 + rumple;
+      if (!peeking) {
+        // Moving lump under blanket
+        ctx.fillStyle = item.color;
+        ctx.beginPath();
+        ctx.arc(lumpX, lumpY - 2, 6 + Math.sin(t2*2)*1, 0, Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(180,120,120,0.4)';
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.arc(lumpX, lumpY - 2, 6, 0, Math.PI*2);
+        ctx.stroke();
+      }
+      // Tail sticking out
+      ctx.strokeStyle = cfg.bodyColor;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x+42, y+16);
+      ctx.quadraticCurveTo(x+48, y+12 + Math.sin(t2*3+idx)*3, x+46, y+8);
+      ctx.stroke();
+      if (peeking) {
+        // Head pops up from edge of blanket
+        const peekX = x + 8 + idx * 12;
+        const peekY = y + 10 + rumple;
+        ctx.fillStyle = cfg.bodyColor;
+        ctx.beginPath();
+        ctx.arc(peekX, peekY - 4, 5, 0, Math.PI*2);
+        ctx.fill();
+        // Ears
+        ctx.beginPath();
+        ctx.arc(peekX-3, peekY-8, 2.5, 0, Math.PI*2);
+        ctx.arc(peekX+3, peekY-8, 2.5, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = cfg.innerEarColor || '#ffb0b0';
+        ctx.beginPath();
+        ctx.arc(peekX-3, peekY-8, 1.2, 0, Math.PI*2);
+        ctx.arc(peekX+3, peekY-8, 1.2, 0, Math.PI*2);
+        ctx.fill();
+        // Eyes
+        ctx.fillStyle = '#111';
+        ctx.beginPath();
+        ctx.arc(peekX-2, peekY-4, 1.5, 0, Math.PI*2);
+        ctx.arc(peekX+2, peekY-4, 1.5, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(peekX-1.5, peekY-4.5, 0.5, 0, Math.PI*2);
+        ctx.arc(peekX+2.5, peekY-4.5, 0.5, 0, Math.PI*2);
+        ctx.fill();
+        // Whiskers
+        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+        ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.moveTo(peekX-3, peekY-3); ctx.lineTo(peekX-8, peekY-4); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(peekX+3, peekY-3); ctx.lineTo(peekX+8, peekY-4); ctx.stroke();
+      }
+    });
+    // Top edge highlight
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x+4, y+18);
+    ctx.quadraticCurveTo(x+10, y+9, x+18, y+11);
+    ctx.quadraticCurveTo(x+24, y+7, x+30, y+11);
+    ctx.quadraticCurveTo(x+38, y+9, x+44, y+18);
+    ctx.stroke();
     break;
   }
 
@@ -7519,6 +7846,8 @@ const GOAL_TEMPLATES = [
   { text: '{mouse} wants to sit somewhere 🛋', itemId: 'cardboard-couch' },
   { text: '{mouse} craves sourdough 🍞', itemId: 'sourdough' },
   { text: '{mouse} wants the vibes sign 📜', itemId: 'live-laugh-cheese' },
+  { text: '{mouse} wants to burrow 🕳️', itemId: 'tp-tunnel' },
+  { text: '{mouse} needs a cozy blanket 🛏️', itemId: 'blanket-nest' },
 ];
 
 let goalCooldown = 20000 + Math.random() * 15000;
@@ -7594,9 +7923,9 @@ function updateGoals(dt) {
           goalMouse.targetX = itemPos.x + fw / 2;
           goalMouse.dir = goalMouse.targetX > goalMouse.x ? 1 : -1;
           goalMouse.actionTimer = 8000;
-          // For hammock/rope, use the pendingFurniture + climb system
+          // For hammock/rope/burrowing, use the pendingFurniture + climb system
           if ((goalItem.mouseBehavior === 'sleeping' && goalItemId === 'hammock') ||
-              goalItem.mouseBehavior === 'swinging') {
+              goalItem.mouseBehavior === 'swinging' || goalItem.mouseBehavior === 'burrowing') {
             goalMouse.pendingFurniture = { behavior: goalItem.mouseBehavior, placed: goalPlaced, timer: 5000 };
             const furnPlatform = getFurniturePlatform(goalPlaced.room, goalPlaced);
             if (goalMouse.level !== furnPlatform) {
@@ -8030,7 +8359,7 @@ function drawMouse(x, y, cfg, dir, frame, action, startled, mouseState) {
 
   } else {
     // Standing / walking / idle / furniture-interaction mouse
-    const isFurnitureAction = ['doomscrolling','watching','yoga','eating','playing','grooming','stretching','mischief','hiding','chewing','swinging'].includes(action);
+    const isFurnitureAction = ['doomscrolling','watching','yoga','eating','playing','grooming','stretching','mischief','hiding','chewing','swinging','burrowing'].includes(action);
 
     // Breathing: visible body pulse
     const breathe = Math.sin(t * 3) * 0.8;
@@ -8366,7 +8695,7 @@ function updateMouse(mouse, dt, personality) {
     return;
   }
 
-  // On-furniture mice (hammock, rope) — frozen in place, drawn by furniture renderer
+  // On-furniture mice (hammock, rope, burrowing items) — frozen in place, drawn by furniture renderer
   if (mouse.onFurniture) {
     mouse.actionTimer -= dt;
     // Periodic snore while sleeping on furniture
@@ -8385,6 +8714,28 @@ function updateMouse(mouse, dt, personality) {
         speechBubbles = speechBubbles.filter(b => b.mouseKey !== mk);
       }
       if (mouse._dreamFade > 0) mouse._dreamFade -= dt;
+    }
+    // Burrowing: periodic peek + rustle speech
+    if (mouse.action === 'burrowing' && mouse.room === state.currentRoom) {
+      if (!mouse._burrowPeekTimer) mouse._burrowPeekTimer = 2000 + Math.random() * 2000;
+      mouse._burrowPeekTimer -= dt;
+      if (mouse._burrowPeekTimer <= 0) {
+        mouse._burrowPeeking = true;
+        mouse._burrowPeekDuration = 1200 + Math.random() * 800;
+        mouse._burrowPeekTimer = 3000 + Math.random() * 3000;
+        if (Math.random() < 0.4) {
+          const mk = mouse === state.miceState.pip ? 'pip' : 'chai';
+          const rustleQuotes = ['*rustle rustle*', '👀', '*peek*', 'still here', 'so cozy', '*wiggles*', '🫣'];
+          speechBubbles = speechBubbles.filter(b => b.mouseKey !== mk);
+          speechBubbles.push({ x: mouse.x + 14, y: getMouseFloorY(mouse) - 30,
+            text: rustleQuotes[Math.floor(Math.random() * rustleQuotes.length)],
+            timer: 1500, maxTimer: 1500, mouseKey: mk });
+        }
+      }
+      if (mouse._burrowPeeking) {
+        mouse._burrowPeekDuration -= dt;
+        if (mouse._burrowPeekDuration <= 0) mouse._burrowPeeking = false;
+      }
     }
     const critHungry = (mouse.happiness ?? 80) <= 15;
     if (mouse.actionTimer <= 0 || !state.placedItems.includes(mouse.onFurniture) || critHungry) {
@@ -8685,6 +9036,9 @@ function pickNewAction(mouse, personality) {
   mouse._pendingEat = null;
   mouse._curiosityTarget = null;
   mouse._snoreTimer = null;
+  mouse._burrowPeekTimer = null;
+  mouse._burrowPeeking = false;
+  mouse._burrowPeekDuration = 0;
   mouse._groomTimer = null;
   mouse._chewTimer = null;
   mouse._dreamTimer = null;
@@ -8843,6 +9197,7 @@ function pickNewAction(mouse, personality) {
     if (mouse.room === state.currentRoom) {
       if (pick.behavior === 'zoomies') sfxZoomieSqueak();
       else if (pick.behavior === 'hiding') sfxHide();
+      else if (pick.behavior === 'burrowing') sfxBurrow();
       else if (pick.behavior === 'swinging') sfxSwing();
     }
     const targetPos = gridToGame(pick.placed.gridX, pick.placed.gridY);
@@ -8855,9 +9210,10 @@ function pickNewAction(mouse, personality) {
     if (pick.behavior === 'hiding') mouse.actionTimer = 3000 + Math.random() * 3000;
     if (pick.behavior === 'chewing') mouse.actionTimer = 2000 + Math.random() * 2000;
     if (pick.behavior === 'swinging') mouse.actionTimer = 4000 + Math.random() * 4000;
-    // Hammock and climbing rope: walk to the item first, then mount it
+    if (pick.behavior === 'burrowing') mouse.actionTimer = 5000 + Math.random() * 5000;
+    // Hammock, climbing rope, and burrowing items: walk to the item first, then mount it
     if ((pick.behavior === 'sleeping' && pick.placed.itemId === 'hammock') ||
-        pick.behavior === 'swinging') {
+        pick.behavior === 'swinging' || pick.behavior === 'burrowing') {
       const itemDef = FURNITURE.find(f => f.id === pick.placed.itemId);
       const fw = (itemDef ? itemDef.w : 1) * GRID_SIZE;
       mouse.pendingFurniture = { behavior: pick.behavior, placed: pick.placed, timer: mouse.actionTimer };
@@ -8910,6 +9266,10 @@ function pickNewAction(mouse, personality) {
         quotes = mouseKey === 'pip'
           ? ['you can\'t see me! 🫣', '*tunneling*', 'stealth 100', 'am I invisible yet?', 'secret passage!']
           : ['cozy in here 🥰', '*peeks out*', 'introvert recharging', 'my safe space', 'tunnel vision'];
+      } else if (pick.behavior === 'burrowing') {
+        quotes = mouseKey === 'pip'
+          ? ['going under! 🕳️', '*burrows aggressively*', 'you can\'t find me', 'tunnel time!', 'this is my hole now']
+          : ['so cozy in here 🥺', '*peeks out*', 'introvert fortress', 'do not disturb', 'burrito mode 🌯'];
       } else if (pick.behavior === 'chewing') {
         quotes = mouseKey === 'pip'
           ? ['*cronch cronch*', 'teething era 🦷', 'this is mine now', 'stress relief 💯', 'good texture']
@@ -9092,7 +9452,7 @@ function drawMouseStatus() {
   const actionIcons = { sleeping: '💤', walking: '🐾', zoomies: '💨', eating: '😋',
     doomscrolling: '📱', watching: '📺', yoga: '🧘', playing: '🏃',
     wheeling: '🎡', flung: '😵‍💫', climbing: '🪜', grooming: '💅', mischief: '😈', stretching: '🙆',
-    hiding: '🫣', chewing: '🪵', swinging: '🪢' };
+    hiding: '🫣', chewing: '🪵', swinging: '🪢', burrowing: '🕳️' };
 
   // Pip status (left)
   const sIcon = actionIcons[pip.action] || '✨';
