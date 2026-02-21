@@ -8524,6 +8524,12 @@ function updateMouse(mouse, dt, personality) {
       mouse.x += mouse.dir * speed;
     } else {
       mouse.targetX = undefined;
+      // Arrived at food target — start eating
+      if (mouse._pendingEat) {
+        mouse.action = 'eating';
+        mouse.actionTimer = 8000;
+        mouse._pendingEat = null;
+      }
     }
   }
 
@@ -8534,6 +8540,9 @@ function updateMouse(mouse, dt, personality) {
         if (p.room !== mouse.room) return false;
         const item = FURNITURE.find(f => f.id === p.itemId);
         if (!item || item.mouseBehavior !== 'eating' || !item.servings) return false;
+        // Must be on same platform level
+        const foodPlatform = getFurniturePlatform(mouse.room, p);
+        if (mouse.level !== foodPlatform) return false;
         const pos = gridToGame(p.gridX, p.gridY);
         return Math.abs(mouse.x - pos.x) < 30;
       });
@@ -8595,6 +8604,7 @@ function pickNewAction(mouse, personality) {
   mouse.pendingRoomChange = null;
   mouse.pendingFurniture = null;
   mouse.onFurniture = null;
+  mouse._pendingEat = null;
   mouse._snoreTimer = null;
   mouse._groomTimer = null;
   mouse._chewTimer = null;
@@ -8615,14 +8625,34 @@ function pickNewAction(mouse, personality) {
     const foodInRoom = allFood.filter(p => p.room === mouse.room);
 
     if (foodInRoom.length > 0) {
-      // Rush to nearest food in this room — drop to main-floor first
+      // Walk to food — use ramp if on different platform
       const target = foodInRoom[Math.floor(Math.random() * foodInRoom.length)];
       const pos = gridToGame(target.gridX, target.gridY);
-      mouse.level = 'main-floor';
-      mouse.action = 'eating';
-      mouse.targetX = pos.x + Math.random() * 10;
-      mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
-      mouse.actionTimer = 8000;
+      const foodPlatform = getFurniturePlatform(mouse.room, target);
+      mouse.action = 'walking';
+      mouse.actionTimer = 10000;
+      mouse._pendingEat = { placed: target }; // eat when we arrive
+
+      if (mouse.level !== foodPlatform) {
+        // Need to climb to food's platform first
+        const ramp = room.ramps && room.ramps.find(r =>
+          (r.from === mouse.level && r.to === foodPlatform) ||
+          (r.to === mouse.level && r.from === foodPlatform));
+        if (ramp) {
+          const goingUp = ramp.from === mouse.level;
+          mouse.targetX = goingUp ? ramp.x1 : ramp.x2;
+          mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
+          mouse.pendingClimb = { ramp, targetLevel: foodPlatform, goingUp };
+        } else {
+          // No ramp — force to main-floor and walk
+          mouse.level = 'main-floor';
+          mouse.targetX = pos.x + Math.random() * 10;
+          mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
+        }
+      } else {
+        mouse.targetX = pos.x + Math.random() * 10;
+        mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
+      }
       return;
     }
     // No food in this room — walk to exit edge, then step one room toward food
@@ -8773,6 +8803,24 @@ function pickNewAction(mouse, personality) {
       } else {
         mouse.targetX = targetPos.x + fw / 2;
         mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
+      }
+    }
+    // Food items: walk to food, climb if needed, then eat
+    if (pick.behavior === 'eating') {
+      mouse._pendingEat = { placed: pick.placed };
+      mouse.action = 'walking';
+      mouse.actionTimer = 10000;
+      const foodPlatform = getFurniturePlatform(mouse.room, pick.placed);
+      if (mouse.level !== foodPlatform) {
+        const ramp = room.ramps && room.ramps.find(r =>
+          (r.from === mouse.level && r.to === foodPlatform) ||
+          (r.to === mouse.level && r.from === foodPlatform));
+        if (ramp) {
+          const goingUp = ramp.from === mouse.level;
+          mouse.targetX = goingUp ? ramp.x1 : ramp.x2;
+          mouse.dir = mouse.targetX > mouse.x ? 1 : -1;
+          mouse.pendingClimb = { ramp, targetLevel: foodPlatform, goingUp };
+        }
       }
     }
     // Speech for new behaviors
