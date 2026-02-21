@@ -4698,6 +4698,14 @@ function reactToNewFurniture(item) {
     const mouse = state.miceState[key];
     // Skip mice in non-interruptible states
     if (mouse.action === 'wheeling' || mouse.action === 'flung' || mouse.action === 'climbing' || mouse.onFurniture) return;
+    // Skip the goal mouse if this item fulfills the active goal — updateGoals handles that with a richer reaction
+    if (state.activeGoal && state.activeGoal.mouseKey === key) {
+      const goalItemDef = FURNITURE.find(f => f.id === state.activeGoal.itemId);
+      if (item.id === state.activeGoal.itemId ||
+          (goalItemDef && goalItemDef.mouseBehavior && item.mouseBehavior === goalItemDef.mouseBehavior && !item.birthday)) {
+        return;
+      }
+    }
 
     if (mouse.room === state.currentRoom) {
       // Same room: walk over and try it out
@@ -7529,20 +7537,21 @@ function updateGoals(dt) {
     }
     const goalItemDef = FURNITURE.find(f => f.id === state.activeGoal.itemId);
     const goalBehavior = goalItemDef && goalItemDef.mouseBehavior;
-    // Accept exact item OR any food item with matching mouseBehavior
-    // (exclude birthday items to prevent auto-completing food goals)
+    const goalCreated = state.activeGoal.created || 0;
+    // Accept exact item OR any item with matching mouseBehavior,
+    // but only if placed AFTER the goal was created
     const matchedPlaced = state.placedItems.find(p => {
+      if (p._placedAt && p._placedAt < goalCreated) return false;
       if (p.itemId === state.activeGoal.itemId) return true;
       if (goalBehavior) {
         const pDef = FURNITURE.find(f => f.id === p.itemId);
         if (!pDef || pDef.mouseBehavior !== goalBehavior) return false;
-        if (pDef.birthday) return false; // don't match birthday cake for food goals
+        if (pDef.birthday) return false;
         return true;
       }
       return false;
     });
-    // Only complete if the matched item was placed AFTER the goal was created
-    if (matchedPlaced && (!matchedPlaced._placedAt || matchedPlaced._placedAt >= (state.activeGoal.created || 0))) {
+    if (matchedPlaced) {
       // Goal completed!
       const bonus = 15;
       const goalMouseKey = state.activeGoal.mouseKey;
@@ -7575,14 +7584,9 @@ function updateGoals(dt) {
 
         // Navigate to the item's room if needed
         if (goalMouse.room !== goalPlaced.room) {
-          const nextRoom = ringStepToward(goalMouse.room, goalPlaced.room);
-          const exitDir = nextRoom === roomRight(goalMouse.room) ? 1 : -1;
+          goalMouse._curiosityTarget = { room: goalPlaced.room, item: goalItem };
           goalMouse.level = 'main-floor';
-          goalMouse.action = 'walking';
-          goalMouse.targetX = exitDir > 0 ? ROOM_W - 5 : 5;
-          goalMouse.dir = exitDir;
-          goalMouse.actionTimer = 12000;
-          goalMouse.pendingRoomChange = { newRoom: nextRoom, exitDir };
+          startCuriosityTravel(goalMouse);
         } else {
           // Same room — walk to item, then interact
           goalMouse.level = 'main-floor';
