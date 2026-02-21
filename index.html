@@ -9841,7 +9841,7 @@ document.addEventListener('keydown', e => {
         mz.nextDir = null;
         if (mz.moveTimer > 20) {
           doMazeMove(mazeDir);
-          mz.moveTimer = mz.moveInterval;
+          mz.moveTimer = 200; // longer initial delay before auto-repeat
         }
       } else {
         mz.nextDir = mazeDir;
