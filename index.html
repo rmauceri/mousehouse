@@ -830,7 +830,7 @@ function toggleMute() {
   masterGain.gain.setTargetAtTime(audioMuted ? 0 : audioVolume, audioCtx.currentTime, 0.05);
   updateSoundButtons();
   try { localStorage.setItem('mouseHouseAudio', JSON.stringify({ muted: audioMuted, volume: audioVolume })); } catch(e) {}
-  if (!audioMuted && !musicPlaying) startMusic();
+  if (!audioMuted && !musicPlaying && !mouseMazeActive && !cheeseChaseActive && !whackACatActive) startMusic();
 }
 
 function setVolume(v) {
@@ -1133,6 +1133,7 @@ let musicPhrase = MUSIC_PHRASES[0];
 
 function startMusic() {
   if (!audioCtx || musicPlaying) return;
+  stopGameMusic(); // ensure no mini-game music overlaps
   musicPlaying = true;
   musicPhraseIndex = Math.floor(Math.random() * MUSIC_PHRASES.length);
   musicPhrase = MUSIC_PHRASES[musicPhraseIndex];
@@ -1404,6 +1405,7 @@ let mazeNoteIdx = 0;
 
 function startMazeMusic() {
   if (!audioCtx || audioMuted) return;
+  stopMusic(); // ensure main music is stopped
   gameMusicPlaying = true;
   gameMusicIntensity = 0;
   mazeNoteIdx = 0;
