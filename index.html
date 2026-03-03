@@ -1629,6 +1629,7 @@ let state = {
   birthdayEventSeen: false,
   letterRead: false,
   lootCrumbsUsed: 0,
+  lootCrumbsLastDate: null,
   totalCoinsEarned: 0,
   placementMode: null,
   removeMode: false,
@@ -2467,6 +2468,7 @@ function saveGame() {
       placedItems: state.placedItems, currentRoom: state.currentRoom,
       miceState: state.miceState, birthdayEventSeen: state.birthdayEventSeen,
       letterRead: state.letterRead, lootCrumbsUsed: state.lootCrumbsUsed,
+      lootCrumbsLastDate: state.lootCrumbsLastDate,
       totalCoinsEarned: state.totalCoinsEarned, activeGoal: state.activeGoal,
       achievements: state.achievements, stats: state.stats,
       photos: state.photos, lastActiveTime: state.lastActiveTime
@@ -2500,6 +2502,7 @@ function loadGame() {
       state.birthdayEventSeen = d.birthdayEventSeen ?? false;
       state.letterRead = d.letterRead ?? false;
       state.lootCrumbsUsed = d.lootCrumbsUsed ?? 0;
+      state.lootCrumbsLastDate = d.lootCrumbsLastDate ?? null;
       state.totalCoinsEarned = d.totalCoinsEarned ?? 0;
       state.activeGoal = d.activeGoal ?? null;
       state.achievements = d.achievements ?? [];
@@ -5342,9 +5345,13 @@ function refreshShopFlyout() {
   });
   // Update loot info
   const lootInfo = document.getElementById('flyout-loot-info');
-  lootInfo.textContent = state.lootCrumbsUsed > 0
-    ? `Opened ${state.lootCrumbsUsed} times. Totally not addictive.`
-    : 'Ironic gacha. Always free. No regrets.';
+  const usedToday = state.lootCrumbsLastDate === new Date().toDateString();
+  lootInfo.textContent = usedToday
+    ? 'Come back tomorrow for another. 🌙'
+    : state.lootCrumbsUsed > 0
+      ? `Opened ${state.lootCrumbsUsed} times. Totally not addictive.`
+      : 'Ironic gacha. Always free. No regrets.';
+  document.getElementById('flyout-loot-btn').disabled = usedToday;
 }
 
 function refreshItemTray() {
@@ -5613,6 +5620,11 @@ function buyItem(itemId) {
 }
 
 function lootCrumbs() {
+  const today = new Date().toDateString();
+  if (state.lootCrumbsLastDate === today) {
+    showToast('Already opened one today. Come back tomorrow! 🌙');
+    return;
+  }
   const unowned = FURNITURE.filter(f => !state.ownedItems.includes(f.id) && !f.birthday && !f.exerciseRoom);
   if (unowned.length === 0) {
     showToast('You own everything! Go touch grass. 🌱');
@@ -5621,6 +5633,7 @@ function lootCrumbs() {
   const item = unowned[Math.floor(Math.random() * unowned.length)];
   state.ownedItems.push(item.id);
   state.lootCrumbsUsed++;
+  state.lootCrumbsLastDate = today;
   sfxBuy();
   saveGame();
   showToast(`🎁 Loot Crumb opened! You got: ${item.icon} ${item.name}!`);
@@ -5649,8 +5662,10 @@ function exitToTitle() {
   const om = document.getElementById('overflow-menu');
   if (om) om.classList.remove('open');
   hideBackdrop();
-  // Restart title music
-  if (!titleMuted && titleAudioStarted) startTitleMusic();
+  // Restart title music (re-init AudioContext since stopTitleMusic closed it)
+  if (!titleMuted) { initTitleAudio(); startTitleMusic(); }
+  // Restart title screen mouse animation (loop stops when game starts)
+  if (window.restartTitleAnim) restartTitleAnim();
 }
 document.getElementById('btn-exit').addEventListener('click', exitToTitle);
 
@@ -10580,6 +10595,11 @@ document.addEventListener('keyup', e => {
     }
   }
   animateTitleMice(performance.now());
+
+  window.restartTitleAnim = function() {
+    lastTitleTime = performance.now();
+    animateTitleMice(lastTitleTime);
+  };
 
   // Spawn floating particles
   const titleEl = document.getElementById('title-screen');
