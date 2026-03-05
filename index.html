@@ -2,11 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#2b1d0e">
 <title>🐭 Mouse House</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='30' fill='%232b1d0e'/><text x='90' y='115' font-size='96' text-anchor='middle' font-family='sans-serif'>🐭</text></svg>">
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body {
@@ -230,6 +233,12 @@ body { display: flex; flex-direction: column; }
 #tray-toggle:hover { background: #3d2b1a; }
 #tray-toggle.disabled { opacity: 0.35; pointer-events: none; }
 #tray-toggle.open { bottom: 72px; }
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  #tray-toggle { bottom: env(safe-area-inset-bottom); }
+  #tray-toggle.open { bottom: calc(72px + env(safe-area-inset-bottom)); }
+  #item-tray { padding-bottom: env(safe-area-inset-bottom); }
+  #trash-zone { bottom: env(safe-area-inset-bottom); }
+}
 #item-tray {
   position: fixed; bottom: 0; left: 0; width: 100%; height: 72px;
   background: rgba(30,20,10,0.92); border-top: 2px solid #a07040;
@@ -10984,6 +10993,59 @@ function gameLoop(now) {
   requestAnimationFrame(gameLoop);
 }
 requestAnimationFrame(gameLoop);
+
+// ============================================================
+//  WAKE LOCK
+// ============================================================
+let _wakeLock = null;
+
+async function requestWakeLock() {
+  if (!('wakeLock' in navigator)) return;
+  try { _wakeLock = await navigator.wakeLock.request('screen'); }
+  catch { /* user denied or unsupported */ }
+}
+
+function releaseWakeLock() {
+  if (_wakeLock) { _wakeLock.release().catch(() => {}); _wakeLock = null; }
+}
+
+// Acquire wake lock once the game starts (after start screen)
+requestWakeLock();
+
+// ============================================================
+//  VISIBILITY + BLUR — pause and silence when backgrounded
+// ============================================================
+function onAppBackground() {
+  stopMusic();
+  if (audioCtx && audioCtx.state === 'running') {
+    audioCtx.suspend().catch(() => {});
+  }
+  releaseWakeLock();
+}
+
+function onAppForeground() {
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume().catch(() => {});
+  }
+  if (!audioMuted && !musicPlaying && !mouseMazeActive && !cheeseChaseActive && !whackACatActive) {
+    startMusic();
+  }
+  requestWakeLock();
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) onAppBackground();
+  else onAppForeground();
+});
+
+window.addEventListener('blur', onAppBackground);
+
+// ============================================================
+//  SERVICE WORKER REGISTRATION
+// ============================================================
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
 </script>
 </body>
 </html>
