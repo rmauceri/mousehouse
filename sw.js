@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mousehouse-v1';
+const CACHE_NAME = 'mousehouse-v2';
 const ASSETS = [
   './',
   './index.html'

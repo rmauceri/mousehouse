@@ -11016,9 +11016,15 @@ requestWakeLock();
 //  VISIBILITY + BLUR — pause and silence when backgrounded
 // ============================================================
 function onAppBackground() {
+  // Stop in-game music
   stopMusic();
   if (audioCtx && audioCtx.state === 'running') {
     audioCtx.suspend().catch(() => {});
+  }
+  // Stop title screen music
+  stopTitleMusic();
+  if (titleAudioCtx && titleAudioCtx.state === 'running') {
+    titleAudioCtx.suspend().catch(() => {});
   }
   releaseWakeLock();
 }
@@ -11027,7 +11033,13 @@ function onAppForeground() {
   if (audioCtx && audioCtx.state === 'suspended') {
     audioCtx.resume().catch(() => {});
   }
-  if (!audioMuted && !musicPlaying && !mouseMazeActive && !cheeseChaseActive && !whackACatActive) {
+  if (titleAudioCtx && titleAudioCtx.state === 'suspended') {
+    titleAudioCtx.resume().catch(() => {});
+  }
+  // Resume appropriate music based on game state
+  if (!state.gameStarted) {
+    if (!titleMuted) { initTitleAudio(); startTitleMusic(); }
+  } else if (!audioMuted && !musicPlaying && !mouseMazeActive && !cheeseChaseActive && !whackACatActive) {
     startMusic();
   }
   requestWakeLock();
